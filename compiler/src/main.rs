@@ -33,6 +33,7 @@ fn main() {
         "build" => {
             run_build_command(&args[2..]);
         }
+        #[cfg(feature = "verify")]
         "verify" => {
             run_verify_command(&args[2..]);
         }
@@ -52,6 +53,7 @@ fn print_usage() {
     eprintln!("  tokens <file>         Print token stream");
     eprintln!("  check <file>          Type check program");
     eprintln!("  build [options] <file>  Build program to target");
+    #[cfg(feature = "verify")]
     eprintln!("  verify [options] <file>  Formally verify program");
     eprintln!();
     eprintln!("Build options:");
@@ -310,6 +312,7 @@ fn run_build_command(_args: &[String]) {
     std::process::exit(1);
 }
 
+#[cfg(feature = "verify")]
 fn run_verify_command(args: &[String]) {
     use naso_compiler::ast::Program;
     use naso_verify::{
