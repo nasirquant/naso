@@ -45,17 +45,17 @@ pub fn type_error_to_diagnostics(
     diagnostic.severity = Some(severity);
     diagnostic.code = Some(NumberOrString::String(code));
     diagnostic.related_information = related_ranges.map(|ranges| {
-        ranges
-            .into_iter()
-            .map(|range| DiagnosticRelatedInformation {
-                location: Location {
-                    uri: document_url.clone(),
-                    range: range.clone(),
-                },
-                message: String::new(),
-            })
-            .collect()
-    }));
+            ranges
+                .into_iter()
+                .map(|range| DiagnosticRelatedInformation {
+                    location: Location {
+                        uri: document_url.clone(),
+                        range: range.clone(),
+                    },
+                    message: String::new(),
+                })
+                .collect()
+        });
     
     diagnostics.push(diagnostic);
     diagnostics
