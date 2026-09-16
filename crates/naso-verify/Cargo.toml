@@ -1,0 +1,42 @@
+[package]
+name = "naso-verify"
+version = "0.1.0"
+edition = "2024"
+description = "SMT-based formal verification engine for Naso language"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/naso-lang/naso"
+
+[features]
+default = ["z3"]
+z3 = ["dep:z3"]
+
+[dependencies]
+# Core Naso compiler types
+naso-compiler = { path = "../../compiler" }
+
+# SMT Solver
+z3 = { version = "0.21", features = ["vendored"], optional = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Data structures
+indexmap = { workspace = true }
+smallvec = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+tracing = { workspace = true }
+clap = { workspace = true }
+colored = { workspace = true }
+
+# Parallel processing
+rayon = "1.10"
+
+# Hashing for cache
+blake3 = "1.5"
+
+[dev-dependencies]
+tempfile = "3.10"

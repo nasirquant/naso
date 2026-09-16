@@ -1,0 +1,162 @@
+// Tensor operations test file
+module tensor_test {
+    // Tensor type aliases
+    type Matrix<T, M, N> = Tensor<T; [M, N]>;
+    type Vector<T, N> = Tensor<T; [N]>;
+    type Tensor3D<T, D1, D2, D3> = Tensor<T; [D1, D2, D3]>;
+
+    // Basic tensor operations
+    fn matrix_multiply(A: Matrix<f64, M, K>, B: Matrix<f64, K, N>) -> Matrix<f64, M, N> {
+        matmul(A, B)
+    }
+
+    fn matrix_vector_multiply(A: Matrix<f64, M, N>, v: Vector<f64, N>) -> Vector<f64, M> {
+        matvec(A, v)
+    }
+
+    fn vector_matrix_multiply(v: Vector<f64, M>, A: Matrix<f64, M, N>) -> Vector<f64, N> {
+        vecmat(v, A)
+    }
+
+    fn outer_product(v1: Vector<f64, M>, v2: Vector<f64, N>) -> Matrix<f64, M, N> {
+        outer_product(v1, v2)
+    }
+
+    fn inner_product(v1: Vector<f64, N>, v2: Vector<f64, N>) -> f64 {
+        dot(v1, v2)
+    }
+
+    fn tensor_product(A: Tensor<f64; [D1, D2]>, B: Tensor<f64; [D3, D4]>) -> Tensor<f64; [D1, D2, D3, D4]> {
+        tensor_product(A, B)
+    }
+
+    fn tensor_contraction(A: Tensor<f64; [D1, D2, D3]>, B: Tensor<f64; [D3, D4, D5]>) -> Tensor<f64; [D1, D2, D4, D5]> {
+        contract(A, B, [2, 0])
+    }
+
+    fn einsum_example(A: Matrix<f64, M, K>, B: Matrix<f64, K, N>) -> Matrix<f64, M, N> {
+        einsum("mk,kn->mn", A, B)
+    }
+
+    // Linear algebra
+    fn transpose_matrix(A: Matrix<f64, M, N>) -> Matrix<f64, N, M> {
+        transpose(A)
+    }
+
+    fn permute_tensor(T: Tensor3D<f64, D1, D2, D3>, axes: [3] usize) -> Tensor3D<f64, D1, D2, D3> {
+        permute(T, axes)
+    }
+
+    fn reshape_tensor(T: Tensor<f64; [D1, D2]>, new_shape: [2] usize) -> Tensor<f64; [D1, D2]> {
+        reshape(T, new_shape)
+    }
+
+    fn slice_tensor(T: Matrix<f64, M, N>, start: [2] usize, end: [2] usize) -> Matrix<f64, M, N> {
+        slice(T, start, end)
+    }
+
+    fn concatenate_tensors(A: Matrix<f64, M, N>, B: Matrix<f64, M, N>, axis: usize) -> Matrix<f64, M, N> {
+        concatenate([A, B], axis)
+    }
+
+    fn split_tensor(T: Matrix<f64, M, N>, sections: [K] usize, axis: usize) -> [K] Matrix<f64, M, N> {
+        split(T, sections, axis)
+    }
+
+    // Decompositions
+    fn svd_decomposition(A: Matrix<f64, M, N>) -> (Matrix<f64, M, M>, Vector<f64, K>, Matrix<f64, N, N>) {
+        svd(A)
+    }
+
+    fn qr_decomposition(A: Matrix<f64, M, N>) -> (Matrix<f64, M, M>, Matrix<f64, M, N>) {
+        qr(A)
+    }
+
+    fn eig_decomposition(A: Matrix<f64, N, N>) -> (Vector<f64, N>, Matrix<f64, N, N>) {
+        eig(A)
+    }
+
+    fn cholesky_decomposition(A: Matrix<f64, N, N>) -> Matrix<f64, N, N> {
+        cholesky(A)
+    }
+
+    fn lu_decomposition(A: Matrix<f64, N, N>) -> (Matrix<f64, N, N>, Matrix<f64, N, N>, [N] usize) {
+        lu(A)
+    }
+
+    fn matrix_inverse(A: Matrix<f64, N, N>) -> Matrix<f64, N, N> {
+        inv(A)
+    }
+
+    fn determinant(A: Matrix<f64, N, N>) -> f64 {
+        det(A)
+    }
+
+    fn trace_matrix(A: Matrix<f64, N, N>) -> f64 {
+        trace(A)
+    }
+
+    // Norms and normalization
+    fn frobenius_norm(A: Matrix<f64, M, N>) -> f64 {
+        norm(A, "fro")
+    }
+
+    fn vector_norm(v: Vector<f64, N>, p: usize = 2) -> f64 {
+        norm(v, p)
+    }
+
+    fn normalize_vector(v: Vector<f64, N>) -> Vector<f64, N> {
+        normalize(v)
+    }
+
+    // Activation functions
+    fn softmax(x: Vector<f64, N>) -> Vector<f64, N> {
+        softmax(x)
+    }
+
+    fn log_softmax(x: Vector<f64, N>) -> Vector<f64, N> {
+        log_softmax(x)
+    }
+
+    // Polyhedral optimization examples
+    #[schedule(parallel, tile_size=32)]
+    forall (i in 0..M, j in 0..N, k in 0..K) {
+        C[i, j] += A[i, k] * B[k, j];
+    }
+
+    #[schedule(tiled, tile_size=16)]
+    tile (i, j) {
+        forall (k in 0..K) {
+            C[i, j] += A[i, k] * B[k, j];
+        }
+    }
+
+    fuse (loop1, loop2) {
+        // Fused loop body
+    }
+
+    // QTT-aware tensor operations
+    fn linear_tensor_op(x: [1] Matrix<f64, M, N>) -> [1] Matrix<f64, M, N> {
+        // Consumes and produces linear tensor
+        x * 2.0
+    }
+
+    fn proof_tensor_op(x: [0] Matrix<f64, M, N>) -> [0] bool {
+        // Proof-only tensor, erased at runtime
+        true
+    }
+
+    fn inout_tensor_op(inout x: Matrix<f64, M, N>) -> Matrix<f64, M, N> {
+        // Mutable value semantics
+        x = x + 1.0;
+        x
+    }
+
+    // Main
+    fn main() {
+        let A: Matrix<f64, 3, 3> = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        let B: Matrix<f64, 3, 3> = [[9.0, 8.0, 7.0], [6.0, 5.0, 4.0], [3.0, 2.0, 1.0]];
+        let C = matmul(A, B);
+        C
+    }
+}

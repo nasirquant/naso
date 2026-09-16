@@ -1,0 +1,56 @@
+[workspace]
+resolver = "2"
+members = [
+    "compiler",
+    "stdlib",
+    "crates/naso-lsp",
+    "crates/naso-verify",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/naso-lang/naso"
+
+[workspace.dependencies]
+# Parsing
+logos = { version = "0.13" }
+thiserror = "2.0"
+naso-compiler = { path = "compiler" }
+
+# LSP
+tower-lsp = { version = "0.20", features = ["runtime-tokio"] }
+tokio = { version = "1.35", features = ["full"] }
+dashmap = "6.1"
+
+# SMT Verification
+z3 = { version = "0.21", features = ["vendored"] }
+
+# AST / IR
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+indexmap = "2.0"
+smallvec = "1.0"
+
+# Testing
+# (proptest / criterion intentionally unused for now; they require a mingw
+# dlltool on this host, so they were removed to keep `cargo test` buildable)
+
+# Utilities
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4.5" }
+colored = "2.0"
+
+[profile.dev]
+opt-level = 1
+debug = true
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

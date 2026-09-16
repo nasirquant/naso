@@ -1,0 +1,26 @@
+module test_basic;
+
+use prelude;
+
+fn main() -> i32 {
+    let x: i32 = 42;
+    let mut y: f64 = 3.14;
+    const PI: f64 = 3.14159;
+    return 0;
+}
+
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn consume_linear(consume x: [1] i32) -> [1] i32 {
+    x
+}
+
+fn inout_param(inout x: i32) {
+    x = x + 1;
+}
+
+fn generic<T: Copy>(x: T) -> T {
+    x
+}

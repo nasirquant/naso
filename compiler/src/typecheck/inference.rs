@@ -1,0 +1,836 @@
+//! Inference functions for the Naso type checker
+//!
+//! Implements the bidirectional typing rules: infer mode (synthesis)
+
+use crate::ast::*;
+use crate::typecheck::check::{check_stmt, check_block};
+use crate::typecheck::error::TypeError;
+use crate::typecheck::*;
+use crate::ast::ty::{TypeKind, TypeVar, MetaVar};
+
+/// Infer the type of an expression (synthesis mode)
+pub fn infer_expr(checker: &mut TypeChecker, expr: &Expr) -> Result<Type, TypeError> {
+    match &expr.kind {
+        ExprKind::Literal(lit) => infer_literal(lit, expr.span),
+        ExprKind::Var(ident) => infer_var(checker, ident, expr.span),
+        ExprKind::Binary(op, lhs, rhs) => infer_binary(checker, *op, lhs, rhs, expr.span),
+        ExprKind::Unary(op, operand) => infer_unary(checker, *op, operand, expr.span),
+        ExprKind::Call(callee, args) => infer_call(checker, callee, args, expr.span),
+        ExprKind::MethodCall(receiver, method, args) => {
+            infer_method_call(checker, receiver, method, args, expr.span)
+        }
+        ExprKind::Field(base, field) => infer_field(checker, base, field, expr.span),
+        ExprKind::Index(base, index) => infer_index(checker, base, index, expr.span),
+        ExprKind::Struct(name, fields) => infer_struct(checker, name, fields, expr.span),
+        ExprKind::Variant(enum_name, variant_name, fields) => {
+            infer_variant(checker, enum_name, variant_name, fields, expr.span)
+        }
+        ExprKind::Tuple(elems) => infer_tuple(checker, elems, expr.span),
+        ExprKind::Array(elems) => infer_array(checker, elems, expr.span),
+        ExprKind::Block(block) => infer_block(checker, block, expr.span),
+        ExprKind::If(cond, then_branch, else_branch) => {
+            infer_if(checker, cond, then_branch, else_branch.as_deref(), expr.span)
+        }
+        ExprKind::Match(scrutinee, arms) => infer_match(checker, scrutinee, arms, expr.span),
+        ExprKind::Let(binding) => infer_let(checker, binding, expr.span),
+        ExprKind::LetInOut(binding) => infer_let_inout(checker, binding, expr.span),
+        ExprKind::LetConsume(binding) => infer_let_consume(checker, binding, expr.span),
+        ExprKind::Reversible(block) => infer_reversible(checker, block, expr.span),
+        ExprKind::Lambda(lambda) => infer_lambda(checker, lambda, expr.span),
+        ExprKind::For(for_loop) => infer_for(checker, for_loop, expr.span),
+        ExprKind::While(cond, body) => infer_while(checker, cond, body, expr.span),
+        ExprKind::Return(opt_expr) => infer_return(checker, opt_expr.as_deref(), expr.span),
+        ExprKind::Assign(lhs, rhs) => infer_assign(checker, lhs, rhs, expr.span),
+        ExprKind::Projection(base) => infer_projection(checker, base, expr.span),
+        ExprKind::QuantumOp(qop) => infer_quantum_op(checker, qop, expr.span),
+        ExprKind::Ascribe(inner, ty) => Ok(ty.clone()),
+        ExprKind::Break(opt_expr) => infer_break(checker, opt_expr.as_deref(), expr.span),
+        ExprKind::Continue => infer_continue(expr.span),
+        ExprKind::Error => Ok(Type::new(TypeKind::Error, Quantity::Many, expr.span)),
+    }
+}
+
+/// Infer literal type
+fn infer_literal(lit: &Literal, span: Span) -> Result<Type, TypeError> {
+    let ty = match lit {
+        Literal::Int(_) => TypeKind::Int,
+        Literal::UInt(_) => TypeKind::UInt,
+        Literal::Float(_) => TypeKind::Float,
+        Literal::Bool(_) => TypeKind::Bool,
+        Literal::String(_) => TypeKind::String,
+        Literal::Char(_) => TypeKind::Char,
+        Literal::Unit => TypeKind::Unit,
+    };
+    Ok(Type::new(ty, Quantity::Many, span))
+}
+
+/// Infer variable type from environment
+fn infer_var(checker: &mut TypeChecker, ident: &Ident, span: Span) -> Result<Type, TypeError> {
+    if let Some(info) = checker.env.lookup_var(ident) {
+        // Return type with the variable's declared quantity, not the inferred type's quantity
+        let mut ty = info.ty.clone();
+        ty.quantity = info.quantity;
+        // Record the use
+        checker.env.use_var(ident, span)?;
+        Ok(ty)
+    } else {
+        Err(TypeError::VariableNotAvailable {
+            name: ident.clone(),
+            reason: "undefined variable".to_string(),
+            span,
+        })
+    }
+}
+
+/// Infer binary operation type
+fn infer_binary(
+    checker: &mut TypeChecker,
+    op: BinOp,
+    lhs: &Expr,
+    rhs: &Expr,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let lhs_ty = infer_expr(checker, lhs)?;
+    let rhs_ty = infer_expr(checker, rhs)?;
+    
+    // For arithmetic/comparison ops, both operands should have same numeric type
+    // Result is Bool for comparisons, same type for arithmetic
+    let result_ty = match op {
+        BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Rem => {
+            // Unify lhs and rhs types
+            unify::unify_types(checker, &lhs_ty, &rhs_ty)?;
+            lhs_ty
+        }
+        BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge => {
+            unify::unify_types(checker, &lhs_ty, &rhs_ty)?;
+            Type::new(TypeKind::Bool, Quantity::Many, span)
+        }
+        BinOp::And | BinOp::Or => {
+            unify::unify_types(checker, &lhs_ty, &rhs_ty)?;
+            unify::unify_types(checker, &lhs_ty, &Type::new(TypeKind::Bool, Quantity::Many, span))?;
+            Type::new(TypeKind::Bool, Quantity::Many, span)
+        }
+        BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::Shl | BinOp::Shr => {
+            unify::unify_types(checker, &lhs_ty, &rhs_ty)?;
+            lhs_ty
+        }
+        BinOp::Assign => {
+            // LHS must be a place expression, RHS type must match
+            // For now, just unify
+            unify::unify_types(checker, &lhs_ty, &rhs_ty)?;
+            Type::unit(span)
+        }
+    };
+    Ok(result_ty)
+}
+
+/// Infer unary operation type
+fn infer_unary(
+    checker: &mut TypeChecker,
+    op: UnOp,
+    operand: &Expr,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let operand_ty = infer_expr(checker, operand)?;
+    
+    let result_ty = match op {
+        UnOp::Neg => operand_ty,
+        UnOp::Not => {
+            unify::unify_types(checker, &operand_ty, &Type::new(TypeKind::Bool, Quantity::Many, span))?;
+            Type::new(TypeKind::Bool, Quantity::Many, span)
+        }
+        UnOp::BitNot => operand_ty,
+        UnOp::Deref => {
+            // Operand should be a reference type
+            // For now, just return the inner type
+            match &operand_ty.kind {
+                TypeKind::Projection(inner) => *inner.clone(),
+                _ => Type::new(TypeKind::Error, Quantity::Many, span),
+            }
+        }
+        UnOp::InOut => {
+            // Creates a projection type
+            Type::new(
+                TypeKind::Projection(Box::new(operand_ty)),
+                Quantity::One,
+                span,
+            )
+        }
+        UnOp::Consume => {
+            // Consumes the operand, produces same type with consume mutability
+            checker.env.move_var(&operand_ty.to_ident(), span)?;
+            operand_ty
+        }
+    };
+    Ok(result_ty)
+}
+
+/// Infer function call type
+fn infer_call(
+    checker: &mut TypeChecker,
+    callee: &Expr,
+    args: &[Expr],
+    span: Span,
+) -> Result<Type, TypeError> {
+    let callee_ty = infer_expr(checker, callee)?;
+
+    // Expect callee to be a function type
+    match &callee_ty.kind {
+        TypeKind::Function(params, ret) => {
+            // Check argument count
+            if params.len() != args.len() {
+                return Err(TypeError::ArgumentCountMismatch {
+                    expected: params.len(),
+                    found: args.len(),
+                    span,
+                });
+            }
+
+            // Check each argument against parameter type
+            for (param, arg) in params.iter().zip(args) {
+                checker.check_expr(arg, param)?;
+            }
+
+            Ok(*ret.clone())
+        }
+        TypeKind::Pi(name, domain, codomain) => {
+            // Dependent function application: Π(x:τ₁). τ₂
+            // arg must check against domain, result is codomain[arg/x]
+            if args.len() != 1 {
+                return Err(TypeError::ArgumentCountMismatch {
+                    expected: 1,
+                    found: args.len(),
+                    span,
+                });
+            }
+
+            // Check argument against domain
+            checker.check_expr(&args[0], domain)?;
+
+            // Substitute arg into codomain (simplified - would need proper substitution)
+            // For now, return codomain as-is
+            Ok(*codomain.clone())
+        }
+        _ => Err(TypeError::NotAFunction {
+            ty: callee_ty,
+            span,
+        }),
+    }
+}
+
+/// Infer method call type
+fn infer_method_call(
+    checker: &mut TypeChecker,
+    receiver: &Expr,
+    method: &Ident,
+    args: &[Expr],
+    span: Span,
+) -> Result<Type, TypeError> {
+    let receiver_ty = infer_expr(checker, receiver)?;
+    
+    // Look up method on receiver type
+    // For now, stub - would need type class / trait system
+    Ok(Type::new(TypeKind::Unit, Quantity::Many, span))
+}
+
+/// Infer field access type
+fn infer_field(
+    checker: &mut TypeChecker,
+    base: &Expr,
+    field: &Ident,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let base_ty = infer_expr(checker, base)?;
+    
+    // Look up field in struct type
+    match &base_ty.kind {
+        TypeKind::Named(name, _) => {
+            if let Some(type_def) = checker.env.lookup_type(name) {
+                if let TypeDefKind::Struct(fields) = &type_def.kind {
+                    for f in fields {
+                        if f.name == *field {
+                            return Ok(f.ty.clone());
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    
+    Err(TypeError::FieldNotFound {
+        field: field.clone(),
+        ty: base_ty,
+        span,
+    })
+}
+
+/// Infer index access type
+fn infer_index(
+    checker: &mut TypeChecker,
+    base: &Expr,
+    index: &Expr,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let base_ty = infer_expr(checker, base)?;
+    let _index_ty = infer_expr(checker, index)?;
+    
+    // For arrays/tensors, return element type
+    match &base_ty.kind {
+        TypeKind::Array(elem, _) => Ok(*elem.clone()),
+        TypeKind::Tensor(dims) if !dims.is_empty() => Ok(dims[0].clone()),
+        _ => Err(TypeError::NotIndexable {
+            ty: base_ty,
+            span,
+        }),
+    }
+}
+
+/// Infer struct literal type
+fn infer_struct(
+    checker: &mut TypeChecker,
+    name: &Ident,
+    fields: &[FieldExpr],
+    span: Span,
+) -> Result<Type, TypeError> {
+    // Look up struct definition
+    let type_def = checker.env.lookup_type(name).cloned();
+    if let Some(type_def) = type_def {
+        if let TypeDefKind::Struct(struct_fields) = &type_def.kind {
+            // Check each field
+            for field_expr in fields {
+                if let Some(field_def) = struct_fields.iter().find(|f| f.name == field_expr.name) {
+                    checker.check_expr(&field_expr.value, &field_def.ty)?;
+                }
+            }
+            Ok(Type::new(
+                TypeKind::Named(name.clone(), Vec::new()),
+                Quantity::Many,
+                span,
+            ))
+        } else {
+            Err(TypeError::NotAStruct {
+                name: name.clone(),
+                span,
+            })
+        }
+    } else {
+        Err(TypeError::UndefinedType {
+            name: name.clone(),
+            span,
+        })
+    }
+}
+
+/// Infer enum variant type
+fn infer_variant(
+    checker: &mut TypeChecker,
+    enum_name: &Ident,
+    variant_name: &Ident,
+    fields: &[Expr],
+    span: Span,
+) -> Result<Type, TypeError> {
+    // Look up enum definition
+    let type_def = checker.env.lookup_type(enum_name).cloned();
+    if let Some(type_def) = type_def {
+        if let TypeDefKind::Enum(variants) = &type_def.kind {
+            if let Some(variant) = variants.iter().find(|v| v.name == *variant_name) {
+                // Check field count and types
+                if variant.fields.len() != fields.len() {
+                    return Err(TypeError::ArgumentCountMismatch {
+                        expected: variant.fields.len(),
+                        found: fields.len(),
+                        span,
+                    });
+                }
+                for (field_def, field_expr) in variant.fields.iter().zip(fields) {
+                    checker.check_expr(field_expr, &field_def.ty)?;
+                }
+                return Ok(Type::new(
+                    TypeKind::Named(enum_name.clone(), Vec::new()),
+                    Quantity::Many,
+                    span,
+                ));
+            }
+        }
+    }
+
+    Err(TypeError::VariantNotFound {
+        enum_name: enum_name.clone(),
+        variant_name: variant_name.clone(),
+        span,
+    })
+}
+
+/// Infer tuple type
+fn infer_tuple(
+    checker: &mut TypeChecker,
+    elems: &[Expr],
+    span: Span,
+) -> Result<Type, TypeError> {
+    let mut elem_types = Vec::new();
+    for elem in elems {
+        elem_types.push(infer_expr(checker, elem)?);
+    }
+    Ok(Type::new(TypeKind::Tuple(elem_types), Quantity::Many, span))
+}
+
+/// Infer sigma (dependent pair) type
+fn infer_sigma(
+    checker: &mut TypeChecker,
+    fst: &Expr,
+    snd: &Expr,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let fst_ty = infer_expr(checker, fst)?;
+    let snd_ty = infer_expr(checker, snd)?;
+
+    // Create sigma type: Σ(x:τ₁). τ₂
+    // For simplicity, we create a fresh metavariable for the dependent part
+    let name = Ident::new("_", span);
+    let sigma_ty = Type::new(
+        TypeKind::Sigma(name, Box::new(fst_ty), Box::new(snd_ty)),
+        Quantity::Many,
+        span,
+    );
+
+    Ok(sigma_ty)
+}
+
+/// Infer array type
+fn infer_array(
+    checker: &mut TypeChecker,
+    elems: &[Expr],
+    span: Span,
+) -> Result<Type, TypeError> {
+    if elems.is_empty() {
+        // Empty array - element type unknown, create metavar
+        let elem_mv = fresh_meta_var();
+        checker.register_meta(elem_mv, None);
+        let elem_ty = Type::new(TypeKind::Var(TypeVar(elem_mv.0)), Quantity::Many, span);
+        return Ok(Type::new(TypeKind::Array(Box::new(elem_ty), None), Quantity::Many, span));
+    }
+    
+    let first_ty = infer_expr(checker, &elems[0])?;
+    for elem in &elems[1..] {
+        let elem_ty = infer_expr(checker, elem)?;
+        unify::unify_types(checker, &first_ty, &elem_ty)?;
+    }
+    
+    Ok(Type::new(TypeKind::Array(Box::new(first_ty), None), Quantity::Many, span))
+}
+
+/// Infer block expression type
+fn infer_block(
+    checker: &mut TypeChecker,
+    block: &Block,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let guard = checker.env.enter_scope();
+    
+    for stmt in &block.stmts {
+        check_stmt(checker, stmt)?;
+    }
+    
+    let result_ty = if let Some(expr) = &block.expr {
+        infer_expr(checker, expr)?
+    } else {
+        Type::unit(span)
+    };
+    
+    checker.env.exit_scope(guard)?;
+    Ok(result_ty)
+}
+
+/// Infer if expression type
+fn infer_if(
+    checker: &mut TypeChecker,
+    cond: &Expr,
+    then_branch: &Expr,
+    else_branch: Option<&Expr>,
+    span: Span,
+) -> Result<Type, TypeError> {
+    // Condition must be Bool
+    let cond_ty = infer_expr(checker, cond)?;
+    unify::unify_types(checker, &cond_ty, &Type::new(TypeKind::Bool, Quantity::Many, span))?;
+    
+    let then_ty = infer_expr(checker, then_branch)?;
+    
+    if let Some(else_expr) = else_branch {
+        let else_ty = infer_expr(checker, else_expr)?;
+        unify::unify_types(checker, &then_ty, &else_ty)?;
+        Ok(then_ty)
+    } else {
+        // If without else returns Unit
+        unify::unify_types(checker, &then_ty, &Type::unit(span))?;
+        Ok(Type::unit(span))
+    }
+}
+
+/// Infer match expression type
+fn infer_match(
+    checker: &mut TypeChecker,
+    scrutinee: &Expr,
+    arms: &[MatchArm],
+    span: Span,
+) -> Result<Type, TypeError> {
+    let scrutinee_ty = infer_expr(checker, scrutinee)?;
+    
+    if arms.is_empty() {
+        return Ok(Type::unit(span));
+    }
+    
+    // Check first arm to get expected result type
+    let first_arm = &arms[0];
+    let bindings = checker.check_pattern(&first_arm.pattern, &scrutinee_ty)?;
+    
+    // Bind pattern variables
+    let guard = checker.env.enter_scope();
+    for (name, info) in bindings.vars {
+        checker.env.bind_var(name, info.ty, info.quantity, info.mutability);
+    }
+    
+    let mut result_ty = if let Some(guard_expr) = &first_arm.guard {
+        infer_expr(checker, guard_expr)?
+    } else {
+        infer_expr(checker, &first_arm.body)?
+    };
+    
+    checker.env.exit_scope(guard)?;
+    
+    // Check remaining arms
+    for arm in &arms[1..] {
+        let bindings = checker.check_pattern(&arm.pattern, &scrutinee_ty)?;
+        let guard = checker.env.enter_scope();
+        for (name, info) in bindings.vars {
+            checker.env.bind_var(name, info.ty, info.quantity, info.mutability);
+        }
+        
+        let arm_ty = if let Some(guard_expr) = &arm.guard {
+            infer_expr(checker, guard_expr)?
+        } else {
+            infer_expr(checker, &arm.body)?
+        };
+        
+        unify::unify_types(checker, &result_ty, &arm_ty)?;
+        checker.env.exit_scope(guard)?;
+    }
+    
+    Ok(result_ty)
+}
+
+/// Infer let binding type
+fn infer_let(
+    checker: &mut TypeChecker,
+    binding: &LetBinding,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let value_ty = infer_expr(checker, &binding.value)?;
+    
+    // If explicit type annotation, check against it
+    if let Some(ann_ty) = &binding.ty {
+        unify::unify_types(checker, &value_ty, ann_ty)?;
+    }
+    
+    // Bind the variable
+    checker.env.bind_var(
+        binding.name.clone(),
+        value_ty.clone(),
+        binding.quantity,
+        binding.mutability,
+    );
+    
+    Ok(value_ty)
+}
+
+/// Infer inout let binding type
+fn infer_let_inout(
+    checker: &mut TypeChecker,
+    binding: &LetInOutBinding,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let value_ty = infer_expr(checker, &binding.value)?;
+    
+    // Value must be a place expression with quantity 1
+    // For now, just check quantity
+    if value_ty.quantity != Quantity::One {
+        return Err(TypeError::InOutRequiresUnique {
+            found_qty: value_ty.quantity,
+            span,
+        });
+    }
+    
+    // Bind as inout
+    checker.env.bind_var(
+        binding.name.clone(),
+        value_ty.clone(),
+        Quantity::One,
+        Mutability::InOut,
+    );
+    
+    Ok(value_ty)
+}
+
+/// Infer consume let binding type
+fn infer_let_consume(
+    checker: &mut TypeChecker,
+    binding: &LetConsumeBinding,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let value_ty = infer_expr(checker, &binding.value)?;
+
+    // Value must be a place expression with quantity 1
+    if value_ty.quantity != Quantity::One {
+        return Err(TypeError::QuantityMismatch {
+            expected: Quantity::One,
+            found: value_ty.quantity,
+            span,
+        });
+    }
+
+    // Bind as consume with the inferred type
+    checker.env.bind_var(
+        binding.name.clone(),
+        value_ty.clone(),
+        Quantity::One,
+        Mutability::Consume,
+    );
+
+    Ok(value_ty)
+}
+
+/// Infer reversible block type
+fn infer_reversible(
+    checker: &mut TypeChecker,
+    block: &ReversibleBlock,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let prev_reversible = checker.in_reversible;
+    checker.in_reversible = true;
+    
+    let guard = checker.env.enter_scope();
+    
+    // Check body statements
+    for stmt in &block.body.stmts {
+        check_stmt(checker, stmt)?;
+    }
+    
+    // Verify all variables in scope have inverses registered
+    // (stub for now)
+    
+    checker.env.exit_scope(guard)?;
+    checker.in_reversible = prev_reversible;
+    
+    Ok(Type::unit(span))
+}
+
+/// Infer lambda type
+fn infer_lambda(
+    checker: &mut TypeChecker,
+    lambda: &LambdaExpr,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let guard = checker.env.enter_scope();
+
+    // Bind parameters
+    for param in &lambda.params {
+        checker.env.bind_var(
+            param.name.clone(),
+            param.ty.clone(),
+            param.quantity,
+            param.mutability,
+        );
+    }
+
+    // Check body
+    let body_ty = if let Some(ret_ty) = &lambda.ret_ty {
+        checker.check_expr(&lambda.body, ret_ty)?;
+        ret_ty.clone()
+    } else {
+        infer_expr(checker, &lambda.body)?
+    };
+
+    // Build function type
+    let param_types: Vec<Type> = lambda.params.iter().map(|p| p.ty.clone()).collect();
+    
+    // Check if this is a dependent lambda (Pi type)
+    // If any parameter has a type that depends on a previous parameter, use Pi type
+    let fn_ty = if lambda.params.iter().any(|p| {
+        // Check if parameter type contains dependent types
+        matches!(&p.ty.kind, TypeKind::Pi(_, _, _) | TypeKind::Sigma(_, _, _))
+    }) {
+        // Build dependent function type (Pi)
+        let mut codomain = body_ty;
+        for param in lambda.params.iter().rev() {
+            let name = param.name.clone();
+            let domain = param.ty.clone();
+            codomain = Type::new(
+                TypeKind::Pi(name, Box::new(domain), Box::new(codomain)),
+                Quantity::Many,
+                span,
+            );
+        }
+        codomain
+    } else {
+        Type::new(
+            TypeKind::Function(param_types, Box::new(body_ty)),
+            Quantity::Many,
+            span,
+        )
+    };
+
+    checker.env.exit_scope(guard)?;
+    Ok(fn_ty)
+}
+
+/// Infer for loop type
+fn infer_for(
+    checker: &mut TypeChecker,
+    for_loop: &ForLoop,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let iter_ty = infer_expr(checker, &for_loop.iter)?;
+    
+    // Iterator type should be iterable
+    // For now, just bind the loop variable
+    let guard = checker.env.enter_scope();
+    checker.env.bind_var(
+        for_loop.var.clone(),
+        iter_ty, // Simplified - should be element type
+        Quantity::Many,
+        Mutability::Immutable,
+    );
+    
+    check_block(checker, &for_loop.body)?;
+    checker.env.exit_scope(guard)?;
+    
+    Ok(Type::unit(span))
+}
+
+/// Infer while loop type
+fn infer_while(
+    checker: &mut TypeChecker,
+    cond: &Expr,
+    body: &Expr,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let cond_ty = infer_expr(checker, cond)?;
+    unify::unify_types(checker, &cond_ty, &Type::new(TypeKind::Bool, Quantity::Many, span))?;
+    
+    infer_expr(checker, body)?;
+    Ok(Type::unit(span))
+}
+
+/// Infer return expression type
+fn infer_return(
+    checker: &mut TypeChecker,
+    opt_expr: Option<&Expr>,
+    span: Span,
+) -> Result<Type, TypeError> {
+    if let Some(expr) = opt_expr {
+        let expr_ty = infer_expr(checker, expr)?;
+        if let Some(expected) = checker.current_fn_ret.clone() {
+            unify::unify_types(checker, &expr_ty, &expected)?;
+        }
+    } else {
+        // Empty return - check against Unit
+        if let Some(expected) = checker.current_fn_ret.clone() {
+            unify::unify_types(checker, &Type::unit(span), &expected)?;
+        }
+    }
+    Ok(Type::never(span)) // Return type is ! (never)
+}
+
+/// Infer assignment type
+fn infer_assign(
+    checker: &mut TypeChecker,
+    lhs: &Expr,
+    rhs: &Expr,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let lhs_ty = infer_expr(checker, lhs)?;
+    let rhs_ty = infer_expr(checker, rhs)?;
+    
+    // LHS must be a place expression
+    // For now, just unify types
+    unify::unify_types(checker, &lhs_ty, &rhs_ty)?;
+    Ok(Type::unit(span))
+}
+
+/// Infer projection type
+fn infer_projection(
+    checker: &mut TypeChecker,
+    base: &Expr,
+    span: Span,
+) -> Result<Type, TypeError> {
+    let base_ty = infer_expr(checker, base)?;
+    
+    // Create projection type
+    Ok(Type::new(
+        TypeKind::Projection(Box::new(base_ty)),
+        Quantity::One,
+        span,
+    ))
+}
+
+/// Infer quantum operation type
+fn infer_quantum_op(
+    checker: &mut TypeChecker,
+    qop: &QuantumOp,
+    span: Span,
+) -> Result<Type, TypeError> {
+    match qop {
+        QuantumOp::Alloc(_name) => {
+            // qalloc() returns a new qubit with quantity One
+            Ok(Type::qubit(span))
+        }
+        QuantumOp::Measure(target) => {
+            let target_ty = infer_expr(checker, target)?;
+            // Target must be Qubit @ 1
+            unify::unify_types(checker, &target_ty, &Type::qubit(span))?;
+            checker.env.move_var(&target_ty.to_ident(), span)?;
+            Ok(Type::new(TypeKind::Bool, Quantity::One, span))
+        }
+        QuantumOp::ApplyGate(gate, args) => {
+            // Check gate arguments
+            for arg in args {
+                infer_expr(checker, arg)?;
+            }
+            Ok(Type::unit(span))
+        }
+        QuantumOp::Entangle(args) => {
+            for arg in args {
+                let arg_ty = infer_expr(checker, arg)?;
+                unify::unify_types(checker, &arg_ty, &Type::qubit(span))?;
+                checker.env.move_var(&arg_ty.to_ident(), span)?;
+            }
+            // Returns QRegister with dimension = number of qubits
+            Ok(Type::new(
+                TypeKind::QRegister(args.iter().map(|_| Type::qubit(span)).collect()),
+                Quantity::One,
+                span,
+            ))
+        }
+        QuantumOp::Phase(_, _) => Ok(Type::unit(span)),
+        QuantumOp::Hamiltonian(_, _) => Ok(Type::unit(span)),
+    }
+}
+
+/// Infer break expression type
+fn infer_break(
+    checker: &mut TypeChecker,
+    opt_expr: Option<&Expr>,
+    span: Span,
+) -> Result<Type, TypeError> {
+    if let Some(expr) = opt_expr {
+        infer_expr(checker, expr)?;
+    }
+    // Break is a diverging expression - returns Never type
+    Ok(Type::never(span))
+}
+
+/// Infer continue expression type
+fn infer_continue(span: Span) -> Result<Type, TypeError> {
+    // Continue is a diverging expression - returns Never type
+    Ok(Type::never(span))
+}

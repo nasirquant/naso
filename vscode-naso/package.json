@@ -1,0 +1,66 @@
+{
+  "name": "vscode-naso",
+  "displayName": "Naso Language Support",
+  "description": "Language support for Naso including syntax highlighting, QTT hover tooltips, real-time SMT diagnostics, and more.",
+  "version": "0.0.1",
+  "publisher": "nasirquant",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "naso",
+    "nasolang",
+    "language",
+    "syntax",
+    "linter",
+    "diagnostics"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "naso",
+        "aliases": [
+          "Naso",
+          "naso"
+        ],
+        "extensions": [
+          ".naso"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "naso",
+        "scopeName": "source.naso",
+        "path": "./syntaxes/naso.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "node esbuild.mjs",
+    "compile": "node esbuild.mjs",
+    "watch": "node -e \"require('esbuild').build({entryPoints:['src/extension.ts'], bundle:true, outfile:'dist/extension.js', external:['vscode'], platform:'node', format:'cjs', sourcemap:true, watch:true}).catch(() => process.exit(1))\"",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext .ts",
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

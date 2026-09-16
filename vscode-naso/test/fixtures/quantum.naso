@@ -1,0 +1,133 @@
+// Quantum circuit test file
+module quantum_test {
+    // Quantum primitives
+    fn bell_pair() -> ([1] qubit, [1] qubit) {
+        let q0 = qalloc();
+        let q1 = qalloc();
+        hadamard(q0);
+        cnot(q0, q1);
+        (q0, q1)
+    }
+
+    fn ghz_state(n: usize) -> [N] qubit {
+        let qubits = qalloc(n);
+        hadamard(qubits[0]);
+        forall (i in 1..n) {
+            cnot(qubits[0], qubits[i]);
+        }
+        qubits
+    }
+
+    fn quantum_teleportation(state: [1] qubit, alice: [1] qubit, bob: [1] qubit) -> ([1] qubit, [1] qubit, [1] qubit) {
+        // Bell pair between Alice and Bob
+        hadamard(alice);
+        cnot(alice, bob);
+        
+        // Alice's operations
+        cnot(state, alice);
+        hadamard(state);
+        
+        // Measure Alice's qubits
+        let m1 = measure(state);
+        let m2 = measure(alice);
+        
+        // Bob's corrections
+        if m2 { pauli_x(bob); }
+        if m1 { pauli_z(bob); }
+        
+        (state, alice, bob)
+    }
+
+    fn qft_circuit(qubits: [N] qubit) -> [N] qubit {
+        let n = qubits.len();
+        forall (i in 0..n) {
+            hadamard(qubits[i]);
+            forall (j in (i+1)..n) {
+                let angle = 2.0 * PI / (2.0_f64.powi((j - i + 1) as i32));
+                phase(qubits[j], angle);
+            }
+        }
+        // Swap for bit reversal
+        forall (i in 0..(n/2)) {
+            swap(qubits[i], qubits[n - 1 - i]);
+        }
+        qubits
+    }
+
+    fn grover_iteration(oracle: fn([N] qubit) -> [N] qubit, diffusion: fn([N] qubit) -> [N] qubit, state: [N] qubit) -> [N] qubit {
+        let state1 = oracle(state);
+        let state2 = diffusion(state1);
+        state2
+    }
+
+    fn grover_oracle(state: [N] qubit, target: [0] [N] bool) -> [N] qubit {
+        // Mark target state with phase flip
+        // Implementation depends on specific oracle
+        state
+    }
+
+    fn grover_diffusion(state: [N] qubit) -> [N] qubit {
+        // Inversion about the mean
+        forall (i in 0..state.len()) {
+            hadamard(state[i]);
+            pauli_x(state[i]);
+        }
+        // Multi-controlled Z
+        // ... implementation
+        forall (i in 0..state.len()) {
+            pauli_x(state[i]);
+            hadamard(state[i]);
+        }
+        state
+    }
+
+    fn variational_circuit(params: [N] f64, qubits: [N] qubit) -> [N] qubit {
+        forall (i in 0..qubits.len()) {
+            pauli_x(qubits[i]); // Initial state |1>
+        }
+        
+        // Ansatz layers
+        forall (layer in 0..params.len() / qubits.len()) {
+            forall (i in 0..qubits.len()) {
+                let param_idx = layer * qubits.len() + i;
+                pauli_x(qubits[i]); // Rx rotation approximation
+            }
+            
+            // Entangling layer
+            forall (i in 0..qubits.len() - 1) {
+                cnot(qubits[i], qubits[i + 1]);
+            }
+        }
+        
+        qubits
+    }
+
+    // Measurement and classical control
+    fn measure_all(qubits: [N] qubit) -> [N] bool {
+        let results = [false; qubits.len()];
+        forall (i in 0..qubits.len()) {
+            results[i] = measure(qubits[i]);
+        }
+        results
+    }
+
+    fn reset_qubits(qubits: [N] qubit) -> [N] qubit {
+        forall (i in 0..qubits.len()) {
+            reset(qubits[i]);
+        }
+        qubits
+    }
+
+    // Quantum error correction example
+    fn encode_logical_qubit(physical: [9] qubit) -> [9] qubit {
+        // Shor's 9-qubit code encoding
+        // ... implementation
+        physical
+    }
+
+    fn syndrome_measurement(encoded: [9] qubit) -> [8] bool {
+        // Measure stabilizers
+        // ... implementation
+        [false; 8]
+    }
+}

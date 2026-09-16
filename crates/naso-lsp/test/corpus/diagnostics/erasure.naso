@@ -1,0 +1,15 @@
+//! Test corpus for erasure diagnostics
+
+// NASO-ERA-001: Erased [0] variable used at runtime
+fn test_erased_at_runtime() {
+    let proof: [0] Bool = true; // proof-only variable
+    if proof { // ERROR: NASO-ERA-001 - [0] variable used at runtime
+        // ...
+    }
+}
+
+// NASO-ERA-002: Non-erased proof in compiled output
+fn test_non_erased_proof() {
+    let proof: [0] Bool = true;
+    let x: Int = if proof { 1 } else { 0 }; // ERROR: NASO-ERA-002 - proof affects runtime
+}

@@ -1,0 +1,4 @@
+fn main() {
+    let [1] x = 42;
+    // x is never consumed - linear leak
+}

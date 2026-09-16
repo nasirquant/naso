@@ -1,0 +1,40 @@
+﻿.dev/
+.planning/
+.hermes/
+.hermes-tmp*/
+*.log
+
+# Rust outputs
+target/
+**/*.rs.bk
+*.rlib
+*.rmeta
+
+# Node / VS Code extensions
+**/node_modules/
+**/dist/
+**/out/
+*.vsix
+.vscode-test/
+.vscode/
+.vs/
+
+# Hugo build outputs
+public/
+resources/
+docs/public/
+docs/resources/_gen/
+.hugo_build.lock
+.hugo_stats.json
+
+# System & Archives
+*.zip
+*.tar.gz
+*.7z
+.DS_Store
+Thumbs.db
+.env
+.env.*
+.idea/
+*.swp
+*~

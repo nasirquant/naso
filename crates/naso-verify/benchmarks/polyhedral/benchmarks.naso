@@ -1,0 +1,119 @@
+// Valid: Tiled matrix multiplication
+fn tiled_matmul(a: [1] Tensor<[64, 64]>, b: [1] Tensor<[64, 64]>) -> [1] Tensor<[64, 64]> {
+    let c = alloc_tensor([64, 64]);
+    tile (16, 16) forall i in 0..64, j in 0..64 {
+        let mut sum = 0.0;
+        forall k in 0..64 {
+            sum = sum + a[i, k] * b[k, j];
+        }
+        c[i, j] = sum;
+    }
+    c
+}
+
+// Valid: Loop fusion example
+fn fused_loops(a: [1] Tensor<[100]>, b: [1] Tensor<[100]>) -> [1] Tensor<[100]> {
+    let c = alloc_tensor([100]);
+    let d = alloc_tensor([100]);
+    // Fused: single loop instead of two
+    forall i in 0..100 {
+        c[i] = a[i] + b[i];
+        d[i] = a[i] * b[i];
+    }
+    c
+}
+
+// Valid: Loop invariant hoisting
+fn invariant_hoisting(a: [1] Tensor<[50]>, b: [1] Tensor<[50]>) -> [1] Tensor<[50]> {
+    let c = alloc_tensor([50]);
+    let factor = 2.0 * 3.14159; // Loop invariant
+    forall i in 0..50 {
+        c[i] = a[i] * factor + b[i];
+    }
+    c
+}
+
+// Valid: Polyhedral schedule with dependence analysis
+fn scheduled_matmul(a: [1] Tensor<[32, 32]>, b: [1] Tensor<[32, 32]>) -> [1] Tensor<[32, 32]> {
+    let c = alloc_tensor([32, 32]);
+    // Explicit schedule: interchange i,j and tile
+    schedule {
+        interchange i, j;
+        tile i 8, j 8;
+    }
+    forall i in 0..32, j in 0..32 {
+        let mut sum = 0.0;
+        forall k in 0..32 {
+            sum = sum + a[i, k] * b[k, j];
+        }
+        c[i, j] = sum;
+    }
+    c
+}
+
+// Valid: Reduction with proper initialization
+fn reduction_sum(a: [1] Tensor<[1000]>) -> f64 {
+    let mut sum = 0.0;
+    forall i in 0..1000 {
+        sum = sum + a[i];
+    }
+    sum
+}
+
+// Valid: Stencil computation (1D heat equation)
+fn stencil_1d(u: [1] Tensor<[100]>) -> [1] Tensor<[100]> {
+    let v = alloc_tensor([100]);
+    forall i in 1..99 {
+        v[i] = 0.5 * (u[i-1] + u[i+1]);
+    }
+    v[0] = u[0];
+    v[99] = u[99];
+    v
+}
+
+// Valid: Loop skewing for parallelization
+fn skewed_loop(a: [1] Tensor<[50, 50]>) -> [1] Tensor<[50, 50]> {
+    let b = alloc_tensor([50, 50]);
+    // Skew transformation: i' = i, j' = i + j
+    forall i in 0..50, j in 0..50 {
+        if i + j < 50 {
+            b[i, j] = a[i, j] + 1.0;
+        }
+    }
+    b
+}
+
+// Invalid: Loop with data race (simulated by aliasing)
+fn data_race_loop(inout a: [1] Tensor<[100]>, inout b: [1] Tensor<[100]>) {
+    // a and b might alias - MVS should catch this
+    forall i in 0..100 {
+        a[i] = a[i] + 1.0;
+        b[i] = b[i] * 2.0;
+    }
+}
+
+// Invalid: Loop invariant not actually invariant
+fn false_invariant(a: [1] Tensor<[50]>) {
+    let mut sum = 0.0;
+    forall i in 0..50 {
+        sum = sum + a[i]; // sum changes each iteration - not invariant!
+        let _ = a[i] * sum; // Using loop-varying sum as if invariant
+    }
+}
+
+// Invalid: Out-of-bounds access in polyhedral loop
+fn oob_access(a: [1] Tensor<[10]>) {
+    forall i in 0..15 { // Loop goes beyond array bounds
+        let _ = a[i]; // OOB when i >= 10
+    }
+}
+
+// Invalid: Dependence violation in scheduled loop
+fn dependence_violation(inout a: [1] Tensor<[100]>) {
+    // This loop has loop-carried dependence that prevents parallelization
+    // but schedule claims it's parallel
+    schedule { parallel i; }
+    forall i in 1..100 {
+        a[i] = a[i-1] + 1.0; // True dependence on a[i-1]
+    }
+}

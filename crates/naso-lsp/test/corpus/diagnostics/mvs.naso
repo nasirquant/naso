@@ -1,0 +1,21 @@
+//! Test corpus for MVS (Mutable Value Semantics) diagnostics
+
+// NASO-MVS-001: Inout aliasing conflict
+fn test_inout_aliasing() {
+    let mut x: Int = 42;
+    foo(inout x, inout x); // ERROR: NASO-MVS-001 - x aliases with itself
+}
+
+fn foo(a: inout Int, b: inout Int) {}
+
+// NASO-MVS-002: Inout parameter escapes scope
+fn test_inout_escape() -> inout Int {
+    let mut x: Int = 42;
+    &inout x // ERROR: NASO-MVS-002 - inout escapes function scope
+}
+
+// NASO-MVS-003: Inout requires unique ownership
+fn test_inout_requires_unique() {
+    let x: [*] Int = 42; // unrestricted quantity
+    foo(inout x); // ERROR: NASO-MVS-003 - inout requires [1] quantity
+}

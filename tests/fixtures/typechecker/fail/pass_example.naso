@@ -1,0 +1,5 @@
+fn main() {
+    let [1] x = 42;
+    let y = x;  // consume x exactly once
+    return y;
+}

@@ -1,0 +1,90 @@
+// Quantum-only examples
+fn pure_quantum() {
+    // Qubit allocation and basic gates
+    let q = qalloc();
+    hadamard(q);
+    let m = measure(q);
+    qfree(q);
+
+    // Multi-qubit operations
+    let q1 = qalloc();
+    let q2 = qalloc();
+    cnot(q1, q2);
+    measure(q1);
+    measure(q2);
+    qfree(q1);
+    qfree(q2);
+
+    // Bell pair
+    let (a, b) = bell_pair();
+    hadamard(a);
+    cnot(a, b);
+    qfree(a);
+    qfree(b);
+}
+
+// Quantum Fourier Transform
+fn qft_circuit(n: usize) {
+    let qubits = qalloc<n>();
+    qft(qubits);
+    // QFT is its own inverse up to bit reversal
+    qft(qubits);
+    measure(qubits);
+}
+
+// Grover's algorithm
+fn grover_search(oracle: fn([N] qubit) -> bool, n: usize) {
+    let state = qalloc<n>();
+    // Initialize superposition
+    forall(i in 0..n) {
+        hadamard(state[i]);
+    }
+    // Grover iterations
+    let iterations = (PI / 4.0 * sqrt(2.0_f64.powi(n as i32))) as usize;
+    for _ in 0..iterations {
+        grover_oracle(state, oracle);
+        // Diffusion operator
+        forall(i in 0..n) {
+            hadamard(state[i]);
+        }
+        forall(i in 0..n) {
+            // Phase flip
+        }
+        forall(i in 0..n) {
+            hadamard(state[i]);
+        }
+    }
+    measure(state);
+}
+
+// Automatic uncomputation
+fn auto_uncompute() {
+    let temp = qalloc();
+    hadamard(temp);
+    cnot(temp, temp);
+    // temp automatically uncomputed at scope exit
+}
+
+fn explicit_uncompute() {
+    let temp = qalloc();
+    hadamard(temp);
+    uncompute temp;
+}
+
+// Quantum teleportation
+fn teleport() {
+    let (alice, bob) = bell_pair();
+    let message = qalloc();
+    // Prepare message state
+    hadamard(message);
+    // Bell measurement
+    cnot(message, alice);
+    hadamard(message);
+    let m1 = measure(message);
+    let m2 = measure(alice);
+    // Conditional corrections
+    if m1 { /* Z correction */ }
+    if m2 { /* X correction */ }
+    // bob now holds the teleported state
+    measure(bob);
+}

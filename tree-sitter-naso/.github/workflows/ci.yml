@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli
+
+      - name: Generate parser
+        run: tree-sitter generate
+        working-directory: ./tree-sitter-naso
+
+      - name: Build Node.js bindings
+        run: npm install && npm run build
+        working-directory: ./tree-sitter-naso/bindings/node
+
+      - name: Build Rust bindings
+        run: cargo build --release
+        working-directory: ./tree-sitter-naso/bindings/rust
+
+      - name: Run Rust tests
+        run: cargo test
+        working-directory: ./tree-sitter-naso/bindings/rust
+
+      - name: Test parser with corpus
+        run: tree-sitter parse --quiet test/corpus/*.naso
+        working-directory: ./tree-sitter-naso
+
+      - name: Check formatting
+        run: cargo fmt --check
+        working-directory: ./tree-sitter-naso/bindings/rust
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+        working-directory: ./tree-sitter-naso/bindings/rust
+
+  test-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli
+
+      - name: Generate parser
+        run: tree-sitter generate
+        working-directory: ./tree-sitter-naso
+
+      - name: Build WASM
+        run: tree-sitter build-wasm
+        working-directory: ./tree-sitter-naso
+
+      - name: Test WASM parser
+        run: |
+          node -e "
+          const Parser = require('web-tree-sitter');
+          const fs = require('fs');
+          async function test() {
+            await Parser.init();
+            const wasm = fs.readFileSync('tree-sitter-naso/tree-sitter-naso.wasm');
+            const lang = await Parser.Language.load(wasm);
+            const parser = new Parser();
+            parser.setLanguage(lang);
+            const tree = parser.parse('fn main() { qalloc(); }');
+            console.log('WASM parse OK:', tree.rootNode.type === 'source_file');
+          }
+          test().catch(console.error);
+          "
+
+  publish:
+    needs: [build, test-wasm]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install tree-sitter CLI
+        run: npm install -g tree-sitter-cli
+
+      - name: Generate parser
+        run: tree-sitter generate
+        working-directory: ./tree-sitter-naso
+
+      - name: Publish to npm
+        run: npm publish
+        working-directory: ./tree-sitter-naso/bindings/node
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

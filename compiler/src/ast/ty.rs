@@ -1,0 +1,267 @@
+//! Naso Type System AST
+//!
+//! Defines the type language including quantitative annotations,
+//! dependent types (Nat), function types, and quantum types.
+
+use crate::ast::{Ident, Quantity, Span};
+use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
+use std::fmt;
+
+/// Type expression in the AST
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Type {
+    pub kind: TypeKind,
+    pub quantity: Quantity,
+    pub span: Span,
+}
+
+impl Type {
+    pub fn new(kind: TypeKind, quantity: Quantity, span: Span) -> Self {
+        Self { kind, quantity, span }
+    }
+
+    pub fn unit(span: Span) -> Self {
+        Self::new(TypeKind::Unit, Quantity::Many, span)
+    }
+
+    pub fn bool(span: Span) -> Self {
+        Self::new(TypeKind::Bool, Quantity::Many, span)
+    }
+
+    pub fn int(span: Span) -> Self {
+        Self::new(TypeKind::Int, Quantity::Many, span)
+    }
+
+    pub fn nat(span: Span) -> Self {
+        Self::new(TypeKind::Nat, Quantity::Many, span)
+    }
+
+    pub fn qubit(span: Span) -> Self {
+        Self::new(TypeKind::Qubit, Quantity::One, span)
+    }
+
+    pub fn qregister(dims: Vec<Type>, span: Span) -> Self {
+        Self::new(TypeKind::QRegister(dims), Quantity::One, span)
+    }
+
+    pub fn tensor(dims: Vec<Type>, span: Span) -> Self {
+        Self::new(TypeKind::Tensor(dims), Quantity::Many, span)
+    }
+
+    pub fn function(params: Vec<Type>, ret: Box<Type>, span: Span) -> Self {
+        Self::new(TypeKind::Function(params, ret), Quantity::Many, span)
+    }
+
+    pub fn with_quantity(mut self, qty: Quantity) -> Self {
+        self.quantity = qty;
+        self
+    }
+
+    pub fn never(span: Span) -> Self {
+        Self::new(TypeKind::Error, Quantity::Many, span)
+    }
+
+    pub fn to_ident(&self) -> Ident {
+        // Simplified for now - would need proper implementation
+        Ident::new("tmp", self.span)
+    }
+}
+
+/// Core type kinds
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum TypeKind {
+    /// Unit type ()
+    Unit,
+    /// Boolean
+    Bool,
+    /// Signed integer
+    Int,
+    /// Unsigned integer
+    UInt,
+    /// Float
+    Float,
+    /// String
+    String,
+    /// Char
+    Char,
+    /// Natural number (for dependent types)
+    Nat,
+    /// Quantum bit - linear resource
+    Qubit,
+    /// Quantum register with dimensions
+    QRegister(Vec<Type>),
+    /// Tensor with shape dimensions
+    Tensor(Vec<Type>),
+    /// Array type (homogeneous, fixed size if NatExpr provided)
+    Array(Box<Type>, Option<NatExpr>),
+    /// Tuple type
+    Tuple(Vec<Type>),
+    /// User-defined type (struct, enum, alias)
+    Named(Ident, Vec<TypeArg>),
+    /// Function type
+    Function(Vec<Type>, Box<Type>),
+    /// Reference/projection type (for inout)
+    Projection(Box<Type>),
+    /// Reversible computation type
+    Reversible(Box<Type>),
+    /// Dependent function type (Pi type)
+    Pi(Ident, Box<Type>, Box<Type>),
+    /// Dependent pair type (Sigma type)
+    Sigma(Ident, Box<Type>, Box<Type>),
+    /// Type-level lambda
+    Lambda(Ident, Box<Type>),
+    /// Type application
+    App(Box<Type>, Box<Type>),
+    /// Universe level
+    Universe(u32),
+    /// Type variable (for inference)
+    Var(TypeVar),
+    /// Metavariable (unsolved during inference)
+    Meta(MetaVar),
+    /// Error type (for recovery)
+    Error,
+}
+
+/// Type arguments for generic instantiation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum TypeArg {
+    Type(Type),
+    Nat(NatExpr),
+    Quantity(Quantity),
+}
+
+/// Type variable (rigid, from user annotation)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TypeVar(pub u32);
+
+impl fmt::Display for TypeVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "?T{}", self.0)
+    }
+}
+
+/// Metavariable (flexible, created during inference)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MetaVar(pub u32);
+
+impl fmt::Display for MetaVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "?M{}", self.0)
+    }
+}
+
+/// Natural number expressions (for dependent types)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum NatExpr {
+    Zero,
+    Succ(Box<NatExpr>),
+    Var(Ident),
+    Add(Box<NatExpr>, Box<NatExpr>),
+    Mul(Box<NatExpr>, Box<NatExpr>),
+    /// Type-level if
+    If(Box<Type>, Box<NatExpr>, Box<NatExpr>),
+}
+
+impl NatExpr {
+    pub fn from_u64(n: u64) -> Self {
+        let mut expr = NatExpr::Zero;
+        for _ in 0..n {
+            expr = NatExpr::Succ(Box::new(expr));
+        }
+        expr
+    }
+
+    pub fn to_u64(&self) -> Option<u64> {
+        match self {
+            NatExpr::Zero => Some(0),
+            NatExpr::Succ(inner) => inner.to_u64().map(|n| n + 1),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for NatExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NatExpr::Zero => write!(f, "0"),
+            NatExpr::Succ(inner) => write!(f, "{} + 1", inner),
+            NatExpr::Var(v) => write!(f, "{}", v),
+            NatExpr::Add(a, b) => write!(f, "{} + {}", a, b),
+            NatExpr::Mul(a, b) => write!(f, "{} * {}", a, b),
+            NatExpr::If(cond, t, e) => write!(f, "if {} then {} else {}", cond, t, e),
+        }
+    }
+}
+
+/// Pretty printing for types
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.quantity != Quantity::Many {
+            write!(f, "{} ", self.quantity)?;
+        }
+        write!(f, "{}", self.kind)
+    }
+}
+
+impl fmt::Display for TypeKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TypeKind::Unit => write!(f, "()"),
+            TypeKind::Bool => write!(f, "Bool"),
+            TypeKind::Int => write!(f, "Int"),
+            TypeKind::UInt => write!(f, "UInt"),
+            TypeKind::Float => write!(f, "Float"),
+            TypeKind::String => write!(f, "String"),
+            TypeKind::Char => write!(f, "Char"),
+            TypeKind::Nat => write!(f, "Nat"),
+            TypeKind::Qubit => write!(f, "Qubit"),
+            TypeKind::QRegister(dims) => write!(f, "QRegister[{}]", dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(", ")),
+            TypeKind::Tensor(dims) => write!(f, "Tensor[{}]", dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(", ")),
+            TypeKind::Array(elem, size) => {
+                if let Some(n) = size {
+                    write!(f, "[{}; {}]", elem, n)
+                } else {
+                    write!(f, "[{}]", elem)
+                }
+            }
+            TypeKind::Tuple(elems) => write!(f, "({})", elems.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ")),
+            TypeKind::Named(name, args) => {
+                if args.is_empty() {
+                    write!(f, "{}", name)
+                } else {
+                    write!(f, "{}<{}>", name, args.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(", "))
+                }
+            }
+            TypeKind::Function(params, ret) => {
+                write!(f, "fn(")?;
+                for (i, p) in params.iter().enumerate() {
+                    if i > 0 { write!(f, ", ")?; }
+                    write!(f, "{}", p)?;
+                }
+                write!(f, ") -> {}", ret)
+            }
+            TypeKind::Projection(inner) => write!(f, "&mut {}", inner),
+            TypeKind::Reversible(inner) => write!(f, "reversible {}", inner),
+            TypeKind::Pi(name, domain, codomain) => write!(f, "Π({}: {}). {}", name, domain, codomain),
+            TypeKind::Sigma(name, fst, snd) => write!(f, "Σ({}: {}). {}", name, fst, snd),
+            TypeKind::Lambda(param, body) => write!(f, "λ{}. {}", param, body),
+            TypeKind::App(fun, arg) => write!(f, "{} {}", fun, arg),
+            TypeKind::Universe(level) => write!(f, "Type{}", level),
+            TypeKind::Var(v) => write!(f, "{}", v),
+            TypeKind::Meta(m) => write!(f, "{}", m),
+            TypeKind::Error => write!(f, "<error>"),
+        }
+    }
+}
+
+impl fmt::Display for TypeArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TypeArg::Type(t) => write!(f, "{}", t),
+            TypeArg::Nat(n) => write!(f, "{}", n),
+            TypeArg::Quantity(q) => write!(f, "{}", q),
+        }
+    }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "tree-sitter-naso",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for the Naso programming language - Node.js bindings",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "node-gyp build",
+    "test": "node test.js",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "tree-sitter",
+    "naso",
+    "quantum",
+    "programming-language",
+    "syntax-highlighting"
+  ],
+  "author": "Naso Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/naso-lang/tree-sitter-naso"
+  },
+  "devDependencies": {
+    "node-gyp": "^10.0.0",
+    "tree-sitter-cli": "^0.22.0"
+  },
+  "dependencies": {
+    "nan": "^2.19.0"
+  },
+  "tree-sitter": {
+    "file-types": ["naso"],
+    "scope": "source.naso"
+  }
+}

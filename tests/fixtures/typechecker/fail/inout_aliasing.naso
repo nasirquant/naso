@@ -1,0 +1,11 @@
+fn foo(inout a: Int, inout b: Int) {
+    a = a + 1;
+    b = b + 1;
+}
+
+fn main() {
+    let [1] x = 42;
+    let inout a = x;
+    let inout b = x;  // ERROR: overlapping inout arguments on same source
+    foo(a, b);
+}

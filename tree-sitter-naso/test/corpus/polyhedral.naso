@@ -1,0 +1,165 @@
+// Polyhedral loop constructs
+
+// Basic forall loop
+fn forall_basic() {
+    forall(i in 0..N) {
+        A[i] = i * 2;
+    }
+}
+
+// Multi-dimensional forall
+fn forall_2d() {
+    forall(i in 0..N, j in 0..M) {
+        C[i, j] = A[i, j] + B[i, j];
+    }
+}
+
+// Forall with range expressions
+fn forall_ranges() {
+    forall(i in 1..=N) {
+        A[i] = i;
+    }
+    forall(i in 0..N-1) {
+        B[i] = A[i] + A[i+1];
+    }
+}
+
+// Forall with schedule annotation for tiling
+fn forall_tiled() {
+    forall(#[schedule(tile_size=32, unroll=4)] i in 0..N, j in 0..M) {
+        C[i, j] = 0.0;
+        forall(k in 0..K) {
+            C[i, j] += A[i, k] * B[k, j];
+        }
+    }
+}
+
+// Schedule annotations with multiple parameters
+fn forall_complex_schedule() {
+    forall(
+        #[
+            schedule(
+                tile_size=32,
+                unroll=4,
+                vectorize=true,
+                parallel=true,
+                order=[i, j, k]
+            )
+        ]
+        i in 0..N,
+        j in 0..M,
+        k in 0..K
+    ) {
+        C[i, j] += A[i, k] * B[k, j];
+    }
+}
+
+// Tile loop construct
+fn tile_basic() {
+    tile(#[schedule(tile_size=32)] (i, j)) {
+        forall(k in 0..K) {
+            C[i, j] += A[i, k] * B[k, j];
+        }
+    }
+}
+
+// Nested tile loops
+fn tile_nested() {
+    tile(#[schedule(tile_size=64)] (i, j)) {
+        tile(#[schedule(tile_size=8)] (ii, jj)) {
+            forall(k in 0..K) {
+                C[i+ii, j+jj] += A[i+ii, k] * B[k, j+jj];
+            }
+        }
+    }
+}
+
+// Fuse loop construct - combines multiple loops
+fn fuse_basic() {
+    fuse((i, j)) {
+        A[i, j] = B[i, j] + C[i, j];
+        D[i, j] = A[i, j] * 2.0;
+    }
+}
+
+// Fuse with three statements
+fn fuse_three() {
+    fuse((i, j)) {
+        A[i, j] = B[i, j] + C[i, j];
+        D[i, j] = A[i, j] * E[i, j];
+        F[i, j] = D[i, j] - G[i, j];
+    }
+}
+
+// Fuse with schedule annotation
+fn fuse_scheduled() {
+    fuse(#[schedule(tile_size=32, parallel=true)] (i, j)) {
+        A[i, j] = B[i, j] + C[i, j];
+        D[i, j] = A[i, j] * 2.0;
+    }
+}
+
+// Forall expressions (returning values)
+fn forall_expression_basic() {
+    let result = forall(i in 0..N) { i * 2 };
+}
+
+fn forall_expression_reduction() {
+    let sum = forall(i in 0..N) { A[i] };
+    let product = forall(i in 0..N) { B[i] * C[i] };
+}
+
+// Tile expressions
+fn tile_expression_basic() {
+    let C = tile(#[schedule(tile_size=32)] (i, j)) {
+        forall(k in 0..K) {
+            A[i, k] * B[k, j]
+        }
+    };
+}
+
+// Polyhedral composition - matmul with tiling and fusion
+fn polyhedral_matmul() {
+    // Stage 1: Initialize
+    forall(#[schedule(parallel=true)] i in 0..M, j in 0..N) {
+        C[i, j] = 0.0;
+    }
+
+    // Stage 2: Tiled computation
+    tile(#[schedule(tile_size=32)] (i, j)) {
+        forall(k in 0..K) {
+            C[i, j] += A[i, k] * B[k, j];
+        }
+    }
+
+    // Stage 3: Fused post-processing
+    fuse(#[schedule(vectorize=true)] (i, j)) {
+        C[i, j] = relu(C[i, j]);
+        D[i, j] = C[i, j] * scale;
+    }
+}
+
+// Stencil computation with forall
+fn stencil_2d() {
+    forall(#[schedule(tile_size=16)] i in 1..N-1, j in 1..M-1) {
+        new_grid[i, j] = (
+            grid[i-1, j] + grid[i+1, j] +
+            grid[i, j-1] + grid[i, j+1]
+        ) * 0.25;
+    }
+}
+
+// Reduction with polyhedral constructs
+fn parallel_reduction() {
+    // Map phase
+    let partials = forall(#[schedule(parallel=true)] i in 0..P) {
+        let sum = 0.0;
+        forall(j in i*CHUNK..(i+1)*CHUNK) {
+            sum += data[j];
+        }
+        sum
+    };
+
+    // Reduce phase
+    let total = forall(i in 0..P) { partials[i] };
+}

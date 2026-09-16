@@ -1,0 +1,33 @@
+{
+  "moved_files": [
+    ".opencode_task.md",
+    ".opencode_task_t301.md",
+    ".opencode_task_t302.md",
+    ".opencode_task_t401.md",
+    "kanban.json.bak",
+    "prompt.txt",
+    "response.json",
+    "sprint6-manifest.json.bak",
+    "TASK-001.md",
+    "TASK-001-FIXES.md",
+    "TASK-003.md",
+    "TASK-205-SPEC.md",
+    "DISCUSSION.md",
+    "IDEA.md",
+    "kanban.json",
+    "sprint2-manifest.json",
+    "sprint3-manifest.json",
+    "sprint4-manifest.json",
+    "sprint5-manifest.json",
+    "sprint6-manifest.json",
+    "sprint7-manifest.json",
+    "sprint8-manifest.json",
+    "sprint9-manifest.json"
+  ],
+  "gitignore_updated": true,
+  "dev_directory_created": true,
+  "git_status_output": "On branch master\\nChanges to be committed:\\n  (use \\\"git restore --staged <file>...\\\" to unstage)\\n\\tnew file:   .gitignore\\n\\nChanges not staged for commit:\\n  (use \\\"git add/rm <file>...\\\" to update what will be committed)\\n  (use \\\"git restore <file>...\\\" to discard changes in working directory)\\n\\tmodified:   .gitignore\\n\\tdeleted:    .opencode_task.md\\n\\tdeleted:    .opencode_task_t301.md\\n\\tdeleted:    .opencode_task_t302.md\\n\\tdeleted:    .opencode_task_t401.md\\n\\tdeleted:    DISCUSSION.md\\n\\tdeleted:    IDEA.md\\n\\tdeleted:    TASK-001-FIXES.md\\n\\tdeleted:    TASK-001.md\\n\\tdeleted:    TASK-003.md\\n\\tdeleted:    TASK-205-SPEC.md\\n\\tmodified:   compiler/benches/qtt_overhead.rs\\n\\tmodified:   compiler/benches/runtime_benchmarks.rs\\n\\tmodified:   compiler/src/main.rs\\n\\tmodified:   compiler/tests/codegen_property_tests.rs\\n\\tmodified:   compiler/tests/codegen_tests.rs\\n\\tmodified:   compiler/tests/hardware_validation_tests.rs\\n\\tmodified:   compiler/tests/integration_tests.rs\\n\\tmodified:   compiler/tests/ir_tests.rs\\n\\tmodified:   crates/naso-verify/src/cache.rs\\n\\tmodified:   crates/naso-verify/src/cli.rs\\n\\tmodified:   crates/naso-verify/src/config.rs\\n\\tmodified:   crates/naso-verify/src/error.rs\\n\\tmodified:   crates/naso-verify/src/lib.rs\\n\\tmodified:   crates/naso-verify/src/lower.rs\\n\\tmodified:   crates/naso-verify/src/model.rs\\n\\tmodified:   crates/naso-verify/src/mvs.rs\\n\\tmodified:   crates/naso-verify/src/output.rs\\n\\tmodified:   crates/naso-verify/src/polyhedral.rs\\n\\tmodified:   crates/naso-verify/src/prover/cfg.rs\\n\\tmodified:   crates/naso-verify/src/prover/linearity.rs\\n\\tmodified:   crates/naso-verify/src/prover/mod.rs\\n\\tmodified:   crates/naso-verify/src/prover/uncomputation.rs\\n\\tmodified:   crates/naso-verify/src/quantity.rs\\n\\tmodified:   crates/naso-verify/src/quantum.rs\\n\\tmodified:   crates/naso-verify/src/smtlib.rs\\n\\tmodified:   crates/naso-verify/src/solver.rs\\n\\tmodified:   crates/naso-verify/tests/prover_tests.rs\\n\\tdeleted:    kanban.json\\n\\tdeleted:    kanban.json.bak\\n\\tdeleted:    prompt.txt\\n\\tdeleted:    response.json\\n\\tdeleted:    sprint2-manifest.json\\n\\tdeleted:    sprint3-manifest.json\\n\\tdeleted:    sprint4-manifest.json\\n\\tdeleted:    sprint5-manifest.json\\n\\tdeleted:    sprint6-manifest.json\\n\\tdeleted:    sprint6-manifest.json.bak\\n\\tdeleted:    sprint7-manifest.json\\n\\tdeleted:    sprint8-manifest.json\\n\\tdeleted:    sprint9-manifest.json",
+  "git_status_ignored_output": "On branch master\\nChanges to be committed:\\n  (use \\\"git restore --staged <file>...\\\" to unstage)\\n\\tnew file:   .gitignore\\n\\nChanges not staged for commit:\\n  (use \\\"git add/rm <file>...\\\" to update what will be committed)\\n  (use \\\"git restore <file>...\\\" to discard changes in working directory)\\n\\tmodified:   .gitignore\\n\\tdeleted:    .opencode_task.md\\n\\tdeleted:    .opencode_task_t301.md\\n\\tdeleted:    .opencode_task_t302.md\\n\\tdeleted:    .opencode_task_t401.md\\n\\tdeleted:    DISCUSSION.md\\n\\tdeleted:    IDEA.md\\n\\tdeleted:    TASK-001-FIXES.md\\n\\tdeleted:    TASK-001.md\\n\\tdeleted:    TASK-003.md\\n\\tdeleted:    TASK-205-SPEC.md\\n\\tmodified:   compiler/benches/qtt_overhead.rs\\n\\tmodified:   compiler/benches/runtime_benchmarks.rs\\n\\tmodified:   compiler/src/main.rs\\n\\tmodified:   compiler/tests/codegen_property_tests.rs\\n\\tmodified:   compiler/tests/codegen_tests.rs\\n\\tmodified:   compiler/tests/hardware_validation_tests.rs\\n\\tmodified:   compiler/tests/integration_tests.rs\\n\\tmodified:   compiler/tests/ir_tests.rs\\n\\tmodified:   crates/naso-verify/src/cache.rs\\n\\tmodified:   crates/naso-verify/src/cli.rs\\n\\tmodified:   crates/naso-verify/src/config.rs\\n\\tmodified:   crates/naso-verify/src/error.rs\\n\\tmodified:   crates/naso-verify/src/lib.rs\\n\\tmodified:   crates/naso-verify/src/lower.rs\\n\\tmodified:   crates/naso-verify/src/model.rs\\n\\tmodified:   crates/naso-verify/src/mvs.rs\\n\\tmodified:   crates/naso-verify/src/output.rs\\n\\tmodified:   crates/naso-verify/src/polyhedral.rs\\n\\tmodified:   crates/naso-verify/src/prover/cfg.rs\\n\\tmodified:   crates/naso-verify/src/prover/linearity.rs\\n\\tmodified:   crates/naso-verify/src/prover/mod.rs\\n\\tmodified:   crates/naso-verify/src/prover/uncomputation.rs\\n\\tmodified:   crates/naso-verify/src/quantity.rs\\n\\tmodified:   crates/naso-verify/src/quantum.rs\\n\\tmodified:   crates/naso-verify/src/smtlib.rs\\n\\tmodified:   crates/naso-verify/src/solver.rs\\n\\tmodified:   crates/naso-verify/tests/prover_tests.rs\\n\\tdeleted:    kanban.json\\n\\tdeleted:    kanban.json.bak\\n\\tdeleted:    prompt.txt\\n\\tdeleted:    response.json\\n\\tdeleted:    sprint2-manifest.json\\n\\tdeleted:    sprint3-manifest.json\\n\\tdeleted:    sprint4-manifest.json\\n\\tdeleted:    sprint5-manifest.json\\n\\tdeleted:    sprint6-manifest.json\\n\\tdeleted:    sprint6-manifest.json.bak\\n\\tdeleted:    sprint7-manifest.json\\n\\tdeleted:    sprint8-manifest.json\\n\\tdeleted:    sprint9-manifest.json\\n\\nIgnored files:\\n  (use \\\"git add -f <file>...\\\" to include in what will be committed)\\n\\t.dev/",
+  "ready_for_push": true,
+  "message": "Repository cleanup completed: moved non-production files to .dev/, updated .gitignore with rules for Rust, Node/VS Code, Hugo, and system files, verified that .dev/ and build outputs are ignored. Ready for push to GitHub."
+}

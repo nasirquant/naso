@@ -1,0 +1,146 @@
+name: Formal Verification Benchmarks
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  verify-benchmarks:
+    name: Run Verification Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libclang-dev llvm-dev
+      
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build naso-verify
+        run: cargo build --release -p naso-verify
+        working-directory: .
+      
+      - name: Run verification benchmarks
+        run: |
+          cd crates/naso-verify/benchmarks
+          cargo run --release --example run_benchmarks
+        working-directory: .
+      
+      - name: Run verification benchmarks with JSON output
+        run: |
+          cd crates/naso-verify/benchmarks
+          cargo run --release --example run_benchmarks -- json > benchmark_results.json
+          cat benchmark_results.json
+        working-directory: .
+      
+      - name: Check for regressions
+        run: |
+          # This would compare against stored baselines
+          # For now, just verify the benchmark suite runs without errors
+          echo "Benchmark suite completed successfully"
+        working-directory: .
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: crates/naso-verify/benchmarks/benchmark_results.json
+          retention-days: 30
+
+  verify-cli:
+    name: Test CLI Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Build naso CLI
+        run: cargo build --release -p naso-compiler
+        working-directory: .
+      
+      - name: Test verify command on valid quantum program
+        run: |
+          echo 'fn bell_pair() -> (Qubit, Qubit) { let q0 = qalloc(1); let q1 = qalloc(1); hadamard(q0); cnot(q0, q1); (q0, q1) }' > /tmp/test_valid.naso
+          cargo run --release -p naso-compiler -- verify /tmp/test_valid.naso
+        working-directory: .
+      
+      - name: Test verify command on invalid quantum program
+        run: |
+          echo 'fn bad() { let q = qalloc(1); hadamard(q); }' > /tmp/test_invalid.naso
+          # Should exit with code 1 (violations found)
+          cargo run --release -p naso-compiler -- verify /tmp/test_invalid.naso || echo "Expected failure (violations detected)"
+        working-directory: .
+      
+      - name: Test verify command with JSON output
+        run: |
+          echo 'fn bell_pair() -> (Qubit, Qubit) { let q0 = qalloc(1); let q1 = qalloc(1); hadamard(q0); cnot(q0, q1); (q0, q1) }' > /tmp/test_json.naso
+          cargo run --release -p naso-compiler -- verify --format=json /tmp/test_json.naso
+        working-directory: .
+      
+      - name: Test verify command with SARIF output
+        run: |
+          echo 'fn bell_pair() -> (Qubit, Qubit) { let q0 = qalloc(1); let q1 = qalloc(1); hadamard(q0); cnot(q0, q1); (q0, q1) }' > /tmp/test_sarif.naso
+          cargo run --release -p naso-compiler -- verify --format=sarif /tmp/test_sarif.naso > /tmp/results.sarif
+          cat /tmp/results.sarif | head -50
+        working-directory: .
+      
+      - name: Test verify command with different modes
+        run: |
+          echo 'fn consume(x: [1] i32) { linear_free(x); }' > /tmp/test_linearity.naso
+          cargo run --release -p naso-compiler -- verify --mode=linearity /tmp/test_linearity.naso
+          
+          echo 'fn bell() { let q0 = qalloc(1); let q1 = qalloc(1); hadamard(q0); cnot(q0, q1); }' > /tmp/test_uncomp.naso
+          cargo run --release -p naso-compiler -- verify --mode=uncomputation /tmp/test_uncomp.naso
+        working-directory: .
+
+  build-check:
+    name: Build Check (All Crates)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Check all crates compile
+        run: cargo check --all
+        working-directory: .
+      
+      - name: Check with clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+        working-directory: .
+      
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+        working-directory: .

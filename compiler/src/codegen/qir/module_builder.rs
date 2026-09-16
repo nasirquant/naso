@@ -1,0 +1,430 @@
+#[cfg(feature = "llvm")]
+
+/// QIR Module Builder
+///
+/// Builds QIR-compatible LLVM IR modules with quantum intrinsics.
+
+use crate::codegen::context::CodegenContext;
+use crate::codegen::error::{CodegenError, CodegenResult};
+use crate::codegen::qir::primitives::{QirIntrinsic, QIR_INTRINSICS};
+use crate::codegen::qir::profile::{QirProfile, QirProfileKind};
+use crate::ir::pir_types::{PirModule, PirStatement, PirExpr};
+use crate::ast::{Quantity, Span};
+use inkwell::module::Module as LlvmModule;
+use inkwell::builder::Builder as LlvmBuilder;
+use inkwell::context::Context as LlvmContext;
+use inkwell::types::{BasicTypeEnum, IntType, PointerType, StructType, FunctionType, VoidType};
+use inkwell::values::{FunctionValue, BasicValueEnum, PointerValue, GlobalValue, BasicBlock};
+use inkwell::AddressSpace;
+use std::collections::HashMap;
+
+/// QIR Module Builder for generating quantum IR
+pub struct QIRModuleBuilder<'ctx> {
+    context: &'ctx CodegenContext,
+    module: LlvmModule<'ctx>,
+    builder: LlvmBuilder<'ctx>,
+    llvm_context: &'ctx LlvmContext,
+    profile: QirProfile,
+    /// Qubit type (opaque pointer)
+    qubit_type: PointerType<'ctx>,
+    /// Result type (i1)
+    result_type: IntType<'ctx>,
+    /// Current function being built
+    current_function: Option<FunctionValue<'ctx>>,
+    /// Current basic block
+    current_block: Option<BasicBlock<'ctx>>,
+    /// Variable allocations
+    variables: HashMap<String, PointerValue<'ctx>>,
+    /// Declared intrinsics
+    declared_intrinsics: HashMap<String, FunctionValue<'ctx>>,
+}
+
+impl<'ctx> QIRModuleBuilder<'ctx> {
+    /// Create a new QIR module builder
+    pub fn new(context: &'ctx CodegenContext) -> CodegenResult<Self> {
+        let llvm_context = context.llvm_context();
+        let module = llvm_context.create_module("qir_module");
+        let builder = llvm_context.create_builder();
+        
+        // QIR types
+        let qubit_type = llvm_context.ptr_type(AddressSpace::from(0));
+        let result_type = llvm_context.bool_type();
+
+        let profile = QirProfile::new(QirProfileKind::Base);
+
+        let mut qir_builder = Self {
+            context,
+            module,
+            builder,
+            llvm_context,
+            profile,
+            qubit_type,
+            result_type,
+            current_function: None,
+            current_block: None,
+            variables: HashMap::new(),
+            declared_intrinsics: HashMap::new(),
+        };
+
+        // Declare QIR intrinsics
+        qir_builder.declare_intrinsics()?;
+        // Add QIR metadata
+        qir_builder.add_qir_metadata()?;
+
+        Ok(qir_builder)
+    }
+
+    /// Create a new QIR module builder with specific profile
+    pub fn with_profile(context: &'ctx CodegenContext, profile: QirProfile) -> CodegenResult<Self> {
+        let llvm_context = context.llvm_context();
+        let module = llvm_context.create_module("qir_module");
+        let builder = llvm_context.create_builder();
+        
+        let qubit_type = llvm_context.ptr_type(AddressSpace::from(0));
+        let result_type = llvm_context.bool_type();
+
+        let mut qir_builder = Self {
+            context,
+            module,
+            builder,
+            llvm_context,
+            profile,
+            qubit_type,
+            result_type,
+            current_function: None,
+            current_block: None,
+            variables: HashMap::new(),
+            declared_intrinsics: HashMap::new(),
+        };
+
+        qir_builder.declare_intrinsics()?;
+        qir_builder.add_qir_metadata()?;
+
+        Ok(qir_builder)
+    }
+
+    /// Get the underlying LLVM module
+    pub fn module(&self) -> &LlvmModule<'ctx> {
+        &self.module
+    }
+
+    /// Get the LLVM context
+    pub fn llvm_context(&self) -> &'ctx LlvmContext {
+        self.llvm_context
+    }
+
+    /// Get the qubit type
+    pub fn qubit_type(&self) -> PointerType<'ctx> {
+        self.qubit_type
+    }
+
+    /// Get the result type
+    pub fn result_type(&self) -> IntType<'ctx> {
+        self.result_type
+    }
+
+    /// Get the QIR profile
+    pub fn profile(&self) -> &QirProfile {
+        &self.profile
+    }
+
+    /// Declare all QIR intrinsics
+    fn declare_intrinsics(&mut self) -> CodegenResult<()> {
+        for intrinsic in QIR_INTRINSICS {
+            let fn_type = intrinsic.function_type(self);
+            let func = self.module.add_function(intrinsic.name, fn_type, None);
+            self.declared_intrinsics.insert(intrinsic.name.to_string(), func);
+        }
+        Ok(())
+    }
+
+    /// Add QIR module metadata
+    fn add_qir_metadata(&mut self) -> CodegenResult<()> {
+        // Add QIR version metadata
+        let version_md = self.llvm_context.create_string_metadata("1.0");
+        let version_node = self.llvm_context.create_metadata_node(&[version_md.into()]);
+        self.module.add_metadata("qir.version", &version_node);
+
+        // Add profile metadata
+        let profile_md = self.llvm_context.create_string_metadata(self.profile.kind().as_str());
+        let profile_node = self.llvm_context.create_metadata_node(&[profile_md.into()]);
+        self.module.add_metadata("qir.profile", &profile_node);
+
+        // Add target triple metadata
+        let target_md = self.llvm_context.create_string_metadata(self.context.target_triple().to_string().as_str());
+        let target_node = self.llvm_context.create_metadata_node(&[target_md.into()]);
+        self.module.add_metadata("qir.target", &target_node);
+
+        Ok(())
+    }
+
+    /// Get an intrinsic by name
+    pub fn get_intrinsic(&self, name: &str) -> Option<FunctionValue<'ctx>> {
+        self.declared_intrinsics.get(name).copied()
+    }
+
+    /// Call a QIR intrinsic
+    pub fn call_intrinsic(&mut self, name: &str, args: &[BasicValueEnum<'ctx>], result_name: &str) -> CodegenResult<BasicValueEnum<'ctx>> {
+        let func = self.get_intrinsic(name)
+            .ok_or_else(|| CodegenError::QirError(format!("Intrinsic '{}' not found", name)))?;
+        
+        let call_site = self.builder.build_call(func, args, result_name)
+            .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+        
+        call_site.try_as_basic_value().left()
+            .ok_or_else(|| CodegenError::QirError(format!("Intrinsic '{}' returned void", name)))
+    }
+
+    /// Build the entire PIR module as QIR
+    pub fn build_module(&mut self, pir_module: &PirModule) -> CodegenResult<()> {
+        // Build quantum operations from statements
+        for stmt in &pir_module.statements {
+            self.build_statement(stmt)?;
+        }
+
+        // Verify the module
+        self.module.verify().map_err(|e| CodegenError::VerificationError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Build a PIR statement
+    fn build_statement(&mut self, stmt: &PirStatement) -> CodegenResult<()> {
+        // Create a function for this statement
+        let func_name = format!("qir_stmt_{}", stmt.id.0);
+        let void_type = self.llvm_context.void_type();
+        let fn_type = void_type.fn_type(&[], false);
+        let function = self.module.add_function(&func_name, fn_type, None);
+        
+        self.current_function = Some(function);
+        let entry = self.llvm_context.append_basic_block(function, "entry");
+        self.current_block = Some(entry);
+        self.builder.position_at_end(entry);
+
+        // Build the statement body
+        self.build_expr(&stmt.body)?;
+
+        // Return void
+        self.builder.build_return(None).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+
+        self.current_function = None;
+        self.current_block = None;
+        self.variables.clear();
+
+        Ok(())
+    }
+
+    /// Build a PIR expression as QIR
+    fn build_expr(&mut self, expr: &PirExpr) -> CodegenResult<BasicValueEnum<'ctx>> {
+        match expr {
+            PirExpr::IntLit(val) => {
+                let int_type = self.llvm_context.i64_type();
+                Ok(self.builder.build_int_constant(int_type, *val as u64, "int_lit").unwrap().into())
+            }
+            PirExpr::FloatLit(val) => {
+                let float_type = self.llvm_context.f64_type();
+                let parsed = val.parse::<f64>().unwrap_or(0.0);
+                Ok(self.builder.build_float_constant(float_type, parsed, "float_lit").unwrap().into())
+            }
+            PirExpr::BoolLit(val) => {
+                Ok(self.builder.build_int_constant(self.result_type, *val as u64, "bool_lit").unwrap().into())
+            }
+            PirExpr::Var(name) => {
+                if let Some(ptr) = self.variables.get(name) {
+                    Ok(self.builder.build_load(*ptr, name).map_err(|e| CodegenError::InstructionError(e.to_string()))?)
+                } else {
+                    // Return zero for undefined
+                    Ok(self.builder.build_int_constant(self.llvm_context.i64_type(), 0, "undef").unwrap().into())
+                }
+            }
+            PirExpr::Call { name, args } => {
+                // Check if it's a QIR intrinsic
+                if QIR_INTRINSICS.iter().any(|i| i.name == *name) {
+                    let arg_values: CodegenResult<Vec<_>> = args.iter()
+                        .map(|a| self.build_expr(a))
+                        .collect();
+                    let arg_values = arg_values?;
+                    return self.call_intrinsic(name, &arg_values, "call_result");
+                }
+                
+                // Regular function call
+                let arg_values: CodegenResult<Vec<_>> = args.iter()
+                    .map(|a| self.build_expr(a))
+                    .collect();
+                let arg_values = arg_values?;
+                
+                let func = self.module.get_function(name)
+                    .ok_or_else(|| CodegenError::FunctionBuildError(format!("Function '{}' not found", name)))?;
+                
+                let call = self.builder.build_call(func, &arg_values, "call").map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                Ok(call.try_as_basic_value().left().unwrap_or_else(|| self.llvm_context.void_type().const_zero().into()))
+            }
+            PirExpr::Let { name, value, body, .. } => {
+                let val = self.build_expr(value)?;
+                let alloca = self.builder.build_alloca(val.get_type(), name).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                self.builder.build_store(alloca, val).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                self.variables.insert(name.clone(), alloca);
+                
+                let result = self.build_expr(body)?;
+                
+                self.variables.remove(name);
+                Ok(result)
+            }
+            PirExpr::If { cond, then_branch, else_branch } => {
+                let cond_val = self.build_expr(cond)?;
+                let cond_bool = self.builder.build_int_compare(
+                    inkwell::IntPredicate::NE,
+                    cond_val.into_int_value(),
+                    self.result_type.const_zero(),
+                    "if_cond"
+                ).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+
+                let func = self.current_function().unwrap();
+                let then_block = self.llvm_context.append_basic_block(func, "then");
+                let else_block = self.llvm_context.append_basic_block(func, "else");
+                let merge_block = self.llvm_context.append_basic_block(func, "if_merge");
+
+                self.builder.build_conditional_branch(cond_bool, then_block, else_block).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+
+                self.current_block = Some(then_block);
+                self.builder.position_at_end(then_block);
+                let then_val = self.build_expr(then_branch)?;
+                self.builder.build_unconditional_branch(merge_block).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                let then_block_end = self.current_block().unwrap();
+
+                self.current_block = Some(else_block);
+                self.builder.position_at_end(else_block);
+                let else_val = self.build_expr(else_branch)?;
+                self.builder.build_unconditional_branch(merge_block).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                let else_block_end = self.current_block().unwrap();
+
+                self.current_block = Some(merge_block);
+                self.builder.position_at_end(merge_block);
+                let phi = self.builder.build_phi(then_val.get_type(), "if_phi").map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                phi.add_incoming(&[(&then_val, then_block_end), (&else_val, else_block_end)]);
+                Ok(phi.as_basic_value())
+            }
+            PirExpr::Reversible { body, inverse } => {
+                // For QIR, we just build the body
+                // The inverse would be handled by quantum compiler
+                self.build_expr(body)
+            }
+            PirExpr::Index { base, indices } => {
+                let base_val = self.build_expr(base)?;
+                Ok(base_val)
+            }
+            PirExpr::Field { base, field } => {
+                let base_val = self.build_expr(base)?;
+                Ok(base_val)
+            }
+            PirExpr::Binary { op, left, right } => {
+                let l = self.build_expr(left)?;
+                let r = self.build_expr(right)?;
+                self.build_binary_op(*op, l, r)
+            }
+            PirExpr::Unary { op, expr } => {
+                let e = self.build_expr(expr)?;
+                self.build_unary_op(*op, e)
+            }
+        }
+    }
+
+    fn build_binary_op(&mut self, op: crate::ir::pir_types::BinaryOp, left: BasicValueEnum<'ctx>, right: BasicValueEnum<'ctx>) -> CodegenResult<BasicValueEnum<'ctx>> {
+        use inkwell::IntPredicate;
+        let left_int = left.into_int_value();
+        let right_int = right.into_int_value();
+
+        let result = match op {
+            crate::ir::pir_types::BinaryOp::Add => self.builder.build_int_add(left_int, right_int, "add"),
+            crate::ir::pir_types::BinaryOp::Sub => self.builder.build_int_sub(left_int, right_int, "sub"),
+            crate::ir::pir_types::BinaryOp::Mul => self.builder.build_int_mul(left_int, right_int, "mul"),
+            crate::ir::pir_types::BinaryOp::Div => self.builder.build_int_signed_div(left_int, right_int, "div"),
+            crate::ir::pir_types::BinaryOp::Mod => self.builder.build_int_signed_rem(left_int, right_int, "mod"),
+            crate::ir::pir_types::BinaryOp::And => self.builder.build_and(left_int, right_int, "and"),
+            crate::ir::pir_types::BinaryOp::Or => self.builder.build_or(left_int, right_int, "or"),
+            crate::ir::pir_types::BinaryOp::Xor => self.builder.build_xor(left_int, right_int, "xor"),
+            crate::ir::pir_types::BinaryOp::Eq => self.builder.build_int_compare(IntPredicate::EQ, left_int, right_int, "eq"),
+            crate::ir::pir_types::BinaryOp::Ne => self.builder.build_int_compare(IntPredicate::NE, left_int, right_int, "ne"),
+            crate::ir::pir_types::BinaryOp::Lt => self.builder.build_int_compare(IntPredicate::SLT, left_int, right_int, "lt"),
+            crate::ir::pir_types::BinaryOp::Le => self.builder.build_int_compare(IntPredicate::SLE, left_int, right_int, "le"),
+            crate::ir::pir_types::BinaryOp::Gt => self.builder.build_int_compare(IntPredicate::SGT, left_int, right_int, "gt"),
+            crate::ir::pir_types::BinaryOp::Ge => self.builder.build_int_compare(IntPredicate::SGE, left_int, right_int, "ge"),
+            crate::ir::pir_types::BinaryOp::Shl => self.builder.build_left_shift(left_int, right_int, "shl"),
+            crate::ir::pir_types::BinaryOp::Shr => self.builder.build_right_shift(left_int, right_int, true, "shr"),
+        }.map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+
+        Ok(result.into())
+    }
+
+    fn build_unary_op(&mut self, op: crate::ir::pir_types::UnaryOp, expr: BasicValueEnum<'ctx>) -> CodegenResult<BasicValueEnum<'ctx>> {
+        let int_val = expr.into_int_value();
+        let result = match op {
+            crate::ir::pir_types::UnaryOp::Neg => self.builder.build_int_neg(int_val, "neg"),
+            crate::ir::pir_types::UnaryOp::Not => self.builder.build_not(int_val, "not"),
+        }.map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+        Ok(result.into())
+    }
+
+    /// Convert module to QIR text format (.qir file)
+    pub fn module_to_string(&self) -> String {
+        self.module.print_to_string().to_string()
+    }
+
+    /// Write module to .qir file
+    pub fn write_qir_file(&self, path: &std::path::Path) -> CodegenResult<()> {
+        self.module.print_to_file(path).map_err(|e| CodegenError::EmissionError(e.to_string()))
+    }
+
+    fn current_function(&self) -> Option<FunctionValue<'ctx>> {
+        self.current_function
+    }
+
+    fn current_block(&self) -> Option<BasicBlock<'ctx>> {
+        self.current_block
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::codegen::context::{CodegenContext, CodegenTarget, OptLevel};
+
+    #[test]
+    fn test_qir_module_builder_creation() {
+        let context = CodegenContext::new(CodegenTarget::Host, OptLevel::None).unwrap();
+        let builder = QIRModuleBuilder::new(&context);
+        assert!(builder.is_ok());
+    }
+
+    #[test]
+    fn test_qir_intrinsics_declared() {
+        let context = CodegenContext::new(CodegenTarget::Host, OptLevel::None).unwrap();
+        let mut builder = QIRModuleBuilder::new(&context).unwrap();
+        
+        // Check that key intrinsics are declared
+        assert!(builder.get_intrinsic("qir.qubit_alloc").is_some());
+        assert!(builder.get_intrinsic("qir.h").is_some());
+        assert!(builder.get_intrinsic("qir.cx").is_some());
+        assert!(builder.get_intrinsic("qir.mz").is_some());
+    }
+
+    #[test]
+    fn test_qir_metadata() {
+        let context = CodegenContext::new(CodegenTarget::Host, OptLevel::None).unwrap();
+        let builder = QIRModuleBuilder::new(&context).unwrap();
+        
+        let ir = builder.module_to_string();
+        assert!(ir.contains("qir.version"));
+        assert!(ir.contains("qir.profile"));
+    }
+
+    #[test]
+    fn test_qubit_allocation() {
+        let context = CodegenContext::new(CodegenTarget::Host, OptLevel::None).unwrap();
+        let mut builder = QIRModuleBuilder::new(&context).unwrap();
+        
+        // Test calling qubit_alloc intrinsic
+        let result = builder.call_intrinsic("qir.qubit_alloc", &[], "q");
+        assert!(result.is_ok());
+    }
+}

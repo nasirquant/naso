@@ -1,0 +1,1 @@
+fn test() { let [1] x = 42; let y = x; }

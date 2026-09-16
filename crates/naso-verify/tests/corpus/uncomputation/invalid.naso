@@ -1,0 +1,25 @@
+// Invalid: temporary qubit not uncomputed
+fn missing_uncomputation() {
+    let q = qalloc(1);
+    hadamard(q);
+    // q is never returned or freed!
+}
+
+// Invalid: qubit measured but not reset
+fn measured_not_reset() {
+    let q = qalloc(1);
+    hadamard(q);
+    let _ = measure(q);
+    // After measurement, q is in classical state but not reset to |0>
+}
+
+// Invalid: nested temp not uncomputed
+fn nested_temp_leak() {
+    let q1 = qalloc(1);
+    {
+        let q2 = qalloc(1);
+        cnot(q1, q2);
+        // q2 not uncomputed before inner scope exit
+    }
+    // q1 still has q2 entangled
+}

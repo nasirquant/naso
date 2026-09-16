@@ -1,0 +1,204 @@
+// Basic function declarations
+fn main() { }
+
+fn add(x: i32, y: i32) -> i32 { x + y }
+
+fn generic<T>(x: T) -> T { x }
+
+fn with_generics<T, U>(x: T, y: U) -> (T, U) { (x, y) }
+
+// Linear functions with QTT annotations
+fn consume_linear(x: [1] i32) -> [1] i32 { x }
+
+fn consume_multiple(x: [1] i32, y: [1] f64) -> ([1] i32, [1] f64) { (x, y) }
+
+fn proof_only(x: [0] i32) { }
+
+fn bounded_quantity(x: [N] i32) { }
+
+fn heap_allocated(x: [*] i32) { }
+
+// Inout parameters (Mutable Value Semantics)
+fn mutate_inout(inout x: i32) { x = 42; }
+
+fn swap_inout(inout a: i32, inout b: i32) { let tmp = a; a = b; b = tmp; }
+
+fn mutate_linear(inout x: [1] i32) { x = 100; }
+
+// Quantum intrinsics
+fn quantum_basics() {
+    let q = qalloc();
+    hadamard(q);
+    cnot(q, q);
+    let result = measure(q);
+    qfree(q);
+}
+
+fn bell_pair_example() {
+    let (q1, q2) = bell_pair();
+    hadamard(q1);
+    cnot(q1, q2);
+    measure(q1);
+    measure(q2);
+}
+
+fn qft_example() {
+    let qubits = qalloc<4>();
+    qft(qubits);
+    measure(qubits);
+}
+
+fn grover_example() {
+    let oracle = |x: [N] bool| -> bool { true };
+    let state = qalloc<N>();
+    grover_oracle(state, oracle);
+}
+
+// Tensor operations
+fn tensor_basics() {
+    let a = matmul(x, y);
+    let b = add(a, z);
+    let c = transpose(b);
+    let d = contract(a, b, i, j);
+    let e = outer_product(x, y);
+    let f = dot(x, y);
+}
+
+fn tensor_with_dims() {
+    let A: [N][N] f64 = ...;
+    let B: [N][N] f64 = ...;
+    let C = matmul(A, B);
+}
+
+// Polyhedral loops
+fn forall_loop_basic() {
+    forall(i in 0..N) {
+        A[i] = i * 2;
+    }
+}
+
+fn forall_loop_multi_dim() {
+    forall(i in 0..N, j in 0..M) {
+        C[i, j] = A[i, j] + B[i, j];
+    }
+}
+
+fn forall_with_schedule() {
+    forall(#[schedule(tile_size=32)] i in 0..N, j in 0..M) {
+        C[i, j] = 0.0;
+    }
+}
+
+fn tile_loop_example() {
+    tile(#[schedule(tile_size=32)] (i, j)) {
+        forall(k in 0..K) {
+            C[i, j] += A[i, k] * B[k, j];
+        }
+    }
+}
+
+fn fuse_loop_example() {
+    fuse((i, j)) {
+        A[i, j] = B[i, j] + C[i, j];
+        D[i, j] = A[i, j] * 2.0;
+    }
+}
+
+// Structs and enums
+struct Point { x: f64, y: f64 }
+
+struct Generic<T> { value: T, next: Option<Box<Generic<T>>> }
+
+enum Option<T> { Some(T), None }
+
+enum QuantumResult { Measured(bool), Collapsed }
+
+// Type aliases
+type Matrix<T> = [[T; N]; M];
+type QubitRegister = [N] qubit;
+
+// Constants and statics
+const PI: f64 = 3.14159265359;
+const MAX_QUBITS: usize = 1024;
+
+static mut GLOBAL_STATE: i32 = 0;
+
+// Control flow
+fn control_flow() {
+    if x > 0 { return x; } else { return -x; }
+
+    while condition() { do_work(); }
+
+    for item in items { process(item); }
+
+    match value {
+        0 => "zero",
+        1 => "one",
+        _ => "other",
+    }
+
+    match opt {
+        Some(x) => x,
+        None => 0,
+    }
+}
+
+// Let bindings with patterns
+fn let_bindings() {
+    let x = 42;
+    let mut y = 0;
+    let (a, b) = pair();
+    let Point { x, y } = point;
+    let [first, second, ..rest] = array;
+}
+
+// Uncomputation and defer
+fn quantum_with_cleanup() {
+    let q = qalloc();
+    hadamard(q);
+    uncompute q;
+}
+
+fn with_defer() {
+    let resource = acquire();
+    defer {
+        release(resource);
+    }
+    use_resource(resource);
+}
+
+// Modules and imports
+module std {
+    pub mod quantum {
+        pub fn qalloc() -> [1] qubit { ... }
+        pub fn hadamard(q: [1] qubit) { ... }
+    }
+    pub mod tensor {
+        pub fn matmul<A, B>(a: A, b: B) -> Matrix { ... }
+    }
+}
+
+import { qalloc, hadamard } from "std::quantum";
+import std::tensor::matmul;
+
+// Complex example combining all features
+fn quantum_tensor_hybrid() -> [N] f64 {
+    // Quantum state preparation
+    let qubits = qalloc<N>();
+    hadamard(qubits[0]);
+    forall(i in 1..N) {
+        cnot(qubits[0], qubits[i]);
+    }
+
+    // Classical tensor computation
+    let mut amplitudes = [[0.0; N]; N];
+    forall(i in 0..N, j in 0..N) {
+        amplitudes[i, j] = sin(i as f64 * PI / N) * cos(j as f64 * PI / N);
+    }
+
+    // Measure and convert
+    let results = measure(qubits);
+    let tensor_result = matmul(amplitudes, results);
+
+    tensor_result
+}

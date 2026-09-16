@@ -1,0 +1,5 @@
+fn main() {
+    let [1] x = 42;
+    let y = x;  // First consumption
+    let z = x;  // Second consumption - ERROR: double use
+}

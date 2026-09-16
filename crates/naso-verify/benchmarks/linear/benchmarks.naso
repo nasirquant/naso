@@ -1,0 +1,109 @@
+// Valid: Linear resource consumed exactly once
+fn consume_once(x: [1] i32) -> i32 {
+    linear_free(x)
+}
+
+// Valid: Linear resource moved and consumed
+fn move_and_consume(x: [1] i32) -> i32 {
+    let y = x; // Move
+    linear_free(y)
+}
+
+// Valid: Multiple linear resources consumed
+fn multi_linear(x: [1] i32, y: [1] f64) -> (i32, f64) {
+    let x_val = linear_free(x);
+    let y_val = linear_free(y);
+    (x_val, y_val)
+}
+
+// Valid: Linear resource returned from function
+fn return_linear() -> [1] i32 {
+    linear_alloc(42)
+}
+
+// Valid: Conditional consumption on all paths
+fn conditional_consume(cond: bool, x: [1] i32) -> i32 {
+    if cond {
+        linear_free(x)
+    } else {
+        linear_free(x)
+    }
+}
+
+// Valid: Linear resource in loop (consumed each iteration)
+fn linear_in_loop(n: [1] i32) -> i32 {
+    let mut sum = 0;
+    for i in 0..n {
+        let item = linear_alloc(i);
+        sum = sum + linear_free(item);
+    }
+    sum
+}
+
+// Valid: Borrow pattern with inout (MVS)
+fn borrow_mutate(inout x: [1] i32) {
+    *x = *x + 1;
+}
+
+// Valid: Linear pair consumed
+fn consume_pair(p: [1] (i32, f64)) -> (i32, f64) {
+    let (a, b) = p;
+    (linear_free(a), linear_free(b))
+}
+
+// Valid: Nested linear with proper scoping
+fn nested_linear() {
+    let x = linear_alloc(1);
+    {
+        let y = linear_alloc(2);
+        linear_free(y);
+    }
+    linear_free(x);
+}
+
+// Invalid: Unused linear resource (leak)
+fn leak_linear(x: [1] i32) {
+    // x never consumed!
+}
+
+// Invalid: Double free
+fn double_free(x: [1] i32) {
+    linear_free(x);
+    linear_free(x); // Double use!
+}
+
+// Invalid: Conditional leak (not consumed on all paths)
+fn conditional_leak(cond: bool, x: [1] i32) {
+    if cond {
+        linear_free(x);
+    }
+    // x not consumed when cond is false
+}
+
+// Invalid: Linear used after free
+fn use_after_free(x: [1] i32) -> i32 {
+    let val = linear_free(x);
+    let _ = linear_free(x); // Second use!
+    val
+}
+
+// Invalid: Move then use original
+fn move_then_use(x: [1] i32) {
+    let y = x;
+    linear_free(y);
+    let _ = x; // x used after move!
+}
+
+// Invalid: Linear in loop not consumed
+fn linear_loop_leak(n: i32) {
+    for i in 0..n {
+        let item = linear_alloc(i);
+        // item never freed in loop!
+    }
+}
+
+// Invalid: Return without consuming linear param
+fn return_without_consume(x: [1] i32) -> [1] i32 {
+    // x not consumed, just returned (might be OK if caller consumes)
+    x
+}

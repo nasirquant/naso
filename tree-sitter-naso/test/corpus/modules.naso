@@ -1,0 +1,150 @@
+module test_module;
+
+use prelude::{quantum, tensor, polyhedral};
+
+import {Qubit, hadamard, cnot, measure} from prelude::quantum;
+import {Tensor, matmul, transpose} from prelude::tensor;
+import {forall, tile, fuse} from prelude::polyhedral;
+import LinearAlgebra as LA from std::math;
+import * as QuantumUtils from std::quantum::utils;
+
+module quantum_algorithms {
+    use prelude::quantum;
+
+    quantum fn deutsch_jozsa(oracle: fn(Qubit) -> bool, n: u32) -> bool {
+        let reg = qalloc(n + 1);
+        hadamard(reg[0..n]);
+        pauli_x(reg[n]);
+        hadamard(reg[n]);
+        oracle(reg[0..n]);
+        hadamard(reg[0..n]);
+        let result = measure(reg[0..n]);
+        result.all_zero()
+    }
+
+    quantum fn bernstein_vazirani(oracle: fn(Qubit) -> bool, n: u32) -> [u32; n] {
+        let reg = qalloc(n + 1);
+        hadamard(reg[0..n]);
+        pauli_x(reg[n]);
+        hadamard(reg[n]);
+        oracle(reg[0..n]);
+        hadamard(reg[0..n]);
+        measure(reg[0..n])
+    }
+
+    quantum fn simon(oracle: fn(Qubit) -> bool, n: u32) -> [u32; n] {
+        let mut equations = vec![];
+        while equations.len() < n - 1 {
+            let reg = qalloc(2 * n);
+            hadamard(reg[0..n]);
+            oracle(reg[0..n]);
+            hadamard(reg[0..n]);
+            let y = measure(reg[0..n]);
+            if !y.all_zero() {
+                equations.push(y);
+            }
+        }
+        solve_linear_system(equations)
+    }
+}
+
+module tensor_ops {
+    use prelude::tensor;
+
+    tensor fn attention_head(Q: Tensor<f64, [B, H, L, D]>, K: Tensor<f64, [B, H, L, D]>, V: Tensor<f64, [B, H, L, D]>) -> Tensor<f64, [B, H, L, D]> {
+        let scores = matmul(Q, transpose(K, [0, 1, 3, 2])) / (D as f64).sqrt();
+        let weights = softmax(scores, -1);
+        matmul(weights, V)
+    }
+
+    tensor fn multi_head_attention(Q: Tensor<f64, [B, L, D]>, K: Tensor<f64, [B, L, D]>, V: Tensor<f64, [B, L, D]>, num_heads: u32) -> Tensor<f64, [B, L, D]> {
+        let head_dim = D / num_heads;
+        let Q_proj = linear(Q, num_heads * head_dim);
+        let K_proj = linear(K, num_heads * head_dim);
+        let V_proj = linear(V, num_heads * head_dim);
+
+        let Q_split = reshape(Q_proj, [B, L, num_heads, head_dim]).transpose([0, 2, 1, 3]);
+        let K_split = reshape(K_proj, [B, L, num_heads, head_dim]).transpose([0, 2, 1, 3]);
+        let V_split = reshape(V_proj, [B, L, num_heads, head_dim]).transpose([0, 2, 1, 3]);
+
+        let attn_out = attention_head(Q_split, K_split, V_split);
+        let out = transpose(attn_out, [0, 2, 1, 3]).reshape([B, L, D]);
+        linear(out, D)
+    }
+}
+
+module hybrid_algorithms {
+    use prelude::{quantum, tensor, polyhedral};
+
+    quantum fn variational_quantum_eigensolver(hamiltonian: Tensor<f64, [2^n, 2^n]>, ansatz: fn([f64; n], Qubit), params: [f64; n]) -> f64 {
+        let reg = qalloc(n);
+        ansatz(params, reg);
+        let exp_val = measure_expectation(hamiltonian, reg);
+        exp_val
+    }
+
+    tensor fn measure_expectation(H: Tensor<f64, [N, N]>, reg: Qubit) -> f64 {
+        let state = statevector(reg);
+        let mut exp = 0.0;
+        for i in 0..N {
+            for j in 0..N {
+                exp += state[i].conj() * H[i, j] * state[j];
+            }
+        }
+        exp.real()
+    }
+
+    polyhedral fn parameter_shift_gradient(circuit: fn([f64; n]) -> f64, params: [f64; n]) -> [f64; n] {
+        let mut grad = [0.0; n];
+        forall (i in 0..n) @schedule(parallel) {
+            let mut params_plus = params;
+            let mut params_minus = params;
+            params_plus[i] += PI / 2;
+            params_minus[i] -= PI / 2;
+            grad[i] = (circuit(params_plus) - circuit(params_minus)) / 2.0;
+        }
+        grad
+    }
+}
+
+struct QuantumCircuit {
+    n_qubits: u32,
+    gates: Vec<Gate>,
+}
+
+enum Gate {
+    H(u32),
+    X(u32),
+    Y(u32),
+    Z(u32),
+    CNOT(u32, u32),
+    CZ(u32, u32),
+    RX(u32, f64),
+    RY(u32, f64),
+    RZ(u32, f64),
+    Measure(u32),
+}
+
+type GateSequence = Vec<Gate>;
+
+fn execute_circuit(circuit: &QuantumCircuit, reg: Qubit) {
+    for gate in &circuit.gates {
+        match gate {
+            Gate::H(q) => hadamard(reg[*q]),
+            Gate::X(q) => pauli_x(reg[*q]),
+            Gate::Y(q) => pauli_y(reg[*q]),
+            Gate::Z(q) => pauli_z(reg[*q]),
+            Gate::CNOT(c, t) => cnot(reg[*c], reg[*t]),
+            Gate::CZ(c, t) => cz(reg[*c], reg[*t]),
+            Gate::RX(q, theta) => phase(*theta, reg[*q]),
+            Gate::RY(q, theta) => { hadamard(reg[*q]); phase(*theta, reg[*q]); hadamard(reg[*q]); },
+            Gate::RZ(q, theta) => phase(*theta, reg[*q]),
+            Gate::Measure(q) => measure(reg[*q]),
+        }
+    }
+}
+
+fn main() {
+    let bell = quantum_algorithms::deutsch_jozsa(|q| { cnot(q[0], q[1]); }, 2);
+    println!("Deutsch-Jozsa result: {}", bell);
+}

@@ -1,0 +1,23 @@
+//! Test corpus for uncomputation diagnostics
+
+// NASO-UNC-001: Missing uncomputation step
+reversible fn test_missing_uncompute() {
+    let temp: [1] Qubit = qalloc(); // temporary qubit
+    // Missing uncomputation of temp - ERROR: NASO-UNC-001
+}
+
+// NASO-UNC-002: Cyclic uncomputation dependency
+reversible fn test_cyclic_uncompute() {
+    let a: [1] Qubit = qalloc();
+    let b: [1] Qubit = qalloc();
+    // a depends on b, b depends on a - ERROR: NASO-UNC-002
+    // This would require a complex setup, simplified here
+    hadamard(a);
+    hadamard(b);
+}
+
+// NASO-UNC-003: Non-invertible temporary in reversible block
+reversible fn test_non_invertible_temp() {
+    let x: [1] Int = 42;
+    let y = measure(x); // ERROR: NASO-UNC-003 - measurement is impure/non-invertible
+}

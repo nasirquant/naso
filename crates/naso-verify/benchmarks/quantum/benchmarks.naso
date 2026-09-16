@@ -1,0 +1,97 @@
+// Valid: Bell pair creation - should verify (UNSAT for errors = correct)
+fn bell_pair() -> (Qubit, Qubit) {
+    let q0 = qalloc(1);
+    let q1 = qalloc(1);
+    hadamard(q0);
+    cnot(q0, q1);
+    (q0, q1)
+}
+
+// Valid: QFT on 4 qubits
+fn qft_4qubits() -> (Qubit, Qubit, Qubit, Qubit) {
+    let q0 = qalloc(1);
+    let q1 = qalloc(1);
+    let q2 = qalloc(1);
+    let q3 = qalloc(1);
+    hadamard(q0);
+    cnot(q0, q1);
+    cnot(q1, q2);
+    cnot(q2, q3);
+    (q0, q1, q2, q3)
+}
+
+// Valid: Teleportation circuit
+fn teleportation() {
+    let msg = qalloc(1);
+    let alice = qalloc(1);
+    let bob = qalloc(1);
+    hadamard(alice);
+    cnot(alice, bob);
+    cnot(msg, alice);
+    hadamard(msg);
+    let m1 = measure(msg);
+    let m2 = measure(alice);
+    if m1 { X(bob); }
+    if m2 { Z(bob); }
+}
+
+// Valid: Grover oracle for 2-qubit search
+fn grover_oracle_2qubits() -> (Qubit, Qubit) {
+    let q0 = qalloc(1);
+    let q1 = qalloc(1);
+    hadamard(q0);
+    hadamard(q1);
+    // Oracle marks |11>
+    cnot(q0, q1);
+    hadamard(q0);
+    hadamard(q1);
+    (q0, q1)
+}
+
+// Valid: Simple error correction (3-qubit bit flip)
+fn bit_flip_code() -> (Qubit, Qubit, Qubit) {
+    let data = qalloc(1);
+    let anc1 = qalloc(1);
+    let anc2 = qalloc(1);
+    // Encode: data -> data, anc1, anc2
+    cnot(data, anc1);
+    cnot(data, anc2);
+    // Syndrome measurement would go here
+    // For benchmark, just return encoded state
+    (data, anc1, anc2)
+}
+
+// Invalid: Missing uncomputation
+fn missing_uncomputation() {
+    let q = qalloc(1);
+    hadamard(q);
+    // q never returned or uncomputed!
+}
+
+// Invalid: Measured but not reset
+fn measured_not_reset() {
+    let q = qalloc(1);
+    hadamard(q);
+    let _ = measure(q);
+    // q in classical state but not reset to |0>
+}
+
+// Invalid: Nested temp leak
+fn nested_temp_leak() {
+    let q1 = qalloc(1);
+    {
+        let q2 = qalloc(1);
+        cnot(q1, q2);
+        // q2 not uncomputed before inner scope exit
+    }
+    // q1 entangled with uncomputed q2
+}
+
+// Invalid: Double allocation without free
+fn double_alloc_leak() {
+    let q1 = qalloc(1);
+    let q2 = qalloc(1);
+    hadamard(q1);
+    // q2 never used or freed
+    // q1 never returned
+}

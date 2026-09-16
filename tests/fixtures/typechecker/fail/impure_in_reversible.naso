@@ -1,0 +1,6 @@
+fn main() {
+    reversible {
+        let [1] q = qalloc();
+        measure(q);  // ERROR: measurement is impure in reversible block
+    }
+}

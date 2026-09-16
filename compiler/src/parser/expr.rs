@@ -1,0 +1,682 @@
+//! Expression parsing for the Naso parser.
+//!
+//! Implements a precedence-climbing expression parser producing
+//! [`crate::ast::Expr`] nodes, including calls, field/index access, control
+//! flow, blocks, and quantum operations (`measure`, `entangle`).
+
+use crate::ast::*;
+use crate::lexer::TokenKind as TK;
+use crate::parser::{next_id, Parser};
+
+use super::token_span;
+
+/// Whether a parsed expression can stand alone as a block statement without a
+/// trailing semicolon. Control-flow block constructs (`if`, `match`, `for`,
+/// `while`) are closed by a `}` and read naturally as statements.
+pub(crate) fn is_control_flow_stmt(kind: &ExprKind) -> bool {
+    matches!(
+        kind,
+        ExprKind::If(..) | ExprKind::Match(..) | ExprKind::For(..) | ExprKind::While(..)
+    )
+}
+
+fn binop_prec(op: BinOp) -> u8 {
+    match op {
+        BinOp::Or => 1,
+        BinOp::And => 2,
+        BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge => 3,
+        BinOp::BitOr => 4,
+        BinOp::BitXor => 5,
+        BinOp::BitAnd => 6,
+        BinOp::Shl | BinOp::Shr => 7,
+        BinOp::Add | BinOp::Sub => 8,
+        BinOp::Mul | BinOp::Div | BinOp::Rem => 9,
+        BinOp::Assign => 0,
+    }
+}
+
+impl<'a> Parser<'a> {
+    // ===== Expressions =====
+
+    /// Parse a full expression, handling right-associative assignment.
+    pub fn parse_expr(&mut self) -> Expr {
+        let mut lhs = self.parse_expr_precedence(0);
+        if self.at(TK::Assign) {
+            self.bump();
+            let rhs = self.parse_expr();
+            let span = lhs.span.merge(rhs.span);
+            lhs = Expr::new(
+                ExprKind::Assign(Box::new(lhs), Box::new(rhs)),
+                span,
+                next_id(),
+            );
+        }
+        lhs
+    }
+
+    /// Parse an expression using precedence climbing (left-associative).
+    pub fn parse_expr_precedence(&mut self, min_prec: u8) -> Expr {
+        let mut lhs = self.parse_unary();
+        loop {
+            let op = match self.peek_binary_op() {
+                Some(op) => op,
+                None => break,
+            };
+            let prec = binop_prec(op);
+            if prec < min_prec {
+                break;
+            }
+            self.bump();
+            let rhs = self.parse_expr_precedence(prec + 1);
+            let span = lhs.span.merge(rhs.span);
+            lhs = Expr::new(
+                ExprKind::Binary(op, Box::new(lhs), Box::new(rhs)),
+                span,
+                next_id(),
+            );
+        }
+        lhs
+    }
+
+    fn peek_binary_op(&self) -> Option<BinOp> {
+        match self.peek() {
+            Some(TK::OrOr) => Some(BinOp::Or),
+            Some(TK::AndAnd) => Some(BinOp::And),
+            Some(TK::Eq) => Some(BinOp::Eq),
+            Some(TK::Ne) => Some(BinOp::Ne),
+            Some(TK::Lt) => Some(BinOp::Lt),
+            Some(TK::Le) => Some(BinOp::Le),
+            Some(TK::Gt) => Some(BinOp::Gt),
+            Some(TK::Ge) => Some(BinOp::Ge),
+            Some(TK::Pipe) => Some(BinOp::BitOr),
+            Some(TK::Caret) => Some(BinOp::BitXor),
+            Some(TK::Amp) => Some(BinOp::BitAnd),
+            Some(TK::Shl) => Some(BinOp::Shl),
+            Some(TK::Shr) => Some(BinOp::Shr),
+            Some(TK::Plus) => Some(BinOp::Add),
+            Some(TK::Minus) => Some(BinOp::Sub),
+            Some(TK::Star) => Some(BinOp::Mul),
+            Some(TK::Slash) => Some(BinOp::Div),
+            Some(TK::Percent) => Some(BinOp::Rem),
+            _ => None,
+        }
+    }
+
+    fn parse_unary(&mut self) -> Expr {
+        if self.eat(TK::Minus) {
+            let e = self.parse_unary();
+            let span = e.span;
+            return Expr::new(ExprKind::Unary(UnOp::Neg, Box::new(e)), span, next_id());
+        }
+        if self.eat(TK::Not) {
+            let e = self.parse_unary();
+            let span = e.span;
+            return Expr::new(ExprKind::Unary(UnOp::Not, Box::new(e)), span, next_id());
+        }
+        if self.eat(TK::Star) {
+            let e = self.parse_unary();
+            let span = e.span;
+            return Expr::new(ExprKind::Unary(UnOp::Deref, Box::new(e)), span, next_id());
+        }
+        self.parse_postfix()
+    }
+
+    fn parse_postfix(&mut self) -> Expr {
+        let mut expr = self.parse_primary();
+        loop {
+            if self.at(TK::LParen) {
+                self.bump();
+                let args = self.parse_args_until(TK::RParen);
+                self.expect(TK::RParen);
+                let span = expr.span;
+                expr = Expr::new(
+                    ExprKind::Call(Box::new(expr), args),
+                    span,
+                    next_id(),
+                );
+            } else if self.at(TK::Dot) {
+                self.bump();
+                let name = self.parse_ident();
+                if self.at(TK::LParen) {
+                    self.bump();
+                    let args = self.parse_args_until(TK::RParen);
+                    self.expect(TK::RParen);
+                    let span = expr.span;
+                    expr = Expr::new(
+                        ExprKind::MethodCall(Box::new(expr), name, args),
+                        span,
+                        next_id(),
+                    );
+                } else {
+                    let span = expr.span;
+                    expr = Expr::new(ExprKind::Field(Box::new(expr), name), span, next_id());
+                }
+            } else if self.at(TK::LBracket) {
+                self.bump();
+                let idx = self.parse_expr();
+                self.expect(TK::RBracket);
+                let span = expr.span;
+                expr = Expr::new(
+                    ExprKind::Index(Box::new(expr), Box::new(idx)),
+                    span,
+                    next_id(),
+                );
+            } else {
+                break;
+            }
+        }
+        expr
+    }
+
+    /// Parse a comma-separated argument/field list, stopping at `closer`.
+    fn parse_args_until(&mut self, closer: TK) -> Vec<Expr> {
+        let mut args = Vec::new();
+        loop {
+            if self.at(closer.clone()) {
+                break;
+            }
+            args.push(self.parse_expr());
+            if self.at(closer.clone()) {
+                break;
+            }
+            self.expect(TK::Comma);
+            if self.at(closer.clone()) {
+                break;
+            }
+        }
+        args
+    }
+
+    // ===== Primary =====
+
+    fn parse_primary(&mut self) -> Expr {
+        match self.peek() {
+            Some(TK::If) => self.parse_if(),
+            Some(TK::Match) => self.parse_match(),
+            Some(TK::For) => self.parse_for(),
+            Some(TK::While) => self.parse_while(),
+            Some(TK::Return) => self.parse_return(),
+            Some(TK::Reversible) => self.parse_reversible_expr(),
+            Some(TK::Measure) => self.parse_measure(),
+            Some(TK::Entangle) => self.parse_entangle(),
+            Some(TK::QAlloc) => self.parse_qalloc(),
+            Some(TK::Int(_)) | Some(TK::Float(_)) | Some(TK::Bool(_))
+            | Some(TK::Str(_)) | Some(TK::Char(_)) => self.parse_literal(),
+            Some(TK::LBrace) => self.parse_block_expr(),
+            Some(TK::LParen) => self.parse_tuple_or_paren(),
+            Some(TK::LBracket) => self.parse_array(),
+            Some(TK::Ident(_)) => self.parse_var(),
+            Some(TK::TypeIdent(_)) => self.parse_struct_literal_or_var(),
+            None => self.unexpected("an expression"),
+            Some(k) => self.unexpected(&format!("an expression, found `{k}`")),
+        }
+    }
+
+    fn parse_literal(&mut self) -> Expr {
+        let tok = self.bump().expect("literal token");
+        let span = token_span(&tok);
+        let lit = match &tok.kind {
+            TK::Int(n) => Literal::Int(*n),
+            TK::Float(f) => Literal::Float(*f),
+            TK::Bool(b) => Literal::Bool(*b),
+            TK::Str(s) => Literal::String(s.clone()),
+            TK::Char(c) => Literal::Char(*c),
+            _ => unreachable!("parse_literal on {:?}", tok.kind),
+        };
+        Expr::new(ExprKind::Literal(lit), span, next_id())
+    }
+
+    fn parse_var(&mut self) -> Expr {
+        let start = self.pos;
+        let name = self.parse_ident();
+        Expr::new(ExprKind::Var(name), self.span_from(start), next_id())
+    }
+
+    /// Parse either a struct literal `TypeName { ... }` or a plain variable
+    /// reference to a type name.
+    fn parse_struct_literal_or_var(&mut self) -> Expr {
+        let start = self.pos;
+        let name = self.parse_ident();
+        if self.at(TK::LBrace) {
+            self.bump();
+            let mut fields = Vec::new();
+            loop {
+                if self.at(TK::RBrace) {
+                    break;
+                }
+                fields.push(self.parse_field_expr());
+                if self.at(TK::RBrace) {
+                    break;
+                }
+                self.expect(TK::Comma);
+                if self.at(TK::RBrace) {
+                    break;
+                }
+            }
+            self.expect(TK::RBrace);
+            let span = self.span_from(start);
+            Expr::new(ExprKind::Struct(name, fields), span, next_id())
+        } else {
+            let span = self.span_from(start);
+            Expr::new(ExprKind::Var(name), span, next_id())
+        }
+    }
+
+    fn parse_field_expr(&mut self) -> FieldExpr {
+        let start = self.pos;
+        let name = self.parse_ident();
+        self.expect(TK::Colon);
+        let value = self.parse_expr();
+        FieldExpr {
+            name,
+            value,
+            span: self.span_from(start),
+        }
+    }
+
+    // ===== Tuples / arrays / blocks =====
+
+    fn parse_tuple_or_paren(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::LParen);
+        if self.at(TK::RParen) {
+            self.bump();
+            let span = self.span_from(start);
+            return Expr::new(ExprKind::Literal(Literal::Unit), span, next_id());
+        }
+        let first = self.parse_expr();
+        if !self.at(TK::Comma) {
+            self.expect(TK::RParen);
+            return first;
+        }
+        let mut items = vec![first];
+        while self.at(TK::Comma) {
+            self.bump();
+            if self.at(TK::RParen) {
+                break;
+            }
+            items.push(self.parse_expr());
+        }
+        self.expect(TK::RParen);
+        let span = self.span_from(start);
+        Expr::new(ExprKind::Tuple(items), span, next_id())
+    }
+
+    fn parse_array(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::LBracket);
+        let mut items = Vec::new();
+        loop {
+            if self.at(TK::RBracket) {
+                break;
+            }
+            items.push(self.parse_expr());
+            if self.at(TK::RBracket) {
+                break;
+            }
+            self.expect(TK::Comma);
+            if self.at(TK::RBracket) {
+                break;
+            }
+        }
+        self.expect(TK::RBracket);
+        let span = self.span_from(start);
+        Expr::new(ExprKind::Array(items), span, next_id())
+    }
+
+    fn parse_block_expr(&mut self) -> Expr {
+        let b = self.parse_block();
+        let span = b.span;
+        Expr::new(ExprKind::Block(Box::new(b)), span, next_id())
+    }
+
+    // ===== Control flow =====
+
+    fn parse_if(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::If);
+        let cond = self.parse_expr();
+        let then = self.parse_block_expr();
+        let else_ = if self.at(TK::Else) {
+            self.bump();
+            if self.at(TK::If) {
+                Some(Box::new(self.parse_if()))
+            } else {
+                Some(Box::new(self.parse_block_expr()))
+            }
+        } else {
+            None
+        };
+        let span = self.span_from(start);
+        Expr::new(
+            ExprKind::If(Box::new(cond), Box::new(then), else_),
+            span,
+            next_id(),
+        )
+    }
+
+    fn parse_match(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::Match);
+        let scrutinee = self.parse_expr();
+        self.expect(TK::LBrace);
+        let mut arms = Vec::new();
+        loop {
+            if self.at(TK::RBrace) {
+                break;
+            }
+            arms.push(self.parse_match_arm());
+            self.eat(TK::Comma);
+            if self.at(TK::RBrace) {
+                break;
+            }
+        }
+        self.expect(TK::RBrace);
+        let span = self.span_from(start);
+        Expr::new(ExprKind::Match(Box::new(scrutinee), arms), span, next_id())
+    }
+
+    fn parse_match_arm(&mut self) -> MatchArm {
+        let start = self.pos;
+        let pattern = self.parse_pattern();
+        let guard = if self.at(TK::If) {
+            self.bump();
+            Some(self.parse_expr())
+        } else {
+            None
+        };
+        self.expect(TK::FatArrow);
+        let body = self.parse_expr();
+        MatchArm {
+            pattern,
+            guard,
+            body,
+            span: self.span_from(start),
+        }
+    }
+
+    fn parse_for(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::For);
+        let var = self.parse_ident();
+        if !self.at_ident("in") {
+            self.unexpected::<()>("`in`");
+        }
+        self.bump();
+        let iter = self.parse_expr();
+        let body = self.parse_block_expr();
+        let body = match body.kind {
+            ExprKind::Block(b) => *b,
+            _ => unreachable!("for loop body is always a block"),
+        };
+        let span = self.span_from(start);
+        Expr::new(
+            ExprKind::For(Box::new(ForLoop { var, iter, body, span })),
+            span,
+            next_id(),
+        )
+    }
+
+    fn parse_while(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::While);
+        let cond = self.parse_expr();
+        let body = self.parse_block_expr();
+        let span = self.span_from(start);
+        Expr::new(
+            ExprKind::While(Box::new(cond), Box::new(body)),
+            span,
+            next_id(),
+        )
+    }
+
+    fn parse_return(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::Return);
+        let value = match self.peek() {
+            Some(TK::Semicolon) | Some(TK::RBrace) | Some(TK::RParen) | None => None,
+            _ => Some(Box::new(self.parse_expr())),
+        };
+        let span = self.span_from(start);
+        Expr::new(ExprKind::Return(value), span, next_id())
+    }
+
+    // ===== Quantum operations =====
+
+    fn parse_measure(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::Measure);
+        let target = self.parse_unary();
+        let span = self.span_from(start);
+        Expr::new(
+            ExprKind::QuantumOp(QuantumOp::Measure(Box::new(target))),
+            span,
+            next_id(),
+        )
+    }
+
+    fn parse_entangle(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::Entangle);
+        let args = if self.at(TK::LParen) {
+            self.bump();
+            let args = self.parse_args_until(TK::RParen);
+            self.expect(TK::RParen);
+            args
+        } else {
+            Vec::new()
+        };
+        let span = self.span_from(start);
+        Expr::new(ExprKind::QuantumOp(QuantumOp::Entangle(args)), span, next_id())
+    }
+
+    fn parse_qalloc(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::QAlloc);
+        // qalloc() - consume parentheses
+        self.expect(TK::LParen);
+        self.expect(TK::RParen);
+        // qalloc() returns a qubit
+        let span = self.span_from(start);
+        Expr::new(ExprKind::QuantumOp(QuantumOp::Alloc(Ident::new("qalloc", span))), span, next_id())
+    }
+
+    // ===== Reversible blocks =====
+
+    /// Parse a `reversible { ... }` block expression.
+    pub(crate) fn parse_reversible_expr(&mut self) -> Expr {
+        let start = self.pos;
+        let rb = self.parse_reversible_block();
+        let span = self.span_from(start);
+        Expr::new(ExprKind::Reversible(Box::new(rb)), span, next_id())
+    }
+
+    // ===== Patterns (used by match arms) =====
+
+    fn parse_pattern(&mut self) -> Pattern {
+        match self.peek() {
+            Some(TK::Int(_)) | Some(TK::Float(_)) | Some(TK::Bool(_))
+            | Some(TK::Str(_)) | Some(TK::Char(_)) => self.parse_literal_pattern(),
+            Some(TK::LParen) => self.parse_tuple_pattern(),
+            Some(TK::Ident(_)) | Some(TK::TypeIdent(_)) => self.parse_ident_pattern(),
+            None => self.unexpected("a pattern"),
+            Some(k) => self.unexpected(&format!("a pattern, found `{k}`")),
+        }
+    }
+
+    fn parse_literal_pattern(&mut self) -> Pattern {
+        let tok = self.bump().expect("pattern literal token");
+        let span = token_span(&tok);
+        let lit = match &tok.kind {
+            TK::Int(n) => Literal::Int(*n),
+            TK::Float(f) => Literal::Float(*f),
+            TK::Bool(b) => Literal::Bool(*b),
+            TK::Str(s) => Literal::String(s.clone()),
+            TK::Char(c) => Literal::Char(*c),
+            _ => unreachable!("parse_literal_pattern on {:?}", tok.kind),
+        };
+        Pattern::new(PatternKind::Literal(lit), span, next_id())
+    }
+
+    fn parse_tuple_pattern(&mut self) -> Pattern {
+        let start = self.pos;
+        self.expect(TK::LParen);
+        let mut items = Vec::new();
+        loop {
+            if self.at(TK::RParen) {
+                break;
+            }
+            items.push(self.parse_pattern());
+            if self.at(TK::RParen) {
+                break;
+            }
+            self.expect(TK::Comma);
+            if self.at(TK::RParen) {
+                break;
+            }
+        }
+        self.expect(TK::RParen);
+        Pattern::new(PatternKind::Tuple(items), self.span_from(start), next_id())
+    }
+
+    fn parse_ident_pattern(&mut self) -> Pattern {
+        let tok = self.bump().expect("pattern identifier");
+        let span = token_span(&tok);
+        let (name, is_wildcard) = match &tok.kind {
+            TK::Ident(s) => (Ident::new(s.clone(), span), s == "_"),
+            TK::TypeIdent(s) => (Ident::new(s.clone(), span), false),
+            other => panic!("expected pattern identifier, found `{other}`"),
+        };
+        if is_wildcard {
+            return Pattern::new(PatternKind::Wildcard, span, next_id());
+        }
+        if self.at(TK::LBrace) {
+            self.bump();
+            let mut fields = Vec::new();
+            loop {
+                if self.at(TK::RBrace) {
+                    break;
+                }
+                let field = self.parse_field_pattern();
+                fields.push(field);
+                if self.at(TK::RBrace) {
+                    break;
+                }
+                self.expect(TK::Comma);
+                if self.at(TK::RBrace) {
+                    break;
+                }
+            }
+            self.expect(TK::RBrace);
+            return Pattern::new(PatternKind::Struct(name, fields), span, next_id());
+        }
+        if self.at(TK::LParen) {
+            self.bump();
+            let mut args = Vec::new();
+            loop {
+                if self.at(TK::RParen) {
+                    break;
+                }
+                args.push(self.parse_pattern());
+                if self.at(TK::RParen) {
+                    break;
+                }
+                self.expect(TK::Comma);
+                if self.at(TK::RParen) {
+                    break;
+                }
+            }
+            self.expect(TK::RParen);
+            // Enum variant arguments are dropped for now.
+            let _ = args;
+            return Pattern::new(PatternKind::Ident(name), span, next_id());
+        }
+        Pattern::new(PatternKind::Ident(name), span, next_id())
+    }
+
+    fn parse_field_pattern(&mut self) -> FieldPattern {
+        let start = self.pos;
+        let name = self.parse_ident();
+        self.expect(TK::Colon);
+        let pattern = self.parse_pattern();
+        FieldPattern {
+            name,
+            pattern,
+            span: self.span_from(start),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::parse_program;
+
+    #[test]
+    fn assigns_like_an_expression() {
+        let prog = parse_program("fn f() { let x = 1; x = 2; }").expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.body.stmts.len(), 2);
+        match &func.body.stmts[1].kind {
+            StmtKind::Expr(e) => assert!(matches!(e.kind, ExprKind::Assign(..))),
+            other => panic!("expected assign stmt, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_struct_literal() {
+        let prog = parse_program("fn f() { let p = Point { x: 1.0, y: 2.0 }; }").expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        match &func.body.stmts[0].kind {
+            StmtKind::Let(l) => match &l.value.kind {
+                ExprKind::Struct(name, fields) => {
+                    assert_eq!(name.name, "Point");
+                    assert_eq!(fields.len(), 2);
+                }
+                other => panic!("expected struct, got {other:?}"),
+            },
+            other => panic!("expected let stmt, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_measure_and_entangle() {
+        let prog = parse_program(
+            "fn f(q: Qubit) { let r = measure q; let e = entangle(q, q); }",
+        )
+        .expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.body.stmts.len(), 2);
+    }
+
+    #[test]
+    fn is_control_flow_stmt_recognizes_blocks() {
+        let then = Expr::new(
+            ExprKind::Block(Box::new(Block::new(Vec::new(), None, Span::default()))),
+            Span::default(),
+            NodeId::new(2),
+        );
+        assert!(is_control_flow_stmt(&ExprKind::If(
+            Box::new(Expr::new(
+                ExprKind::Literal(Literal::Bool(true)),
+                Span::default(),
+                NodeId::new(1)
+            )),
+            Box::new(then),
+            None,
+        )));
+        assert!(!is_control_flow_stmt(&ExprKind::Var(Ident::new(
+            "x",
+            Span::default()
+        ))));
+    }
+}

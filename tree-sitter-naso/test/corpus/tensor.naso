@@ -1,0 +1,83 @@
+// Tensor operations
+fn tensor_arithmetic() {
+    let A: [N][N] f64 = ...;
+    let B: [N][N] f64 = ...;
+    let C: [N][N] f64 = ...;
+
+    // Element-wise operations
+    let sum = add(A, B);
+    let diff = sub(A, B);
+    let scaled = scale(A, 2.0);
+
+    // Matrix multiplication
+    let product = matmul(A, B);
+
+    // Transpose
+    let transposed = transpose(A);
+
+    // Tensor contraction
+    let contracted = contract(A, B, i, j);
+
+    // Outer product
+    let outer = outer_product(A[0], B[0]);
+
+    // Dot product
+    let dot_prod = dot(A[0], B[0]);
+}
+
+// Batched matrix multiplication
+fn batched_matmul() {
+    let A: [B][M][K] f32 = ...;
+    let B: [B][K][N] f32 = ...;
+    let C: [B][M][N] f32 = ...;
+
+    forall(b in 0..B) {
+        C[b] = matmul(A[b], B[b]);
+    }
+}
+
+// Convolution as tensor contraction
+fn convolution() {
+    let input: [N][H][W][C] f32 = ...;
+    let kernel: [K][K][C][O] f32 = ...;
+    let output: [N][H-K+1][W-K+1][O] f32 = ...;
+
+    forall(n in 0..N, h in 0..H-K+1, w in 0..W-K+1, o in 0..O) {
+        output[n, h, w, o] = contract(input, kernel, kh, kw, c);
+    }
+}
+
+// Attention mechanism
+fn attention() {
+    let Q: [B][H][L][D] f32 = ...;
+    let K: [B][H][L][D] f32 = ...;
+    let V: [B][H][L][D] f32 = ...;
+
+    let scores = matmul(Q, transpose(K));
+    let scaled = scale(scores, 1.0 / sqrt(D as f32));
+    let attn = softmax(scaled);
+    let out = matmul(attn, V);
+}
+
+// Linear algebra routines
+fn cholesky_decomposition(A: [N][N] f64) -> [N][N] f64 {
+    let mut L = [[0.0; N]; N];
+    forall(i in 0..N, j in 0..=i) {
+        if i == j {
+            let sum = contract(L, L, k);
+            L[i, i] = sqrt(A[i, i] - sum);
+        } else {
+            let sum = contract(L, L, k);
+            L[i, j] = (A[i, j] - sum) / L[j, j];
+        }
+    }
+    L
+}
+
+fn qr_decomposition(A: [M][N] f64) -> ([M][M] f64, [M][N] f64) {
+    // Gram-Schmidt or Householder
+    let mut Q = [[0.0; M]; M];
+    let mut R = [[0.0; N]; N];
+    // Implementation...
+    (Q, R)
+}

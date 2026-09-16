@@ -1,0 +1,27 @@
+//! Test corpus for linearity diagnostics
+
+// NASO-LIN-001: Linear variable used twice
+fn test_double_use() {
+    let x: [1] Int = 42;
+    let a = x; // first use
+    let b = x; // second use - ERROR: NASO-LIN-001
+}
+
+// NASO-LIN-002: Unused linear variable
+fn test_unused_linear() {
+    let x: [1] Int = 42; // ERROR: NASO-LIN-002 - x is never used
+    // x should be consumed
+}
+
+// NASO-LIN-003: Implicit drop of linear variable
+fn test_implicit_drop() {
+    let x: [1] Int = 42;
+    // x goes out of scope without being consumed - ERROR: NASO-LIN-003
+}
+
+// NASO-LIN-004: Use of moved value
+fn test_use_of_moved() {
+    let x: [1] Int = 42;
+    let y = x; // x moved to y
+    let z = x; // ERROR: NASO-LIN-004 - use of moved value x
+}

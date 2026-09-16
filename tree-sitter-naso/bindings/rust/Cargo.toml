@@ -1,0 +1,33 @@
+[package]
+name = "tree-sitter-naso"
+version = "0.1.0"
+description = "Tree-sitter grammar for the Naso programming language"
+author = "Naso Team"
+license = "MIT"
+repository = "https://github.com/naso-lang/tree-sitter-naso"
+homepage = "https://github.com/naso-lang/tree-sitter-naso"
+keywords = [
+  "tree-sitter",
+  "naso",
+  "quantum",
+  "programming-language",
+  "syntax-highlighting"
+]
+
+[workspace]
+
+[build]
+generate = false
+generate_never = true
+
+[dependencies]
+tree-sitter = "0.22"
+
+[build-dependencies]
+cc = "1.0"
+
+[dev-dependencies]
+tree-sitter-cli = "0.22"
+
+[features]
+default = []

@@ -1,0 +1,44 @@
+// Valid Bell pair - should verify successfully
+fn bell_pair() -> [1] (Qubit, Qubit) {
+    let q0 = qalloc(1);
+    let q1 = qalloc(1);
+    hadamard(q0);
+    cnot(q0, q1);
+    (q0, q1)
+}
+
+// Valid QFT with proper uncomputation
+fn qft_4qubits() -> [1] (Qubit, Qubit, Qubit, Qubit) {
+    let q0 = qalloc(1);
+    let q1 = qalloc(1);
+    let q2 = qalloc(1);
+    let q3 = qalloc(1);
+    
+    hadamard(q0);
+    cnot(q0, q1);
+    cnot(q1, q2);
+    cnot(q2, q3);
+    
+    (q0, q1, q2, q3)
+}
+
+// Valid teleportation circuit
+fn teleportation() {
+    let msg = qalloc(1);
+    let alice = qalloc(1);
+    let bob = qalloc(1);
+    
+    // Prepare Bell pair
+    hadamard(alice);
+    cnot(alice, bob);
+    
+    // Bell measurement
+    cnot(msg, alice);
+    hadamard(msg);
+    let m1 = measure(msg);
+    let m2 = measure(alice);
+    
+    // Correction
+    if m1 { X(bob); }
+    if m2 { Z(bob); }
+}

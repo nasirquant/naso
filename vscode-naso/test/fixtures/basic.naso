@@ -1,0 +1,89 @@
+// Basic Naso syntax test file
+module basic_test {
+    // Primitive types
+    let x: i32 = 42;
+    let y: f64 = 3.14;
+    let flag: bool = true;
+    let name: str = "hello";
+    let unit_val: unit = ();
+
+    // QTT quantity annotations
+    let linear_val: [1] i32 = 10;
+    let proof_val: [0] i32 = 20;
+    let unbounded_val: [*] i32 = 30;
+    let bounded_val: [N] i32 = 40;
+
+    // Functions
+    fn add(a: i32, b: i32) -> i32 {
+        a + b
+    }
+
+    fn consume_linear(x: [1] i32) -> i32 {
+        x * 2
+    }
+
+    fn prove_something(x: [0] i32) -> [0] bool {
+        true
+    }
+
+    fn modify_inout(inout x: i32) -> i32 {
+        x = x + 1;
+        x
+    }
+
+    // Structs
+    struct Point {
+        x: f64,
+        y: f64,
+    }
+
+    struct GenericContainer<T> {
+        value: T,
+    }
+
+    // Enums
+    enum Option<T> {
+        Some(T),
+        None,
+    }
+
+    enum Color {
+        Red,
+        Green,
+        Blue,
+    }
+
+    // Type aliases
+    type Int32 = i32;
+    type Point3D = (f64, f64, f64);
+
+    // Constants
+    const PI: f64 = 3.14159265359;
+    const MAX_SIZE: usize = 1024;
+
+    // Control flow
+    fn test_control_flow(n: i32) -> i32 {
+        if n > 0 {
+            while n > 0 {
+                n = n - 1;
+            }
+        } else {
+            for i in 0..10 {
+                n = n + i;
+            }
+        }
+        
+        match n {
+            0 => 0,
+            1 => 1,
+            _ => n * 2,
+        }
+    }
+
+    // Main entry
+    fn main() -> i32 {
+        let p = Point { x: 1.0, y: 2.0 };
+        let result = add(5, 3);
+        result
+    }
+}

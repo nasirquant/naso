@@ -1,0 +1,189 @@
+module test_advanced;
+
+use prelude;
+
+struct LinearResource<T> {
+    data: T,
+    @linear
+}
+
+struct QuantumState {
+    amplitudes: Tensor<Complex, [2^n]>,
+    @quantum
+    n_qubits: u32,
+}
+
+struct TensorView<'a, T, const SHAPE: [usize; N]> {
+    ptr: *const T,
+    shape: [usize; N],
+    strides: [usize; N],
+    @no_drop
+    lifetime: 'a,
+}
+
+type Complex = (f64, f64);
+
+type Matrix<T, const M: usize, const N: usize> = Tensor<T, [M, N]>;
+
+type QuantumRegister<const N: usize> = Qubit<N>;
+
+fn consume_resource(consume res: LinearResource<i32>) -> i32 {
+    let LinearResource { data } = res;
+    data
+}
+
+fn borrow_resource(res: &LinearResource<i32>) -> &i32 {
+    &res.data
+}
+
+fn mutate_resource(inout res: LinearResource<i32>) {
+    res.data += 1;
+}
+
+fn pattern_match_examples() {
+    let x: Option<i32> = Some(42);
+    match x {
+        Some(v) => println!("Got {}", v),
+        None => println!("Nothing"),
+    }
+
+    let pair = (1, 2.0, "three");
+    match pair {
+        (a, b, c) => println!("{}, {}, {}", a, b, c),
+    }
+
+    let quantum_state = QuantumState { amplitudes: tensor![], n_qubits: 2 };
+    match quantum_state {
+        QuantumState { amplitudes, n_qubits } if n_qubits > 0 => {
+            println!("Quantum state with {} qubits", n_qubits);
+        }
+        _ => println!("Empty state"),
+    }
+
+    let result = measure(qalloc());
+    match result {
+        true => println!("|1>"),
+        false => println!("|0>"),
+    }
+}
+
+fn lambda_examples() {
+    let add = |a: i32, b: i32| -> i32 { a + b };
+    let result = add(1, 2);
+
+    let closure = |x: i32| x * 2;
+    let doubled = closure(5);
+
+    let quantum_op = |q: Qubit| {
+        hadamard(q);
+        measure(q)
+    };
+}
+
+fn match_expression_examples() -> i32 {
+    let x = 5;
+    match x {
+        0 => 0,
+        1 => 1,
+        n if n % 2 == 0 => n / 2,
+        n => n * 3 + 1,
+    }
+}
+
+fn tuple_destructuring() {
+    let (a, b, c) = (1, 2.0, "three");
+    let (x, y) = swap((1, 2));
+}
+
+fn swap<T, U>(pair: (T, U)) -> (U, T) {
+    let (a, b) = pair;
+    (b, a)
+}
+
+fn quantum_circuit_example() {
+    circuit {
+        let q1 = qalloc();
+        let q2 = qalloc();
+        hadamard(q1);
+        cnot(q1, q2);
+        barrier(q1, q2);
+        let m1 = measure(q1);
+        let m2 = measure(q2);
+        if m1 {
+            pauli_x(q2);
+        }
+    }
+}
+
+fn defer_example() {
+    let file = open("test.txt");
+    defer {
+        close(file);
+    }
+    write(file, "hello");
+}
+
+fn unsafe_example() {
+    unsafe {
+        let ptr = 0x1234 as *mut i32;
+        *ptr = 42;
+    }
+}
+
+fn generic_constraints<T: Copy + Drop>(x: T) -> T {
+    x
+}
+
+fn where_clause_example<T, U>(x: T, y: U) -> (T, U)
+where
+    T: Copy,
+    U: Linear,
+{
+    (x, y)
+}
+
+fn higher_kinded_types<F: Functor>(fa: F<i32>) -> F<i32> {
+    fa.map(|x| x + 1)
+}
+
+trait Functor {
+    type Item;
+    fn map<U>(self, f: fn(Self::Item) -> U) -> Self::Output<U>;
+}
+
+impl Functor for Option<T> {
+    type Item = T;
+    type Output<U> = Option<U>;
+    fn map<U>(self, f: fn(T) -> U) -> Option<U> {
+        match self {
+            Some(x) => Some(f(x)),
+            None => None,
+        }
+    }
+}
+
+const MAX_QUBITS: u32 = 1024;
+const DEFAULT_PRECISION: f64 = 1e-12;
+
+static GLOBAL_STATE: Mutex<HashMap<String, i32>> = Mutex::new(HashMap::new());
+
+fn main() {
+    let resource = LinearResource { data: 42 };
+    let borrowed = borrow_resource(&resource);
+    println!("Borrowed: {}", borrowed);
+
+    let mut resource2 = LinearResource { data: 10 };
+    mutate_resource(inout resource2);
+    println!("Mutated: {}", resource2.data);
+
+    let consumed = consume_resource(LinearResource { data: 100 });
+    println!("Consumed: {}", consumed);
+
+    pattern_match_examples();
+    lambda_examples();
+    println!("Match result: {}", match_expression_examples());
+    tuple_destructuring();
+    quantum_circuit_example();
+    defer_example();
+    unsafe_example();
+}

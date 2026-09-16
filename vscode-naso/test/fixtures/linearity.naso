@@ -1,0 +1,138 @@
+// QTT Linearity and MVS Borrow-Checker test file
+module linearity_test {
+    // [1]-linearity violations
+    
+    // NASO-LIN-001: Unused linear value
+    fn unused_linear() {
+        let x: [1] i32 = 42;
+        // x is never used - should error
+    }
+
+    // NASO-LIN-002: Double use of linear value
+    fn double_use(x: [1] i32) -> i32 {
+        let y = x + 1;  // First use
+        let z = x + 2;  // Second use - should error
+        y + z
+    }
+
+    // NASO-LIN-003: Implicit drop of linear value
+    fn implicit_drop(x: [1] i32) {
+        // x goes out of scope without being consumed - should error
+    }
+
+    // Correct linear usage
+    fn correct_linear(x: [1] i32) -> i32 {
+        let y = x * 2;
+        y  // x consumed exactly once
+    }
+
+    fn linear_free_example(x: [1] i32) {
+        linear_free(x);  // Explicit free
+    }
+
+    // [0]-erasure violations
+    
+    // NASO-ERA-001: Retained [0] value at runtime
+    fn retained_proof(x: [0] i32) -> i32 {
+        x + 1  // [0] value used in runtime computation - should error
+    }
+
+    // NASO-ERA-002: Non-erased proof
+    fn non_erased_proof() {
+        let x: [0] i32 = 42;
+        // x should be erased but isn't - should warn/error
+    }
+
+    // Correct [0] usage
+    fn correct_proof(x: [0] i32) -> [0] bool {
+        true  // Only used in proof context
+    }
+
+    // [*]-unbounded aliasing warnings
+    
+    // NASO-MVS-001: Inout aliasing conflict
+    fn aliasing_conflict(inout x: i32, inout y: i32) {
+        // If x and y alias, this is an error
+        x = x + 1;
+        y = y + 1;
+    }
+
+    // NASO-MVS-002: Inout escape
+    fn inout_escape(inout x: i32) -> &mut i32 {
+        &mut x  // inout reference escapes - should error
+    }
+
+    // Correct inout usage
+    fn correct_inout(inout x: i32) -> i32 {
+        x = x + 1;
+        x
+    }
+
+    // Uncomputation errors
+    
+    // NASO-UNC-001: Uncomputation failed
+    fn failed_uncompute(x: [1] qubit) {
+        hadamard(x);
+        // Missing uncompute - should error
+    }
+
+    // NASO-UNC-002: Non-invertible temp
+    fn non_invertible_temp() {
+        let x = qalloc();
+        measure(x);  // Measurement is non-invertible
+        // Cannot uncompute after measurement - should error
+    }
+
+    // Correct uncomputation
+    fn correct_uncompute(x: [1] qubit) -> [1] qubit {
+        hadamard(x);
+        // Automatic uncomputation at scope exit
+        x
+    }
+
+    fn explicit_uncompute(x: [1] qubit) {
+        hadamard(x);
+        uncompute(hadamard(x));  // Explicit uncomputation
+    }
+
+    // Complex linearity patterns
+    fn linear_pair(x: [1] i32, y: [1] i32) -> ([1] i32, [1] i32) {
+        (x * 2, y * 3)  // Both consumed
+    }
+
+    fn linear_swap(inout x: i32, inout y: i32) {
+        let temp = x;
+        x = y;
+        y = temp;
+    }
+
+    fn consume_and_return(x: [1] i32) -> [1] i32 {
+        x  // Linear value returned, ownership transferred
+    }
+
+    fn linear_closure() -> fn([1] i32) -> [1] i32 {
+        |x| x * 2  // Linear closure
+    }
+
+    // Nested linear types
+    struct LinearWrapper {
+        value: [1] i32,
+    }
+
+    fn nested_linear(wrapper: [1] LinearWrapper) -> i32 {
+        let LinearWrapper { value } = wrapper;  // Destructuring consumes
+        value
+    }
+
+    // Linear generics
+    fn linear_generic<T>(x: [1] T) -> [1] T {
+        x
+    }
+
+    // Main
+    fn main() {
+        let x: [1] i32 = 42;
+        let result = correct_linear(x);
+        result
+    }
+}

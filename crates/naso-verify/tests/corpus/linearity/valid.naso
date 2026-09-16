@@ -1,0 +1,31 @@
+// Valid: linear resource consumed exactly once
+fn consume_once(x: [1] i32) -> i32 {
+    linear_free(x)
+}
+
+// Valid: linear resource moved and consumed
+fn move_and_consume(x: [1] i32) -> i32 {
+    let y = x; // Move
+    linear_free(y)
+}
+
+// Valid: multiple linear resources consumed
+fn multi_linear(x: [1] i32, y: [1] f64) -> (i32, f64) {
+    let x_val = linear_free(x);
+    let y_val = linear_free(y);
+    (x_val, y_val)
+}
+
+// Valid: linear resource returned from function
+fn return_linear() -> [1] i32 {
+    linear_alloc(42)
+}
+
+// Valid: conditional consumption on all paths
+fn conditional_consume(cond: bool, x: [1] i32) -> i32 {
+    if cond {
+        linear_free(x)
+    } else {
+        linear_free(x)
+    }
+}

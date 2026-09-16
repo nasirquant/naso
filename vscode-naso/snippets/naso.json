@@ -1,0 +1,288 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2:params}) -> ${3:ReturnType} {",
+      "\t${0:// body}",
+      "}"
+    ],
+    "description": "Function definition"
+  },
+  "Linear Function": {
+    "prefix": "fn1",
+    "body": [
+      "fn ${1:consume}(${2:x}: [1] ${3:T}) -> ${4:ReturnType} {",
+      "\t${0:// body}",
+      "}"
+    ],
+    "description": "Linear function with [1]-quantity parameter"
+  },
+  "Proof Function": {
+    "prefix": "fn0",
+    "body": [
+      "fn ${1:prove}(${2:x}: [0] ${3:T}) -> ${4:ReturnType} {",
+      "\t${0:// body}",
+      "}"
+    ],
+    "description": "Function with [0]-quantity (proof-only) parameter"
+  },
+  "Inout Function": {
+    "prefix": "fn_inout",
+    "body": [
+      "fn ${1:modify}(inout ${2:x}: ${3:T}) -> ${4:ReturnType} {",
+      "\t${0:// body}",
+      "}"
+    ],
+    "description": "Function with inout (mutable value semantics) parameter"
+  },
+  "Quantum Function": {
+    "prefix": "qfn",
+    "body": [
+      "fn ${1:circuit}(${2:params}) -> ${3:ReturnType} {",
+      "\t${0:// quantum circuit body}",
+      "}"
+    ],
+    "description": "Quantum circuit function"
+  },
+  "Struct": {
+    "prefix": "struct",
+    "body": [
+      "struct ${1:Name} {",
+      "\t${2:field}: ${3:Type},",
+      "\t${0:// more fields}",
+      "}"
+    ],
+    "description": "Struct definition"
+  },
+  "Generic Struct": {
+    "prefix": "struct_generic",
+    "body": [
+      "struct ${1:Name}<${2:T}> {",
+      "\t${3:field}: ${2:T},",
+      "\t${0:// more fields}",
+      "}"
+    ],
+    "description": "Generic struct definition"
+  },
+  "Enum": {
+    "prefix": "enum",
+    "body": [
+      "enum ${1:Name} {",
+      "\t${2:Variant1},",
+      "\t${3:Variant2}(${4:Type}),",
+      "\t${0:// more variants}",
+      "}"
+    ],
+    "description": "Enum definition"
+  },
+  "Type Alias": {
+    "prefix": "type",
+    "body": [
+      "type ${1:Name} = ${2:Type};"
+    ],
+    "description": "Type alias"
+  },
+  "Quantum Circuit - Bell Pair": {
+    "prefix": "qbell",
+    "body": [
+      "fn ${1:create_bell_pair}() -> ([1] qubit, [1] qubit) {",
+      "\tlet q0 = qalloc();",
+      "\tlet q1 = qalloc();",
+      "\thadamard(q0);",
+      "\tcnot(q0, q1);",
+      "\t(q0, q1)",
+      "}"
+    ],
+    "description": "Bell pair creation circuit"
+  },
+  "Quantum Circuit - QFT": {
+    "prefix": "qqft",
+    "body": [
+      "fn ${1:qft}(qubits: [N] qubit) -> [N] qubit {",
+      "\tforall (i in 0..qubits.len()) {",
+      "\thadamard(qubits[i]);",
+      "\tforall (j in (i+1)..qubits.len()) {",
+      "\t\tphase(qubits[j], 2.0 * PI / 2.0^(j - i + 1));",
+      "\t}",
+      "\t}",
+      "\tqubits",
+      "}"
+    ],
+    "description": "Quantum Fourier Transform circuit"
+  },
+  "Quantum Circuit - Grover Oracle": {
+    "prefix": "qgrover",
+    "body": [
+      "fn ${1:grover_oracle}(state: [N] qubit, target: [0] bool) -> [N] qubit {",
+      "\t// Oracle marks target state",
+      "\tif target {",
+      "\t\t// Phase flip on target",
+      "\t}",
+      "\tstate",
+      "}"
+    ],
+    "description": "Grover's algorithm oracle"
+  },
+  "Tensor Contraction": {
+    "prefix": "tcontract",
+    "body": [
+      "fn ${1:contract}(A: Tensor<[N]; ${2:Dims}>, B: Tensor<[M]; ${3:Dims}>) -> Tensor<[K]; ${4:Dims}> {",
+      "\tcontract(A, B, [${5:indices}])",
+      "}"
+    ],
+    "description": "Tensor contraction operation"
+  },
+  "Matrix Multiplication": {
+    "prefix": "tmatmul",
+    "body": [
+      "fn ${1:matmul}(A: Tensor<[N]; [${2:M}, ${3:K}]>, B: Tensor<[M]; [${3:K}, ${4:N}]>) -> Tensor<[K]; [${2:M}, ${4:N}]> {",
+      "\tmatmul(A, B)",
+      "}"
+    ],
+    "description": "Matrix multiplication"
+  },
+  "Polyhedral Loop - forall": {
+    "prefix": "pforall",
+    "body": [
+      "#[schedule(parallel)]",
+      "forall (${1:i} in 0..${2:N}) {",
+      "\t${0:// body}",
+      "}"
+    ],
+    "description": "Parallel forall loop"
+  },
+  "Polyhedral Loop - tiled": {
+    "prefix": "ptile",
+    "body": [
+      "#[schedule(tiled, tile_size=32)]",
+      "tile (${1:i}, ${2:j}) {",
+      "\t${0:// tiled body}",
+      "}"
+    ],
+    "description": "Tiled polyhedral loop"
+  },
+  "Polyhedral Loop - fused": {
+    "prefix": "pfuse",
+    "body": [
+      "fuse (${1:loop1}, ${2:loop2}) {",
+      "\t${0:// fused body}",
+      "}"
+    ],
+    "description": "Fused polyhedral loops"
+  },
+  "Module": {
+    "prefix": "module",
+    "body": [
+      "module ${1:name} {",
+      "\t${0:// declarations}",
+      "}"
+    ],
+    "description": "Module declaration"
+  },
+  "Import": {
+    "prefix": "import",
+    "body": [
+      "import ${1:name} from \"${2:path}\";"
+    ],
+    "description": "Import declaration"
+  },
+  "Let Binding": {
+    "prefix": "let",
+    "body": [
+      "let ${1:name} = ${2:value};"
+    ],
+    "description": "Immutable let binding"
+  },
+  "Mutable Let Binding": {
+    "prefix": "letm",
+    "body": [
+      "let mut ${1:name} = ${2:value};"
+    ],
+    "description": "Mutable let binding"
+  },
+  "Linear Let Binding": {
+    "prefix": "let1",
+    "body": [
+      "let ${1:name}: [1] ${2:Type} = ${3:value};"
+    ],
+    "description": "Linear ([1]) let binding"
+  },
+  "Proof Let Binding": {
+    "prefix": "let0",
+    "body": [
+      "let ${1:name}: [0] ${2:Type} = ${3:value};"
+    ],
+    "description": "Proof-only ([0]) let binding"
+  },
+  "Const Declaration": {
+    "prefix": "const",
+    "body": [
+      "const ${1:NAME}: ${2:Type} = ${3:value};"
+    ],
+    "description": "Constant declaration"
+  },
+  "Match Expression": {
+    "prefix": "match",
+    "body": [
+      "match ${1:expr} {",
+      "\t${2:Pattern} => ${3:result},",
+      "\t_ => ${4:default},",
+      "}"
+    ],
+    "description": "Match expression"
+  },
+  "If Expression": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition} {",
+      "\t${2:then_branch}",
+      "} else {",
+      "\t${3:else_branch}",
+      "}"
+    ],
+    "description": "If expression"
+  },
+  "While Loop": {
+    "prefix": "while",
+    "body": [
+      "while ${1:condition} {",
+      "\t${0:// body}",
+      "}"
+    ],
+    "description": "While loop"
+  },
+  "For Loop": {
+    "prefix": "for",
+    "body": [
+      "for ${1:i} in ${2:range} {",
+      "\t${0:// body}",
+      "}"
+    ],
+    "description": "For loop"
+  },
+  "Uncompute": {
+    "prefix": "uncompute",
+    "body": [
+      "uncompute ${1:expr};"
+    ],
+    "description": "Explicit uncomputation"
+  },
+  "Defer": {
+    "prefix": "defer",
+    "body": [
+      "defer {",
+      "\t${0:// cleanup}",
+      "}"
+    ],
+    "description": "Deferred cleanup block"
+  },
+  "Unsafe Block": {
+    "prefix": "unsafe",
+    "body": [
+      "unsafe {",
+      "\t${0:// unsafe operations}",
+      "}"
+    ],
+    "description": "Unsafe block"
+  }
+}

@@ -1,0 +1,97 @@
+baseURL: "https://nasolang.org/"
+title: "Naso Language Documentation"
+locale: "en-US"
+defaultContentLanguage: "en"
+
+theme: hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+    codeFences: true
+    guessSyntax: true
+    lineNos: true
+    style: "monokai"
+
+params:
+  theme:
+    default: "dark"
+    displayToggle: true
+    assets:
+      css: [css/custom.css]
+
+  navbar:
+    displayTitle: true
+    displayLogo: true
+    logo:
+      path: "images/logo.svg"
+      width: 28
+      height: 28
+      alt: "Naso Logo"
+    nav:
+      - name: "Docs"
+        url: "/docs/"
+        weight: 1
+      - name: "Language Spec"
+        url: "/docs/spec/"
+        weight: 2
+      - name: "Standard Library"
+        url: "/docs/stdlib/"
+        weight: 3
+      - name: "Verification"
+        url: "/docs/verification/"
+        weight: 4
+      - name: Search
+        params:
+          type: search
+        weight: 5
+      - name: GitHub
+        url: "https://github.com/nasirquant/naso"
+        params:
+          icon: github
+        weight: 6
+
+  search:
+    enable: true
+    type: "flexsearch"
+    flexsearch:
+      index: "content"
+      tokenize: "forward"
+      indexCode: true
+
+  github:
+    repo: "https://github.com/nasirquant/naso"
+    badge: true
+
+  footer:
+    enable: true
+    displayPoweredBy: false
+    displayCopyright: true
+    copyright: "© 2026 Naso Project. Released under Apache 2.0 / MIT License. • <a href='https://github.com/nasirquant/naso' target='_blank' rel='noopener'>GitHub</a>"
+
+menu:
+  main:
+    - name: Docs
+      pageRef: /docs
+      weight: 1
+    - name: Language Spec
+      pageRef: /docs/spec
+      weight: 2
+    - name: Standard Library
+      pageRef: /docs/stdlib
+      weight: 3
+    - name: Verification
+      pageRef: /docs/verification
+      weight: 4
+    - name: Search
+      params:
+        type: search
+      weight: 100
+    - name: GitHub
+      url: "https://github.com/nasirquant/naso"
+      params:
+        icon: github
+      weight: 101
