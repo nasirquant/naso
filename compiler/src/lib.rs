@@ -13,3 +13,4 @@ pub mod runtime;
 pub mod typecheck;
 
 pub use ast::*;
+pub use ast::Program;

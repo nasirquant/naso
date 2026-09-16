@@ -22,8 +22,6 @@ use crate::ast::Quantity;
 use crate::ast::Span;
 use crate::ast::Type;
 use crate::ast::Ident;
-use crate::ast::Mutability;
-use thiserror::Error;
 
 pub use abi::{lower_pir_type, lower_pir_module_types, QuantityAwareType};
 pub use context::{CodegenTarget, OptLevel};

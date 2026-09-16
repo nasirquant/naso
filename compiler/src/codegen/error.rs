@@ -188,6 +188,7 @@ impl Diagnostic for CodegenError {
 }
 
 /// Collection of diagnostics
+#[allow(dead_code)]
 pub struct DiagnosticEmitter {
     diagnostics: Vec<Box<dyn Diagnostic>>,
     source_map: Option<SourceMap>,
