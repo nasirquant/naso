@@ -21,7 +21,7 @@ params:
     default: "dark"
     displayToggle: true
     assets:
-      css: [css/custom.css]
+      css: [css/custom.css, css/callout.css]
 
   navbar:
     displayTitle: true

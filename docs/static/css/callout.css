@@ -1,0 +1,39 @@
+.callout {
+  border-left: 4px solid #ccc;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  background-color: rgba(0, 0, 0, 0.05);
+  display: flex;
+  gap: 12px;
+}
+
+.callout-warning {
+  border-left-color: #ff9800;
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.callout-info {
+  border-left-color: #2196f3;
+  background-color: rgba(33, 150, 243, 0.1);
+}
+
+.callout-danger {
+  border-left-color: #f44336;
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+.callout-success {
+  border-left-color: #4caf50;
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.callout-emoji {
+  font-size: 1.5em;
+  flex-shrink: 0;
+  min-width: 24px;
+}
+
+.callout-content {
+  flex: 1;
+}

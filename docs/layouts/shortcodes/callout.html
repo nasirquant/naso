@@ -1,0 +1,8 @@
+<div class="callout callout-{{ .Get "type" | default "info" }}">
+  {{- if .Get "emoji" }}
+  <span class="callout-emoji">{{ .Get "emoji" }}</span>
+  {{- end }}
+  <div class="callout-content">
+    {{ .Inner }}
+  </div>
+</div>

@@ -9,10 +9,11 @@ repository = "https://github.com/naso-lang/naso"
 [features]
 default = ["z3"]
 z3 = ["dep:z3"]
+compiler = ["dep:naso-compiler"]
 
 [dependencies]
 # Core Naso compiler types
-naso-compiler = { path = "../../compiler" }
+naso-compiler = { path = "../../compiler", optional = true }
 
 # SMT Solver
 z3 = { version = "0.21", features = ["vendored"], optional = true }
