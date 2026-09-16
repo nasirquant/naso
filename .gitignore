@@ -38,3 +38,7 @@ Thumbs.db
 .idea/
 *.swp
 *~
+
+# Debug & Error logs
+errors*.txt
+*.log

@@ -3,7 +3,7 @@
 
 use tower_lsp::lsp_types::*;
 use crate::compiler_bridge::CompilerBridge;
-use crate::naso_compiler::ast::Span;
+use std::collections::HashMap;
 use crate::diagnostics::codes;
 
 /// Generate quick fixes for a given diagnostic
@@ -16,7 +16,7 @@ pub fn quick_fix_for_diagnostic(
     
     // Extract the diagnostic code
     let code = match &diagnostic.code {
-        Some(CodeOrString::String(code)) => code.as_str(),
+        Some(tower_lsp::lsp_types::NumberOrString::String(code)) => code.as_str(),
         _ => return fixes,
     };
 

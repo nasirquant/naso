@@ -3,11 +3,11 @@
 
 use tower_lsp::lsp_types::*;
 use crate::compiler_bridge::CompilerBridge;
-use crate::naso_compiler::typecheck::error::TypeError;
+use naso_compiler::typecheck::error::TypeError;
 use crate::diagnostics::codes;
 
 /// Convert compiler span to LSP Range
-fn span_to_range(compiler_bridge: &CompilerBridge, span: &naso_compiler::ast::Span) -> Range {
+fn span_to_range(_compiler_bridge: &CompilerBridge, span: &naso_compiler::ast::Span) -> Range {
     Range::new(
         Position::new(span.line - 1, span.column - 1),
         Position::new(span.line - 1, span.column - 1 + (span.end - span.start) as u32),
@@ -50,7 +50,7 @@ pub fn type_error_to_diagnostics(
         }
         TypeError::QuantityMismatch { expected, found, span } => {
             // Check if this is a linearity quantity mismatch
-            if matches!(expected, crate::compiler_bridge::Quantity::One) || matches!(found, crate::compiler_bridge::Quantity::One) {
+            if matches!(expected, naso_compiler::Quantity::One) || matches!(found, naso_compiler::Quantity::One) {
                 let message = format!("quantity mismatch: expected `{expected}`, found `{found}`");
                 let severity = DiagnosticSeverity::ERROR;
                 let code = codes::lin::IMPLICIT_DROP.to_string(); // Treat as implicit drop for linearity
@@ -79,7 +79,7 @@ pub fn type_error_to_diagnostics(
         }
     };
     
-    let diagnostic = Diagnostic::new_simple(
+    let mut diagnostic = Diagnostic::new_simple(
         span_to_range(compiler_bridge, &match error {
             TypeError::LinearVariableUsedTwice { first_use, .. } => first_use,
             TypeError::UnusedLinearVariable { defined_at, .. } => defined_at,
@@ -89,15 +89,14 @@ pub fn type_error_to_diagnostics(
             _ => &naso_compiler::ast::Span::new(0, 0), // fallback
         }),
         message,
-    )
-    .with_severity(Some(severity))
-    .with_code(Some(code.into()))
-    .with_related_information(related_ranges.map(|ranges| {
+    );
+    diagnostic.severity = Some(severity);
+    diagnostic.code = Some(code.into());
+    diagnostic.related_information = Some(related_ranges.map(|ranges| {
         ranges.into_iter()
             .map(|range| DiagnosticRelatedInformation::new(range.clone(), None))
             .collect()
     }));
-    
     diagnostics.push(diagnostic);
     diagnostics
 }

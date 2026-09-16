@@ -99,17 +99,25 @@ fn get_generic_hover(word: &str) -> Option<String> {
             Some(format!("**Quantity:** `[{n}]` (Bounded)\n\nValues marked `[{n}]` have **bounded quantity** - they can be used up to {n} times. The compiler tracks usage count statically. Use for: fixed-size arrays, bounded buffers, limited resources."))
         }
         // Quantum intrinsics
-        "qalloc" => Some("**Function:** `qalloc() -> [1] Qubit`\n\n**Quantity:** `[1]` (Linear)\n\nAllocate a new qubit initialized to `|0⟩`. Returns a linear qubit that must be consumed exactly once. Automatic uncomputation will be inserted at scope exit."),
-        "hadamard" => Some("**Function:** `hadamard(q: [1] Qubit) -> [1] Qubit`\n\n**Quantity:** `[1]` (Linear)\n\nApply the Hadamard gate: `H = 1/√2 [[1, 1], [1, -1]]`. Consumes the input qubit linearly and returns the transformed qubit."),
-        "cnot" => Some("**Function:** `cnot(ctrl: [1] Qubit, target: [1] Qubit) -> ([1] Qubit, [1] Qubit)`\n\n**Quantity:** `[1]` (Linear)\n\nApply CNOT (controlled-X) gate. Both control and target qubits are consumed linearly and returned."),
-        "measure" => Some("**Function:** `measure(q: [1] Qubit) -> Bool`\n\n**Quantity:** `[1]` (Linear)\n\nMeasure qubit in computational basis (`|0⟩`/`|1⟩`). Collapses the quantum state and returns a classical `Bool`. Consumes the qubit."),
-        "qfree" => Some("**Function:** `qfree(q: [1] Qubit)`\n\n**Quantity:** `[1]` (Linear)\n\nExplicitly free a qubit, triggering uncomputation. **Use sparingly** - automatic uncomputation at scope exit is preferred. Only use when you need to free a qubit earlier than its lexical scope."),
+        "qalloc" => Some("**Function:** `qalloc() -> [1] Qubit`
+
+**Quantity:** `[1]` (Linear)
+
+Allocate a new qubit initialized to `|0⟩`. Returns a linear qubit that must be consumed exactly once. Automatic uncomputation will be inserted at scope exit.".to_string()),
+        "hadamard" => Some("**Function:** `hadamard(q: [1] Qubit) -> [1] Qubit`
+
+**Quantity:** `[1]` (Linear)
+
+Apply the Hadamard gate: `H = 1/√2 [[1, 1], [1, -1]]`. Consumes the input qubit linearly and returns the transformed qubit.".to_string()),
+        "cnot" => Some("**Function:** `cnot(ctrl: [1] Qubit, target: [1] Qubit) -> ([1] Qubit, [1] Qubit)`\n\n**Quantity:** `[1]` (Linear)\n\nApply CNOT (controlled-X) gate. Both control and target qubits are consumed linearly and returned.".to_string()),
+        "measure" => Some("**Function:** `measure(q: [1] Qubit) -> Bool`\n\n**Quantity:** `[1]` (Linear)\n\nMeasure qubit in computational basis (`|0⟩`/`|1⟩`). Collapses the quantum state and returns a classical `Bool`. Consumes the qubit.".to_string()),
+        "qfree" => Some("**Function:** `qfree(q: [1] Qubit)`\n\n**Quantity:** `[1]` (Linear)\n\nExplicitly free a qubit, triggering uncomputation. **Use sparingly** - automatic uncomputation at scope exit is preferred. Only use when you need to free a qubit earlier than its lexical scope.".to_string()),
         // Tensor operations
-        "matmul" => Some("**Function:** `matmul<T, const M: usize, const K: usize, const L: usize>(a: Tensor<[N]; [M, K]>, b: Tensor<[N]; [K, L]>) -> Tensor<[N]; [M, L]>`\n\n**Quantity:** `[*]` (Unrestricted)\n\nMatrix multiplication with polyhedral optimization. Supports tiling, fusion, and hardware-specific codegen (CPU/GPU/TPU)."),
-        "contract" => Some("**Function:** `contract<T, Dims1, Dims2, DimsOut>(a: Tensor<[N]; Dims1>, b: Tensor<[N]; Dims2>) -> Tensor<[N]; DimsOut>`\n\n**Quantity:** `[*]` (Unrestricted)\n\nTensor contraction over matching dimensions. Einstein summation convention. Optimized via polyhedral IR."),
-        "transpose" => Some("**Function:** `transpose<T, const M: usize, const N: usize>(t: Tensor<[K]; [M, N]>) -> Tensor<[K]; [N, M]>`\n\n**Quantity:** `[*]` (Unrestricted)\n\nTranspose a 2D tensor. Zero-cost for compatible memory layouts."),
+        "matmul" => Some("**Function:** `matmul<T, const M: usize, const K: usize, const L: usize>(a: Tensor<[N]; [M, K]>, b: Tensor<[N]; [K, L]>) -> Tensor<[N]; [M, L]>`\n\n**Quantity:** `[*]` (Unrestricted)\n\nMatrix multiplication with polyhedral optimization. Supports tiling, fusion, and hardware-specific codegen (CPU/GPU/TPU).".to_string()),
+        "contract" => Some("**Function:** `contract<T, Dims1, Dims2, DimsOut>(a: Tensor<[N]; Dims1>, b: Tensor<[N]; Dims2>) -> Tensor<[N]; DimsOut>`\n\n**Quantity:** `[*]` (Unrestricted)\n\nTensor contraction over matching dimensions. Einstein summation convention. Optimized via polyhedral IR.".to_string()),
+        "transpose" => Some("**Function:** `transpose<T, const M: usize, const N: usize>(t: Tensor<[K]; [M, N]>) -> Tensor<[K]; [N, M]>`\n\n**Quantity:** `[*]` (Unrestricted)\n\nTranspose a 2D tensor. Zero-cost for compatible memory layouts.".to_string()),
         // MVS keywords
-        "inout" => Some("**Keyword:** `inout` (Mutable Value Semantics)\n\nDeclares a parameter as a **mutable value reference**. Unlike Rust's `&mut`, `inout` provides:\n- No aliasing guarantees required (compiler enforces)\n- No lifetime annotations\n- Local mutation within function scope\n- Value semantics: the original is updated on return\n\nExample: `fn swap(inout a: T, inout b: T)`"),
+        "inout" => Some("**Keyword:** `inout` (Mutable Value Semantics)\n\nDeclares a parameter as a **mutable value reference**. Unlike Rust's `&mut`, `inout` provides:\n- No aliasing guarantees required (compiler enforces)\n- No lifetime annotations\n- Local mutation within function scope\n- Value semantics: the original is updated on return\n\nExample: `fn swap(inout a: T, inout b: T)`".to_string()),
         _ => None,
-    }.map(|s| s.to_string())
+    }
 }

@@ -13,8 +13,8 @@ use crate::compiler_bridge::CompilerBridge;
 
 pub struct NasoLanguageServer {
     client: Client,
-    document_store: Arc<DocumentStore>,
-    compiler_bridge: Arc<CompilerBridge>,
+    pub document_store: Arc<DocumentStore>,
+    pub compiler_bridge: Arc<CompilerBridge>,
     // Configuration settings
     config: Arc<tokio::sync::RwLock<ServerConfig>>,
 }
@@ -121,14 +121,12 @@ impl LanguageServer for NasoLanguageServer {
         let version = params.text_document.version;
         
         for change in params.content_changes {
-            match change {
-                TextDocumentContentChangeEvent::Full(full) => {
-                    self.document_store.update_full(&uri, full.text, version);
+            match change.range {
+                Some(range) => {
+                    self.document_store.update_incremental(&uri, range, change.text, version);
                 }
-                TextDocumentContentChangeEvent::Incremental(inc) => {
-                    if let Some(range) = inc.range {
-                        self.document_store.update_incremental(&uri, range, inc.text, version);
-                    }
+                None => {
+                    self.document_store.update_full(&uri, change.text, version);
                 }
             }
         }
@@ -159,8 +157,9 @@ impl LanguageServer for NasoLanguageServer {
         crate::handlers::definition::handle_definition(self, params).await
     }
 
-    async fn diagnostic(&self, params: DocumentDiagnosticParams) -> Result<DocumentDiagnosticReport, tower_lsp::jsonrpc::Error> {
-        crate::handlers::diagnostics::handle_diagnostics(self, params).await
+    async fn diagnostic(&self, params: DocumentDiagnosticParams) -> Result<DocumentDiagnosticReportResult, tower_lsp::jsonrpc::Error> {
+        let report = crate::handlers::diagnostics::handle_diagnostics(self, params).await?;
+        Ok(DocumentDiagnosticReportResult::Report(report))
     }
 }
 

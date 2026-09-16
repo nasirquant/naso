@@ -141,7 +141,7 @@ impl DocumentStore {
         self.documents.get(uri).map(|doc| Arc::new(doc.clone()))
     }
 
-    pub fn get_mut(&self, uri: &Url) -> Option<dashmap::mapref::one::MutRef<'_, Url, Document>> {
+    pub fn get_mut(&self, uri: &Url) -> Option<dashmap::mapref::one::RefMut<'_, Url, Document>> {
         self.documents.get_mut(uri)
     }
 }

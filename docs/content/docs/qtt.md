@@ -83,8 +83,8 @@ fn create_bell_pair(inout q0: [1] Qubit, inout q1: [1] Qubit) -> [0] Proof {
 }
 ```
   {{< /tab >}}
-  {{< tab name="OpenQASM 3.0" >}}
-OPENQASM 3;
+    {{< tab name="OpenQASM 3.0" >}}
+  OPENQASM 3;
 include "stdgates.inc";
 qubit[2] q;
 h q[0];

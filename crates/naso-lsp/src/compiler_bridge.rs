@@ -27,7 +27,7 @@ pub struct CompilerBridge {
 pub struct AnalysisResult {
     pub diagnostics: Vec<Diagnostic>,
     pub symbols: Vec<DocumentSymbol>,
-    pub hover_info: HashMap<Position, HoverInfo>,
+    pub hover_info: HashMap<(u32, u32), HoverInfo>,
 }
 
 /// Hover information for a position
@@ -93,17 +93,7 @@ impl CompilerBridge {
             hover
         }
     }
-
-    /// Get completions for a position
     pub async fn get_completions(&self, uri: &Url, position: Position) -> Vec<CompletionItem> {
-        let document = match self.document_store.get(uri) {
-            Some(doc) => doc,
-            None => return Vec::new(),
-        };
-
-        let mut completions = Vec::new();
-        
-        // Add keyword completions
         completions.extend(self.get_keyword_completions(&document, position));
         
         // Add stdlib completions
@@ -195,8 +185,9 @@ impl CompilerBridge {
                                     Position::new(line_idx as u32, (char_idx + 1) as u32),
                                 ),
                                 Some(DiagnosticSeverity::ERROR),
-                                Some("naso-syntax".to_string()),
-                                Some("Unmatched closing parenthesis".to_string()),
+                                Some(tower_lsp::lsp_types::NumberOrString::String("naso-syntax".to_string())),
+                                None,
+                                "Unmatched closing parenthesis".to_string(),
                                 None,
                                 None,
                             ));
@@ -211,8 +202,9 @@ impl CompilerBridge {
                                     Position::new(line_idx as u32, (char_idx + 1) as u32),
                                 ),
                                 Some(DiagnosticSeverity::ERROR),
-                                Some("naso-syntax".to_string()),
-                                Some("Unmatched closing brace".to_string()),
+                                Some(tower_lsp::lsp_types::NumberOrString::String("naso-syntax".to_string())),
+                                None,
+                                "Unmatched closing brace".to_string(),
                                 None,
                                 None,
                             ));
@@ -227,8 +219,9 @@ impl CompilerBridge {
                                     Position::new(line_idx as u32, (char_idx + 1) as u32),
                                 ),
                                 Some(DiagnosticSeverity::ERROR),
-                                Some("naso-syntax".to_string()),
-                                Some("Unmatched closing bracket".to_string()),
+                                Some(tower_lsp::lsp_types::NumberOrString::String("naso-syntax".to_string())),
+                                None,
+                                "Unmatched closing bracket".to_string(),
                                 None,
                                 None,
                             ));
@@ -246,11 +239,12 @@ impl CompilerBridge {
                     Position::new(line_idx as u32, char_idx as u32),
                     Position::new(line_idx as u32, (char_idx + 1) as u32),
                 ),
-                Some(DiagnosticSeverity::ERROR),
-                Some("naso-syntax".to_string()),
-                Some("Unclosed parenthesis".to_string()),
-                None,
-                None,
+                                Some(DiagnosticSeverity::ERROR),
+                                Some(tower_lsp::lsp_types::NumberOrString::String("naso-syntax".to_string())),
+                                None,
+                                "Unclosed parenthesis".to_string(),
+                                None,
+                                None,
             ));
         }
         
@@ -270,7 +264,7 @@ impl CompilerBridge {
             // Function definitions
             if trimmed.starts_with("fn ") {
                 if let Some(name_end) = trimmed[3..].find('(') {
-                    let name = &trimmed[3..3 + name_end].trim();
+                    let name = trimmed[3..3 + name_end].trim();
                     symbols.push(DocumentSymbol {
                         name: name.to_string(),
                         kind: SymbolKind::FUNCTION,
@@ -293,7 +287,7 @@ impl CompilerBridge {
             // Struct definitions
             if trimmed.starts_with("struct ") {
                 if let Some(name_end) = trimmed[7..].find('{').or_else(|| trimmed[7..].find(' ')) {
-                    let name = &trimmed[7..7 + name_end].trim();
+                    let name = trimmed[7..7 + name_end].trim();
                     symbols.push(DocumentSymbol {
                         name: name.to_string(),
                         kind: SymbolKind::STRUCT,
@@ -318,7 +312,7 @@ impl CompilerBridge {
     }
 
     /// Generate hover info for identifiers
-    fn generate_hover_info(&self, content: &str, document: &Document) -> HashMap<Position, HoverInfo> {
+    fn generate_hover_info(&self, content: &str, document: &Document) -> HashMap<(u32, u32), HoverInfo> {
         let mut hover_info = HashMap::new();
         let lines: Vec<&str> = content.lines().collect();
         
@@ -347,7 +341,7 @@ impl CompilerBridge {
                         position,
                         Position::new(line_idx as u32, (pos + name.len()) as u32),
                     );
-                    hover_info.insert(position, HoverInfo {
+                    hover_info.insert((position.line, position.character), HoverInfo {
                         type_info: ty.to_string(),
                         quantity: Some(qty.clone()),
                         doc_comment: Some(doc.to_string()),
@@ -363,7 +357,7 @@ impl CompilerBridge {
                         position,
                         Position::new(line_idx as u32, (pos + name.len()) as u32),
                     );
-                    hover_info.insert(position, HoverInfo {
+                    hover_info.insert((position.line, position.character), HoverInfo {
                         type_info: ty.to_string(),
                         quantity: Some(qty.clone()),
                         doc_comment: Some(doc.to_string()),
@@ -509,7 +503,7 @@ impl CompilerBridge {
             // Function definition
             if trimmed.starts_with("fn ") {
                 if let Some(name_end) = trimmed[3..].find('(') {
-                    let name = &trimmed[3..3 + name_end].trim();
+                    let name = trimmed[3..3 + name_end].trim();
                     if name == symbol {
                         return Some(Range::new(
                             Position::new(line_idx as u32, 0),
@@ -522,7 +516,7 @@ impl CompilerBridge {
             // Struct definition
             if trimmed.starts_with("struct ") {
                 if let Some(name_end) = trimmed[7..].find('{').or_else(|| trimmed[7..].find(' ')) {
-                    let name = &trimmed[7..7 + name_end].trim();
+                    let name = trimmed[7..7 + name_end].trim();
                     if name == symbol {
                         return Some(Range::new(
                             Position::new(line_idx as u32, 0),
@@ -535,7 +529,7 @@ impl CompilerBridge {
             // Let binding
             if trimmed.starts_with("let ") {
                 if let Some(eq_pos) = trimmed[4..].find('=') {
-                    let name = &trimmed[4..4 + eq_pos].trim();
+                    let name = trimmed[4..4 + eq_pos].trim();
                     if name == symbol {
                         return Some(Range::new(
                             Position::new(line_idx as u32, 0),

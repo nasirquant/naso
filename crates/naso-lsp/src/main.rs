@@ -14,6 +14,7 @@ mod backend;
 mod handlers;
 mod document_store;
 mod compiler_bridge;
+mod diagnostics;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

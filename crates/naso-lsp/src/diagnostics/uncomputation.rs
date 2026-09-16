@@ -7,7 +7,7 @@ use naso_compiler::typecheck::error::TypeError;
 use crate::diagnostics::codes;
 
 /// Convert compiler span to LSP Range
-fn span_to_range(compiler_bridge: &CompilerBridge, span: &naso_compiler::ast::Span) -> Range {
+fn span_to_range(_compiler_bridge: &CompilerBridge, span: &naso_compiler::ast::Span) -> Range {
     Range::new(
         Position::new(span.line - 1, span.column - 1),
         Position::new(span.line - 1, span.column - 1 + (span.end - span.start) as u32),
@@ -59,7 +59,7 @@ pub fn type_error_to_diagnostics(
         }
     };
     
-    let diagnostic = Diagnostic::new_simple(
+    let mut diagnostic = Diagnostic::new_simple(
         span_to_range(compiler_bridge, &match error {
             TypeError::MissingUncompute { span, .. } => span,
             TypeError::CyclicUncompute { span, .. } => span,
@@ -67,10 +67,10 @@ pub fn type_error_to_diagnostics(
             _ => &naso_compiler::ast::Span::new(0, 0, 1, 1),
         }),
         message,
-    )
-    .with_severity(Some(severity))
-    .with_code(Some(code.into()))
-    .with_related_information(related_ranges.map(|ranges| {
+    );
+    diagnostic.severity = Some(severity);
+    diagnostic.code = Some(code.into());
+    diagnostic.related_information = Some(related_ranges.map(|ranges| {
         ranges
             .into_iter()
             .map(|range| DiagnosticRelatedInformation::new(range.clone(), None))
