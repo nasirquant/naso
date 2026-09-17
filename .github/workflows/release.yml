@@ -103,17 +103,13 @@ jobs:
       - name: Create archive
         shell: bash
         run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
           ARTIFACT_DIR="artifacts/${{ matrix.artifact_name }}"
 
           if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
-            cd artifacts
-            zip -r "${{ matrix.artifact_name }}${{ matrix.archive_ext }}" "${{ matrix.artifact_name }}/"
-            cd ..
+            pwsh -NoProfile -Command "& { Compress-Archive -Path 'artifacts/${{ matrix.artifact_name }}/*' -DestinationPath \"artifacts/${{ matrix.artifact_name }}.zip\" -Force }"
           else
             cd artifacts
-            tar -czf "${{ matrix.artifact_name }}${{ matrix.archive_ext }}" "${{ matrix.artifact_name }}/"
+            tar -czf "${{ matrix.artifact_name }}.tar.gz" "${{ matrix.artifact_name }}/"
             cd ..
           fi
 
