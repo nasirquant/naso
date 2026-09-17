@@ -55,13 +55,6 @@ fn print_usage() {
     eprintln!("  --opt <0|1|2|3>                Optimization level (default: 2)");
     eprintln!("  --triple <target>              Target triple (host, nvptx64, wasm32, aarch64)");
     eprintln!("  --debug                        Emit debug information");
-    eprintln!();
-    eprintln!("Verify options:");
-    eprintln!("  --mode <all|uncomputation|linearity>  Verification mode (default: all)");
-    eprintln!("  --format <human|json|sarif>           Output format (default: human)");
-    eprintln!("  --jobs <N>                              Parallel jobs (default: auto)");
-    eprintln!("  --timeout <MS>                          Solver timeout in ms (default: 30000)");
-    eprintln!("  --no-cache                              Disable incremental cache");
 }
 
 fn run_frontend_command(command: &str, file: &str) {
@@ -304,4 +297,3 @@ fn run_build_command(_args: &[String]) {
     eprintln!("Build command requires LLVM backend. Compile with 'llvm' feature.");
     std::process::exit(1);
 }
-

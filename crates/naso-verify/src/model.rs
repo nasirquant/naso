@@ -1,14 +1,13 @@
 //! Model extraction and unsat core handling for Z3.
 
-#[cfg(feature = "z3")]
-use crate::error::VerifyError;
+use serde::{Deserialize, Serialize};
 use naso_compiler::ast::Span;
 use std::collections::HashMap;
 #[cfg(feature = "z3")]
 use z3::ast::Ast;
 
 /// Extracted model from a SAT result.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Model {
     /// Variable assignments: name -> value
     pub assignments: HashMap<String, ModelValue>,
@@ -82,7 +81,7 @@ impl Model {
 }
 
 /// A value in the model.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ModelValue {
     Int(i64),
     Bool(bool),
@@ -148,14 +147,14 @@ impl ModelValue {
 }
 
 /// Function interpretation in a model.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuncInterpretation {
     pub entries: Vec<FuncEntry>,
     pub else_branch: Option<ModelValue>,
 }
 
 /// Single entry in a function interpretation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuncEntry {
     pub args: Vec<ModelValue>,
     pub value: ModelValue,
@@ -218,7 +217,7 @@ impl std::fmt::Display for ModelValue {
 }
 
 /// Unsatisfiable core from Z3.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnsatCore {
     /// Assertion names that form the unsat core
     pub assertions: Vec<String>,
