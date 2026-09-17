@@ -4,8 +4,9 @@
 //! into quantified SMT-LIB2 formulas over iteration domains.
 
 use crate::error::{LoweringError, VerifyError};
-use crate::smtlib::{Sort, Term, builder::*};
+use crate::smtlib::{builder::*, Sort, Term};
 use indexmap::IndexMap;
+use naso_compiler::ast::expr::ExprKind;
 use naso_compiler::ast::Span;
 
 /// Polyhedral iteration domain: a set of integer tuples defined by affine constraints.
@@ -237,72 +238,39 @@ pub fn encode_polyhedral_expr(
 ) -> Result<Vec<Term>, VerifyError> {
     let mut constraints = Vec::new();
 
-    match expr {
-        naso_compiler::ast::Expr::Forall {
-            index,
-            domain,
-            body,
-            span,
-        } => {
+    match &expr.kind {
+        ExprKind::For(loop_expr) => {
             // Parse domain bounds (simplified)
-            let mut iter_domain = IterationDomain::new(vec![index.clone()]);
+            let mut iter_domain = IterationDomain::new(vec![loop_expr.var.name.clone()]);
 
-            // Extract bounds from domain expression
+            // Extract bounds from loop iterator
             // For now, assume simple 0 <= index < N
-            if let naso_compiler::ast::Expr::Range { start, end, .. } = domain.as_ref() {
+            if let ExprKind::Range { start, end, .. } = &loop_expr.iter.kind {
                 if let (Some(start_e), Some(end_e)) = (start, end) {
                     // start <= index
-                    if let naso_compiler::ast::Expr::LitInt(s, _, _) = start_e.as_ref() {
+                    if let ExprKind::Literal(naso_compiler::ast::Literal::Int(s)) = &start_e.kind {
                         iter_domain.add_constraint(vec![1], -(*s as i64)); // i - s >= 0
                     }
                     // index < end  =>  index - end + 1 <= 0  =>  -index + end - 1 >= 0
-                    if let naso_compiler::ast::Expr::LitInt(e, _, _) = end_e.as_ref() {
+                    if let ExprKind::Literal(naso_compiler::ast::Literal::Int(e)) = &end_e.kind {
                         iter_domain.add_constraint(vec![-1], (*e as i64) - 1); // -i + e - 1 >= 0
                     }
                 }
             }
 
-            tracker.enter_forall(index.clone(), iter_domain.clone());
+            tracker.enter_forall(loop_expr.var.name.clone(), iter_domain.clone());
 
             // Process body
-            constraints.extend(encode_polyhedral_expr(body, tracker)?);
+            constraints.extend(encode_polyhedral_expr(&loop_expr.body.expr, tracker)?);
 
             tracker.exit_forall();
         }
-        naso_compiler::ast::Expr::Tile {
-            loop_id,
-            tile_sizes,
-            body,
-            ..
-        } => {
-            // Register tiling
-            let info = TilingInfo {
-                original_indices: vec![loop_id.clone()],
-                tile_sizes: tile_sizes.clone(),
-                tile_indices: vec![format!("{}_tile", loop_id)],
-                intra_indices: vec![format!("{}_inner", loop_id)],
-            };
-            tracker.register_tiling(loop_id.clone(), info);
-
-            constraints.extend(encode_polyhedral_expr(body, tracker)?);
-        }
-        naso_compiler::ast::Expr::Fuse { loop_ids, body, .. } => {
-            // Register fusion
-            let info = FusionInfo {
-                loop_ids: loop_ids.clone(),
-                fused_domain: IterationDomain::new(loop_ids.clone()),
-                schedule: IndexMap::new(),
-            };
-            tracker.register_fusion(format!("fuse_{}", loop_ids.join("_")), info);
-
-            constraints.extend(encode_polyhedral_expr(body, tracker)?);
-        }
-        naso_compiler::ast::Expr::Call(func, args, _) => {
+        ExprKind::Call(func, args) => {
             for arg in args {
                 constraints.extend(encode_polyhedral_expr(arg, tracker)?);
             }
         }
-        naso_compiler::ast::Expr::Let(bindings, body, _) => {
+        ExprKind::Let(bindings, body, _) => {
             for (_, _, init, _) in bindings {
                 if let Some(init_expr) = init {
                     constraints.extend(encode_polyhedral_expr(init_expr, tracker)?);
@@ -330,15 +298,12 @@ trait VisitExprs {
 impl VisitExprs for naso_compiler::ast::Expr {
     fn visit_exprs<F: FnMut(&naso_compiler::ast::Expr)>(&self, f: &mut F) {
         f(self);
-        match self {
-            naso_compiler::ast::Expr::Call(_, args, _)
-            | naso_compiler::ast::Expr::Binary(_, _, args, _)
-            | naso_compiler::ast::Expr::Unary(_, arg, _)
-            | naso_compiler::ast::Expr::Let(_, body, _)
-            | naso_compiler::ast::Expr::If(_, _, then_e, else_e, _)
-            | naso_compiler::ast::Expr::Forall { body, .. }
-            | naso_compiler::ast::Expr::Tile { body, .. }
-            | naso_compiler::ast::Expr::Fuse { body, .. } => {
+        match &self.kind {
+            ExprKind::Call(_, args)
+            | ExprKind::Binary(_, _, args)
+            | ExprKind::Unary(_, arg)
+            | ExprKind::Let(_, body)
+            | ExprKind::If(_, _, then_e, else_e) => {
                 // Delegate to children
             }
             _ => {}

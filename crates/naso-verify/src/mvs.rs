@@ -4,8 +4,9 @@
 //! into frame conditions and disjointness guarantees in SMT-LIB2.
 
 use crate::error::{LoweringError, VerifyError};
-use crate::smtlib::{Sort, Term, builder::*};
+use crate::smtlib::{builder::*, Sort, Term};
 use indexmap::IndexMap;
+use naso_compiler::ast::expr::ExprKind;
 use naso_compiler::ast::Span;
 
 /// Represents an `inout` parameter with its frame condition.
@@ -254,14 +255,14 @@ pub fn encode_mvs_expr(
     let mut constraints = Vec::new();
 
     match expr {
-        naso_compiler::ast::Expr::Inout {
+        ExprKind::Inout {
             target,
             value,
             span,
         } => {
             // Inout assignment: target <- value
             // Frame condition: target's frame must be disjoint from all other inout frames
-            if let naso_compiler::ast::Expr::Var(name, _, _) = target.as_ref() {
+            if let ExprKind::Var(name) = target.as_ref() {
                 if let Some(param) = tracker.inout_params.get(name) {
                     // Check disjointness from all other inout params
                     for (other_name, other_param) in &tracker.inout_params {
@@ -298,16 +299,16 @@ pub fn encode_mvs_expr(
                 }
             }
         }
-        naso_compiler::ast::Expr::Call(func, args, _) => {
+        ExprKind::Call(func, args) => {
             // Check if calling a function with inout params
-            if let naso_compiler::ast::Expr::Var(fname, _, _) = func.as_ref() {
+            if let ExprKind::Var(fname) = func.as_ref() {
                 // Would need to look up callee's frame and check disjointness
             }
             for arg in args {
                 constraints.extend(encode_mvs_expr(arg, tracker)?);
             }
         }
-        naso_compiler::ast::Expr::Let(bindings, body, _) => {
+        ExprKind::Let(bindings, body, _) => {
             for (_, _, init, _) in bindings {
                 if let Some(init_expr) = init {
                     constraints.extend(encode_mvs_expr(init_expr, tracker)?);

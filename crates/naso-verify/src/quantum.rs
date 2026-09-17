@@ -279,8 +279,8 @@ impl QuantumTracker {
                         // Reset to |0>
                         current_state = int(0);
                     }
-                    GateKind::CNOT => {
-                        // CNOT: control and target both need tracking
+                    GateKind::CX => {
+                        // CX: control and target both need tracking
                         // Simplified: just track that target may change
                         // Real impl: need multi-qubit state
                     }
@@ -341,41 +341,39 @@ pub fn encode_quantum_expr(
     let mut constraints = Vec::new();
 
     match &expr.kind {
-        ExprKind::Call(func, args, span) => {
-            if let ExprKind::Var(fname, _, _) = &func.kind {
+        ExprKind::Call(func, args) => {
+            if let ExprKind::Var(fname) = &func.kind {
                 if let Some(gate) = GateKind::from_name(&fname.name) {
                     // Extract qubit arguments
                     let mut targets = Vec::new();
                     let mut controls = Vec::new();
 
                     for arg in args {
-                        if let ExprKind::Var(qname, _, _) = &arg.kind {
+                        if let ExprKind::Var(qname) = &arg.kind {
                             targets.push(qname.name.clone());
                         }
                     }
 
-                    // For CNOT, first arg is control, second is target
+                    // For CX, first arg is control, second is target
                     if gate == GateKind::CX && targets.len() >= 2 {
                         controls.push(targets[0].clone());
                         targets = vec![targets[1].clone()];
                     }
 
-                    tracker.apply_gate(gate, &targets, &controls, *span);
+                    tracker.apply_gate(gate, &targets, &controls, expr.span);
                 } else if fname.name == "qalloc" {
                     // Allocate qubit(s)
                     for (i, arg) in args.iter().enumerate() {
-                        if let ExprKind::Literal(naso_compiler::ast::Literal::Int(n), _, _) =
-                            &arg.kind
-                        {
+                        if let ExprKind::Literal(naso_compiler::ast::Literal::Int(n)) = &arg.kind {
                             for _ in 0..*n as u32 {
-                                tracker.allocate_qubit(true, *span); // Assume temp
+                                tracker.allocate_qubit(true, expr.span); // Assume temp
                             }
                         }
                     }
                 } else if fname.name == "qfree" {
                     // Free qubit - check if it was temp and verify uncomputed
                     for arg in args {
-                        if let ExprKind::Var(qname, _, _) = &arg.kind {
+                        if let ExprKind::Var(qname) = &arg.kind {
                             // Mark as freed (in real impl, check state)
                         }
                     }
@@ -418,8 +416,8 @@ pub fn encode_unitary_constraints(gate: GateKind, targets: &[String]) -> Vec<Ter
             // H = 1/sqrt(2) * [[1, 1], [1, -1]]
             // In bitvector: we can't easily represent 1/sqrt(2), so use stabilizer
         }
-        GateKind::CNOT => {
-            // CNOT = [[1,0,0,0], [0,1,0,0], [0,0,0,1], [0,0,1,0]]
+        GateKind::CX => {
+            // CX = [[1,0,0,0], [0,1,0,0], [0,0,0,1], [0,0,1,0]]
             // Representable exactly in bitvectors
         }
         GateKind::T => {

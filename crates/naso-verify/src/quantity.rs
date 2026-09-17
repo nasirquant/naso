@@ -4,10 +4,10 @@
 //! into SMT-LIB2 constraints that can be verified by Z3.
 
 use crate::error::{LoweringError, VerifyError};
-use crate::smtlib::{Sort, Term, builder::*};
+use crate::smtlib::{builder::*, Sort, Term};
 use indexmap::IndexMap;
-use naso_compiler::ast::Quantity;
-use naso_compiler::ast::Span;
+use naso_compiler::ast::expr::ExprKind;
+use naso_compiler::ast::{Quantity, Span};
 use std::collections::HashMap;
 
 /// Quantity kind for tracking in SMT encoding.
@@ -176,7 +176,7 @@ impl QuantityTracker {
         // In practice, we track this during lowering and emit (assert false) with diagnostic info
         for (name, span) in &self.erased_vars {
             let var = var(name, Sort::Int); // Use Int as placeholder sort
-            let error_msg = format!("erased_var_used:{}", span.start());
+            let error_msg = format!("erased_var_used:{}", span.start);
             constraints.push(implies(var, bool(false))); // If var is "used" (non-zero), contradiction
             // In real implementation, we'd have a predicate is_runtime_use(var)
         }
@@ -250,7 +250,7 @@ pub fn encode_quantity_expr(
     let mut constraints = Vec::new();
 
     match &expr.kind {
-        naso_compiler::ast::expr::ExprKind::Var(name, qty, span) => {
+        ExprKind::Var(name) => {
             let qk = QuantityKind::from_ast(qty);
             if !qk.is_runtime() {
                 // [0] variable used in expression position - error
@@ -264,17 +264,15 @@ pub fn encode_quantity_expr(
                 // In practice, we'd look up the resource ID from the tracker
             }
         }
-        naso_compiler::ast::expr::ExprKind::Call(func, args, span) => {
+        ExprKind::Call(func, args) => {
             // Check if this is a known allocation function
-            if let naso_compiler::ast::expr::ExprKind::Var(fname, _, _) = &func.kind {
+            if let ExprKind::Var(fname) = &func.kind {
                 match fname.name.as_str() {
                     "qalloc" | "linear_alloc" | "alloc" => {
                         // Allocate new linear resource
                         for (i, arg) in args.iter().enumerate() {
-                            if let naso_compiler::ast::expr::ExprKind::Literal(
+                            if let ExprKind::Literal(
                                 naso_compiler::ast::Literal::Int(n),
-                                _,
-                                _,
                             ) = &arg.kind
                             {
                                 let resource_id = tracker.allocate_linear(
@@ -290,7 +288,7 @@ pub fn encode_quantity_expr(
                     "linear_free" | "qfree" | "free" => {
                         // Consume linear resource
                         for arg in args {
-                            if let naso_compiler::ast::expr::ExprKind::Var(name, _, _) = &arg.kind {
+                            if let ExprKind::Var(name) = &arg.kind {
                                 // Mark as consumed (would need path tracking in real impl)
                             }
                         }
@@ -303,7 +301,7 @@ pub fn encode_quantity_expr(
                 constraints.extend(encode_quantity_expr(arg, tracker)?);
             }
         }
-        naso_compiler::ast::expr::ExprKind::Let(bindings, body, _) => {
+        ExprKind::Let(bindings, body, _) => {
             for (name, ty, init, _) in bindings {
                 if let Some(init_expr) = init {
                     constraints.extend(encode_quantity_expr(init_expr, tracker)?);
@@ -327,7 +325,7 @@ pub fn encode_quantity_expr(
             }
             constraints.extend(encode_quantity_expr(body, tracker)?);
         }
-        naso_compiler::ast::expr::ExprKind::Projection(_) => {
+        ExprKind::Projection(_) => {
             // MVS handled separately in mvs.rs
         }
         _ => {

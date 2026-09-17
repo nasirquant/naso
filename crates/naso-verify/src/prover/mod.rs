@@ -10,7 +10,6 @@ pub mod uncomputation;
 
 use crate::error::{ProverError, VerifyError};
 use crate::lower::LoweringContext;
-use crate::model::VerifyDiagnostic;
 use naso_compiler::ast::Program;
 
 /// Main prover entry point: run all provers on an AST.
