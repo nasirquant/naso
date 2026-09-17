@@ -59,23 +59,30 @@ pub fn type_error_to_diagnostics(
         }
     };
     
+    let fallback_span = naso_compiler::ast::Span::new(0, 0, 0, 0);
     let mut diagnostic = Diagnostic::new_simple(
         span_to_range(compiler_bridge, &match error {
-            TypeError::MissingUncompute { span, .. } => span,
-            TypeError::CyclicUncompute { span, .. } => span,
-            TypeError::ImpureInReversible { span, .. } => span,
-            _ => &naso_compiler::ast::Span::new(0, 0, 1, 1),
+            TypeError::MissingUncompute { span, .. } => *span,
+            TypeError::CyclicUncompute { span, .. } => *span,
+            TypeError::ImpureInReversible { span, .. } => *span,
+            _ => fallback_span,
         }),
         message,
     );
     diagnostic.severity = Some(severity);
-    diagnostic.code = Some(code.into());
-    diagnostic.related_information = Some(related_ranges.map(|ranges| {
-        ranges
-            .into_iter()
-            .map(|range| DiagnosticRelatedInformation::new(range.clone(), None))
-            .collect()
-    }));
+    diagnostic.code = Some(NumberOrString::String(code));
+    diagnostic.related_information = related_ranges.map(|ranges| {
+                ranges
+                    .into_iter()
+                    .map(|range| DiagnosticRelatedInformation {
+                        location: Location {
+                            uri: document_url.clone(),
+                            range: range.clone(),
+                        },
+                        message: String::new(),
+                    })
+                    .collect()
+            });
     
     diagnostics.push(diagnostic);
     diagnostics

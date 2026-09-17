@@ -63,7 +63,7 @@ pub fn type_error_to_diagnostics(
         }
         // Other errors that might relate to linearity
         TypeError::InOutRequiresUnique { found_qty, span } => {
-            if matches!(found_qty, crate::compiler_bridge::Quantity::One) {
+            if matches!(found_qty, naso_compiler::Quantity::One) {
                 // This is actually an MVS error, handle in mvs module
                 return Vec::new();
             }
@@ -79,37 +79,45 @@ pub fn type_error_to_diagnostics(
         }
     };
     
-    let mut diagnostic = Diagnostic::new_simple(
-        span_to_range(compiler_bridge, &match error {
-            TypeError::LinearVariableUsedTwice { first_use, .. } => first_use,
-            TypeError::UnusedLinearVariable { defined_at, .. } => defined_at,
-            TypeError::UseOfMovedValue { used_at, .. } => used_at,
-            TypeError::QuantityMismatch { span, .. } => span,
-            TypeError::InOutRequiresUnique { span, .. } => span,
-            _ => &naso_compiler::ast::Span::new(0, 0), // fallback
-        }),
-        message,
-    );
-    diagnostic.severity = Some(severity);
-    diagnostic.code = Some(code.into());
-    diagnostic.related_information = Some(related_ranges.map(|ranges| {
-        ranges.into_iter()
-            .map(|range| DiagnosticRelatedInformation::new(range.clone(), None))
-            .collect()
-    }));
+    let fallback_span = naso_compiler::ast::Span::new(0, 0, 0, 0);
+        let mut diagnostic = Diagnostic::new_simple(
+            span_to_range(compiler_bridge, &match error {
+                TypeError::LinearVariableUsedTwice { first_use, .. } => *first_use,
+                TypeError::UnusedLinearVariable { defined_at, .. } => *defined_at,
+                TypeError::UseOfMovedValue { used_at, .. } => *used_at,
+                TypeError::QuantityMismatch { span, .. } => *span,
+                TypeError::InOutRequiresUnique { span, .. } => *span,
+                _ => fallback_span,
+            }),
+            message,
+        );
+        diagnostic.severity = Some(severity);
+        diagnostic.code = Some(NumberOrString::String(code));
+        diagnostic.related_information = related_ranges.map(|ranges| {
+            ranges
+                .into_iter()
+                .map(|range| DiagnosticRelatedInformation {
+                    location: Location {
+                        uri: document_url.clone(),
+                        range: range.clone(),
+                    },
+                    message: String::new(),
+                })
+                .collect()
+        });
     diagnostics.push(diagnostic);
     diagnostics
 }
 
 // Helper to extract the primary span from various error types
-fn get_primary_span(error: &TypeError) -> &naso_compiler::ast::Span {
+fn get_primary_span(error: &TypeError) -> naso_compiler::ast::Span {
     match error {
-        TypeError::LinearVariableUsedTwice { first_use, .. } => first_use,
-        TypeError::UnusedLinearVariable { defined_at, .. } => defined_at,
-        TypeError::UseOfMovedValue { used_at, .. } => used_at,
-        TypeError::QuantityMismatch { span, .. } => span,
-        TypeError::InOutRequiresUnique { span, .. } => span,
+        TypeError::LinearVariableUsedTwice { first_use, .. } => *first_use,
+        TypeError::UnusedLinearVariable { defined_at, .. } => *defined_at,
+        TypeError::UseOfMovedValue { used_at, .. } => *used_at,
+        TypeError::QuantityMismatch { span, .. } => *span,
+        TypeError::InOutRequiresUnique { span, .. } => *span,
         // For other errors, we don't handle them here
-        _ => &naso_compiler::ast::Span::new(0, 0),
+        _ => naso_compiler::ast::Span::new(0, 0, 0, 0),
     }
 }

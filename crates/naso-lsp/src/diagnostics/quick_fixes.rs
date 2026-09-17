@@ -11,14 +11,18 @@ pub fn quick_fix_for_diagnostic(
     compiler_bridge: &CompilerBridge,
     diagnostic: &Diagnostic,
     document_content: &str,
+    document_uri: &Url,
 ) -> Vec<CodeActionOrCommand> {
     let mut fixes = Vec::new();
-    
+
     // Extract the diagnostic code
     let code = match &diagnostic.code {
-        Some(tower_lsp::lsp_types::NumberOrString::String(code)) => code.as_str(),
+        Some(NumberOrString::String(code)) => code.as_str(),
         _ => return fixes,
     };
+
+    // Helper to get document URI for WorkspaceEdit
+    let uri = document_uri.clone();
 
     // Generate fixes based on diagnostic code
     match code {
@@ -31,9 +35,7 @@ pub fn quick_fix_for_diagnostic(
                     diagnostics: Some(vec![diagnostic.clone()]),
                     edit: Some(WorkspaceEdit {
                         changes: Some(HashMap::from_iter(vec![(
-                            diagnostic.related.as_ref().and_then(|r| r.first())?
-                                .unwrap_or(&diagnostic.range)
-                                .clone(),
+                            uri.clone(),
                             vec![TextEdit::new(range.clone(), String::new())],
                         )])),
                         ..Default::default()
@@ -51,8 +53,8 @@ pub fn quick_fix_for_diagnostic(
                     diagnostics: Some(vec![diagnostic.clone()]),
                     edit: Some(WorkspaceEdit {
                         changes: Some(HashMap::from_iter(vec![(
-                            range.clone(),
-                            vec![TextEdit::new(range, "linear_free(_);".to_string())],
+                            uri.clone(),
+                            vec![TextEdit::new(range.clone(), "linear_free(_);".to_string())],
                         )])),
                         ..Default::default()
                     }),
@@ -69,7 +71,7 @@ pub fn quick_fix_for_diagnostic(
                     diagnostics: Some(vec![diagnostic.clone()]),
                     edit: Some(WorkspaceEdit {
                         changes: Some(HashMap::from_iter(vec![(
-                            range.clone(),
+                            uri.clone(),
                             vec![TextEdit::new(range.clone(), String::new())],
                         )])),
                         ..Default::default()
@@ -87,7 +89,7 @@ pub fn quick_fix_for_diagnostic(
                     diagnostics: Some(vec![diagnostic.clone()]),
                     edit: Some(WorkspaceEdit {
                         changes: Some(HashMap::from_iter(vec![(
-                            range.clone(),
+                            uri.clone(),
                             vec![TextEdit::new(range, "revert { /* uncomputation */ };".to_string())],
                         )])),
                         ..Default::default()
@@ -98,7 +100,7 @@ pub fn quick_fix_for_diagnostic(
         }
         _ => {}
     }
-    
+
     fixes
 }
 
@@ -108,6 +110,6 @@ fn get_primary_range(diagnostic: &Diagnostic) -> Option<Range> {
         .related_information
         .as_ref()
         .and_then(|related| related.first())
-        .map(|info| info.range.clone())
+        .map(|info| info.location.range.clone())
         .or_else(|| Some(diagnostic.range.clone()))
 }

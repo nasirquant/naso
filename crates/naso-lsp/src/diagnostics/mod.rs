@@ -43,14 +43,15 @@ pub fn generate_quick_fixes(
     compiler_bridge: &CompilerBridge,
     diagnostics: &[Diagnostic],
     document_content: &str,
+    document_uri: &Url,
 ) -> Vec<CodeActionOrCommand> {
     let mut all_fixes = Vec::new();
-    
+
     for diagnostic in diagnostics {
         all_fixes.extend(quick_fixes::quick_fix_for_diagnostic(
-            compiler_bridge, diagnostic, document_content
+            compiler_bridge, diagnostic, document_content, document_uri
         ));
     }
-    
+
     all_fixes
 }

@@ -265,7 +265,6 @@ impl CompilerBridge {
                         ),
                         children: None,
                         detail: Some("function".to_string()),
-                        deprecated: None,
                         
                         tags: None,
                     });
@@ -289,7 +288,6 @@ impl CompilerBridge {
                         ),
                         children: None,
                         detail: Some("struct".to_string()),
-                        deprecated: None,
                         
                         tags: None,
                     });
