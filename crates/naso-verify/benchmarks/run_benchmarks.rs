@@ -78,9 +78,17 @@ struct CategoryResult {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
-    let category_filter = args.get(1).map(|s| s.as_str());
-    let format = args.get(2).map(|s| s.as_str()).unwrap_or("human");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let (category_filter, format) = match args.as_slice() {
+        [] => (None, "human"),
+        [fmt] if fmt == "json" || fmt == "sarif" => (None, fmt.as_str()),
+        [category] => (Some(category.as_str()), "human"),
+        [category, fmt] => (Some(category.as_str()), fmt.as_str()),
+        _ => {
+            eprintln!("Usage: run_benchmarks [category] [human|json|sarif]");
+            std::process::exit(2);
+        }
+    };
 
     println!("🧪 Naso Formal Verification Benchmark Suite");
     println!("============================================");

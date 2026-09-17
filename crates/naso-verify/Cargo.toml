@@ -40,3 +40,7 @@ blake3 = "1.5"
 
 [dev-dependencies]
 tempfile = "3.10"
+
+[[example]]
+name = "run_benchmarks"
+path = "benchmarks/run_benchmarks.rs"
