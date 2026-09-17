@@ -5,14 +5,16 @@
 //! polyhedral encoders.
 
 use crate::error::{LoweringError, LoweringError::*, VerifyError};
-use crate::mvs::{MvsTracker, encode_mvs_function};
-use crate::polyhedral::{PolyhedralTracker, encode_polyhedral_function};
-use crate::quantity::{QuantityKind, QuantityTracker};
-use crate::quantum::{QuantumTracker, encode_quantum_function};
-use indexmap::IndexMap;
-use naso_compiler::ast::Span;
+use crate::quantity::{encode_quantity_expr, QuantityKind, QuantityTracker};
+use crate::quantum::{encode_quantum_expr, QuantumTracker};
 use naso_compiler::ast::{Expr, Function, Program, Quantity, Type};
 
+#[cfg(feature = "z3")]
+use crate::mvs::{encode_mvs_function, MvsTracker};
+#[cfg(feature = "z3")]
+use crate::polyhedral::{encode_polyhedral_function, PolyhedralTracker};
+
+#[cfg(feature = "z3")]
 /// Main lowering context that holds all trackers.
 pub struct LoweringContext {
     pub quantity: QuantityTracker,
@@ -24,6 +26,7 @@ pub struct LoweringContext {
     pub errors: Vec<VerifyError>,
 }
 
+#[cfg(feature = "z3")]
 impl LoweringContext {
     pub fn new() -> Self {
         let mut script = Script::new();
@@ -83,12 +86,14 @@ impl LoweringContext {
     }
 }
 
+#[cfg(feature = "z3")]
 impl Default for LoweringContext {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[cfg(feature = "z3")]
 /// Lower a typed AST to SMT-LIB2.
 pub fn lower_to_smtlib(program: &Program) -> Result<String, VerifyError> {
     let mut ctx = LoweringContext::new();
@@ -105,52 +110,64 @@ pub fn lower_to_smtlib(program: &Program) -> Result<String, VerifyError> {
     ctx.to_smtlib_string()
 }
 
+#[cfg(feature = "z3")]
 /// Lower a single function.
 fn lower_function(func: &Function, ctx: &mut LoweringContext) -> Result<(), VerifyError> {
     let mut constraints = Vec::new();
 
     // Enter function scope for all trackers
     ctx.quantity = QuantityTracker::new(); // Fresh tracker per function
-    ctx.mvs.enter_function(func.name.clone());
-    ctx.quantum.current_function = Some(func.name.clone());
+    ctx.mvs.enter_function(func.name.name.clone());
+    ctx.quantum.current_function = Some(func.name.name.clone());
     // Polyhedral tracker is global across functions
 
     // Process parameters with quantities
     for param in &func.params {
-        if let Some(qty) = param.ty.quantity() {
-            let qk = QuantityKind::from_ast(&qty);
-            match qk {
-                QuantityKind::Zero => ctx.quantity.register_erased(&param.name, param.span),
-                QuantityKind::One => {
-                    ctx.quantity.allocate_linear(
-                        &param.name,
-                        param.span,
-                        crate::quantity::AllocSite::Param(param.name.clone()),
-                    );
-                }
-                QuantityKind::Bounded(n) => {
-                    ctx.quantity.register_bounded(&param.name, n, param.span)
-                }
-                QuantityKind::Many => {}
+        let qk = QuantityKind::from_ast(&param.ty.quantity);
+        match qk {
+            QuantityKind::Zero => ctx.quantity.register_erased(&param.name.name, param.span),
+            QuantityKind::One => {
+                ctx.quantity.allocate_linear(
+                    &param.name.name,
+                    param.span,
+                    crate::quantity::AllocSite::Param(param.name.name.clone()),
+                );
             }
+            QuantityKind::Bounded(n) => {
+                ctx.quantity
+                    .register_bounded(&param.name.name, n, param.span)
+            }
+            QuantityKind::Many => {}
         }
 
         // Register inout parameters
-        if param.is_inout {
+        if param.mutability == crate::ast::Mutability::InOut {
             // MVS encoding handled in encode_mvs_function
         }
     }
 
     // Encode quantity constraints
-    if let Some(body) = &func.body {
-        constraints.extend(encode_quantity_expr(body, &mut ctx.quantity)?);
+    if let Some(body_expr) = &func.body.expr {
+        constraints.extend(encode_quantity_expr(body_expr.as_ref(), &mut ctx.quantity)?);
+    }
+    for stmt in &func.body.stmts {
+        if let naso_compiler::ast::StmtKind::Expr(expr) = &stmt.kind {
+            constraints.extend(encode_quantity_expr(expr, &mut ctx.quantity)?);
+        }
     }
 
     // Encode MVS constraints
     constraints.extend(encode_mvs_function(func, &mut ctx.mvs)?);
 
     // Encode quantum constraints
-    constraints.extend(encode_quantum_function(func, &mut ctx.quantum)?);
+    if let Some(body_expr) = &func.body.expr {
+        constraints.extend(encode_quantum_expr(body_expr.as_ref(), &mut ctx.quantum)?);
+    }
+    for stmt in &func.body.stmts {
+        if let naso_compiler::ast::StmtKind::Expr(expr) = &stmt.kind {
+            constraints.extend(encode_quantum_expr(expr, &mut ctx.quantum)?);
+        }
+    }
 
     // Encode polyhedral constraints
     constraints.extend(encode_polyhedral_function(func, &mut ctx.polyhedral)?);
@@ -167,6 +184,7 @@ fn lower_function(func: &Function, ctx: &mut LoweringContext) -> Result<(), Veri
     Ok(())
 }
 
+#[cfg(feature = "z3")]
 /// Lower an expression.
 fn lower_expr(expr: &Expr, ctx: &mut LoweringContext) -> Result<(), VerifyError> {
     // For top-level expressions, we mainly track quantities
@@ -176,11 +194,9 @@ fn lower_expr(expr: &Expr, ctx: &mut LoweringContext) -> Result<(), VerifyError>
     Ok(())
 }
 
-pub use crate::mvs::encode_mvs_expr;
-pub use crate::polyhedral::encode_polyhedral_expr;
 /// Re-export encode functions for modular use.
-pub use crate::quantity::encode_quantity_expr;
-pub use crate::quantum::encode_quantum_expr;
+pub use crate::quantity::encode_quantity_expr as encode_quantity;
+pub use crate::quantum::encode_quantum_expr as encode_quantum;
 
 #[cfg(test)]
 mod tests {
@@ -188,9 +204,12 @@ mod tests {
 
     #[test]
     fn test_lowering_context_creation() {
-        let ctx = LoweringContext::new();
-        assert!(!ctx.has_errors());
-        assert_eq!(ctx.current_function, None);
+        #[cfg(feature = "z3")]
+        {
+            let ctx = LoweringContext::new();
+            assert!(!ctx.has_errors());
+            assert_eq!(ctx.current_function, None);
+        }
     }
 
     #[test]

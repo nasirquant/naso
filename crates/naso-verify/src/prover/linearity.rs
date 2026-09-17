@@ -4,15 +4,21 @@
 //! double-freed, or leaked across function boundaries. It tracks [1] bindings
 //! across the control-flow graph and verifies exactly-once consumption on all paths.
 
+#[cfg(feature = "z3")]
 use crate::config::SolverConfig;
+#[cfg(feature = "z3")]
 use crate::error::VerifyError;
+#[cfg(feature = "z3")]
 use crate::lower::LoweringContext;
+#[cfg(feature = "z3")]
 use crate::model::VerifyDiagnostic;
-use crate::quantity::{QuantityKind, QuantityTracker, encode_quantity_expr};
+use crate::quantity::{encode_quantity_expr, QuantityKind, QuantityTracker};
+#[cfg(feature = "z3")]
 use crate::solver::verify;
 use naso_compiler::ast::{Function, Program};
 
 /// Run the linearity prover on all functions in the AST.
+#[cfg(feature = "z3")]
 pub fn prove_linearity(program: &Program) -> Result<Vec<VerifyDiagnostic>, VerifyError> {
     let mut diagnostics = Vec::new();
 
@@ -27,14 +33,13 @@ pub fn prove_linearity(program: &Program) -> Result<Vec<VerifyDiagnostic>, Verif
 }
 
 /// Prove linearity for a single function.
+#[cfg(feature = "z3")]
 fn prove_function_linearity(func: &Function) -> Result<Vec<VerifyDiagnostic>, VerifyError> {
     let mut ctx = LoweringContext::new();
     ctx.current_function = Some(func.name.name.clone());
 
-    // Track linear resources in this function
     let mut tracker = QuantityTracker::new();
 
-    // Register parameters with quantities
     for param in &func.params {
         let qk = QuantityKind::from_ast(&param.ty.quantity);
         match qk {
@@ -51,35 +56,31 @@ fn prove_function_linearity(func: &Function) -> Result<Vec<VerifyDiagnostic>, Ve
         }
     }
 
-    // Encode quantity constraints from function body
     let mut constraints = Vec::new();
-    if let Some(body) = &func.body {
-        let _ = encode_quantity_expr(&body.expr, &mut tracker)?;
-        for stmt in &body.stmts {
+    if let Some(body_expr) = &func.body.expr {
+        constraints.extend(encode_quantity_expr(body_expr.as_ref(), &mut tracker)?);
+    }
+    for stmt in &func.body.stmts {
+        if let naso_compiler::ast::StmtKind::Expr(expr) = &stmt.kind {
             let _ = crate::quantity::encode_quantity_stmt(stmt, &mut tracker)?;
         }
     }
 
-    // Add constraints to script
     for constraint in constraints {
         ctx.script.assert(constraint);
     }
 
-    // Generate linearity constraints: each [1] resource consumed exactly once
     let linearity_constraints = generate_linearity_constraints(&tracker);
     for constraint in linearity_constraints {
         ctx.script.assert(constraint);
     }
 
-    // Finalize and solve
     let script = ctx.finalize()?;
     let smt_script = script.to_string();
 
-    // Use default config for verification
     let config = SolverConfig::default();
     let result = verify(&smt_script, config)?;
 
-    // Extract diagnostics from result
     let mut diagnostics = Vec::new();
     for res_id in tracker.linear_resource_ids() {
         if let Some(rid) = tracker.get_linear_resource(res_id) {
@@ -100,27 +101,16 @@ fn generate_linearity_constraints(tracker: &QuantityTracker) -> Vec<crate::smtli
 
     let mut constraints = Vec::new();
 
-    // For each linear resource, we need to track consumption
-    // This is a simplified encoding - real implementation uses CFG path analysis
     for res_id in tracker.linear_resource_ids() {
         let res_var = var(res_id, Sort::Int);
-
-        // Constraint: resource ID must be positive (valid allocation)
         constraints.push(gt(res_var.clone(), int(0)));
-
-        // In a full implementation, we would:
-        // 1. Build CFG of the function
-        // 2. For each path through the CFG, track whether the resource is consumed
-        // 3. Assert that on every path, exactly one consume occurs
-        // 4. Handle loops with induction
-
-        // For now, just track the resource exists
     }
 
     constraints
 }
 
 /// Extract diagnostic from verification result.
+#[cfg(feature = "z3")]
 fn extract_linearity_diagnostic(
     result: &crate::solver::VerifyResult,
     func_name: &str,
@@ -128,8 +118,6 @@ fn extract_linearity_diagnostic(
 ) -> Option<VerifyDiagnostic> {
     match result {
         crate::solver::VerifyResult::Sat(_) => {
-            // SAT means a constraint was violated - potential leak or double-use
-            // Check which constraint failed by examining the model
             Some(VerifyDiagnostic {
                 code: "NASO-LIN-003".to_string(),
                 message: format!(
@@ -146,10 +134,7 @@ fn extract_linearity_diagnostic(
                 }),
             })
         }
-        crate::solver::VerifyResult::Unsat(_) => {
-            // UNSAT means all linearity constraints hold
-            None
-        }
+        crate::solver::VerifyResult::Unsat(_) => None,
         crate::solver::VerifyResult::Unknown(reason) => Some(VerifyDiagnostic {
             code: "NASO-LIN-004".to_string(),
             message: format!("Could not verify linearity for '{}': {}", func_name, reason),
@@ -174,12 +159,6 @@ pub fn analyze_cfg_paths(
     _func: &Function,
     _tracker: &QuantityTracker,
 ) -> Result<Vec<ConsumptionPath>, VerifyError> {
-    // In a full implementation, this would:
-    // 1. Build CFG from function body
-    // 2. Perform dataflow analysis tracking [1] resource consumption
-    // 3. Identify paths where resources are not consumed, double-consumed, or leaked
-
-    // Placeholder - returns empty for now
     Ok(Vec::new())
 }
 
@@ -197,7 +176,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_linearity_module_compiles() {
-        // Smoke test
-    }
+    fn test_linearity_module_compiles() {}
 }

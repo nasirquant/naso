@@ -6,14 +6,21 @@
 
 #[cfg(feature = "z3")]
 use crate::config::{Logic, SolverConfig};
+#[cfg(feature = "z3")]
 use crate::error::{SolverError, VerifyError};
+#[cfg(feature = "z3")]
 use crate::model::{Model, UnsatCore};
+#[cfg(feature = "z3")]
 use crate::smtlib::Script;
+#[cfg(feature = "z3")]
 use std::collections::HashMap;
+#[cfg(feature = "z3")]
 use std::sync::Arc;
+#[cfg(feature = "z3")]
 use std::time::{Duration, Instant};
 
 /// Verification result from the solver.
+#[cfg(feature = "z3")]
 #[derive(Debug, Clone)]
 pub enum VerifyResult {
     /// Satisfiable with a model.
@@ -57,8 +64,10 @@ impl VerifyResult {
         }
     }
 }
+#[cfg(feature = "z3")]
 
 /// Z3 solver wrapper with context management.
+#[cfg(feature = "z3")]
 pub struct Solver {
     config: SolverConfig,
     context: Option<z3::Context>,
@@ -67,6 +76,7 @@ pub struct Solver {
     assertion_ids: HashMap<String, usize>, // Named assertions for unsat core
     next_assertion_id: usize,
 }
+#[cfg(feature = "z3")]
 
 impl Solver {
     /// Create a new solver with the given configuration.
@@ -297,8 +307,10 @@ impl Solver {
         Ok(())
     }
 }
+#[cfg(feature = "z3")]
 
 /// Parse and execute an SMT-LIB2 script using Z3.
+#[cfg(feature = "z3")]
 pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, VerifyError> {
     let mut solver = Solver::new(config)?;
 
@@ -321,8 +333,10 @@ pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, Ve
     // Check satisfiability
     solver.check_sat(&[])
 }
+#[cfg(feature = "z3")]
 
 /// Execute multiple independent verification conditions in parallel.
+#[cfg(feature = "z3")]
 pub fn verify_parallel(
     scripts: Vec<(String, String)>, // (name, script)
     config: SolverConfig,
@@ -337,8 +351,10 @@ pub fn verify_parallel(
         })
         .collect()
 }
+#[cfg(feature = "z3")]
 
 /// Solver statistics.
+#[cfg(feature = "z3")]
 #[derive(Debug, Clone, Default)]
 pub struct SolverStats {
     pub total_time: Duration,
@@ -348,6 +364,7 @@ pub struct SolverStats {
     pub error_calls: usize,
     pub total_assertions: usize,
 }
+#[cfg(feature = "z3")]
 
 impl SolverStats {
     pub fn record(&mut self, result: &VerifyResult, elapsed: Duration) {

@@ -3,12 +3,19 @@
 //! This module provides human-readable, JSON, and SARIF output formats
 //! for the `naso verify` command.
 
+#[cfg(feature = "z3")]
 use crate::config::SolverConfig;
+#[cfg(feature = "z3")]
 use crate::model::{Counterexample, DiagnosticSeverity, Model, UnsatCore, VerifyDiagnostic};
+#[cfg(feature = "z3")]
 use crate::solver::VerifyResult;
+#[cfg(feature = "z3")]
 use colored::Colorize;
+#[cfg(feature = "z3")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "z3")]
 use std::collections::HashMap;
+#[cfg(feature = "z3")]
 use std::time::Duration;
 
 /// Output format for verification results.
@@ -29,521 +36,346 @@ impl Default for OutputFormat {
     }
 }
 
-/// Verification summary statistics.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg(feature = "z3")]
+/// Verification result summary for output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerificationSummary {
-    pub files_checked: usize,
-    pub total_vcs: usize,
-    pub sat_count: usize,
-    pub unsat_count: usize,
-    pub unknown_count: usize,
-    pub error_count: usize,
-    pub total_time_ms: u64,
-    pub cache_hits: usize,
-    pub cache_misses: usize,
+    pub total_functions: usize,
+    pub verified: usize,
+    pub failed: usize,
+    pub unknown: usize,
+    pub errors: usize,
+    pub total_time: Duration,
+    pub diagnostics: Vec<VerifyDiagnostic>,
 }
 
+#[cfg(feature = "z3")]
 impl VerificationSummary {
+    pub fn new() -> Self {
+        Self {
+            total_functions: 0,
+            verified: 0,
+            failed: 0,
+            unknown: 0,
+            errors: 0,
+            total_time: Duration::default(),
+            diagnostics: Vec::new(),
+        }
+    }
+
+    pub fn add_result(&mut self, result: &VerifyResult, diagnostics: Vec<VerifyDiagnostic>) {
+        self.total_functions += 1;
+        match result {
+            VerifyResult::Unsat(_) => self.verified += 1,
+            VerifyResult::Sat(_) => self.failed += 1,
+            VerifyResult::Unknown(_) => self.unknown += 1,
+            VerifyResult::Error(_) => self.errors += 1,
+        }
+        self.diagnostics.extend(diagnostics);
+    }
+
     pub fn success_rate(&self) -> f64 {
-        if self.total_vcs == 0 {
-            1.0
-        } else {
-            (self.unsat_count + self.sat_count) as f64 / self.total_vcs as f64
-        }
-    }
-}
-
-/// Format a verification result for human output.
-pub fn format_human(
-    result: &VerifyResult,
-    file: &str,
-    config: &SolverConfig,
-    summary: &mut VerificationSummary,
-) -> String {
-    let mut out = String::new();
-
-    match result {
-        VerifyResult::Sat(model) => {
-            summary.sat_count += 1;
-            out.push_str(&format!(
-                "{} {} {}\n",
-                "✗".red().bold(),
-                "SAT".red().bold(),
-                file.cyan()
-            ));
-            out.push_str(&format!("  Logic: {}\n", config.logic.as_str()));
-            out.push_str(&format!("  Model:\n"));
-            for (name, value) in &model.assignments {
-                out.push_str(&format!("    {} = {}\n", name.yellow(), value));
-            }
-        }
-        VerifyResult::Unsat(core) => {
-            summary.unsat_count += 1;
-            out.push_str(&format!(
-                "{} {} {}\n",
-                "✓".green().bold(),
-                "UNSAT".green().bold(),
-                file.cyan()
-            ));
-            if let Some(core) = core {
-                out.push_str(&format!("  Unsatisfiable core:\n"));
-                for a in &core.assertions {
-                    out.push_str(&format!("    - {}\n", a));
-                }
-                out.push_str(&format!("  {}\n", core.explanation));
-            }
-        }
-        VerifyResult::Unknown(reason) => {
-            summary.unknown_count += 1;
-            out.push_str(&format!(
-                "{} {} {}: {}\n",
-                "?".yellow().bold(),
-                "UNKNOWN".yellow().bold(),
-                file.cyan(),
-                reason
-            ));
-        }
-        VerifyResult::Error(msg) => {
-            summary.error_count += 1;
-            out.push_str(&format!(
-                "{} {} {}: {}\n",
-                "!".red().bold(),
-                "ERROR".red().bold(),
-                file.cyan(),
-                msg
-            ));
-        }
-    }
-
-    summary.total_vcs += 1;
-    out
-}
-
-/// Format a diagnostic for human output.
-pub fn format_diagnostic_human(diag: &VerifyDiagnostic) -> String {
-    let severity_color = match diag.severity {
-        DiagnosticSeverity::Error => "ERROR".red().bold(),
-        DiagnosticSeverity::Warning => "WARNING".yellow().bold(),
-        DiagnosticSeverity::Info => "INFO".blue().bold(),
-        DiagnosticSeverity::Hint => "HINT".green().bold(),
-    };
-
-    let mut out = String::new();
-    out.push_str(&format!(
-        "{} [{}] {}\n",
-        severity_color, diag.code, diag.message
-    ));
-    out.push_str(&format!(
-        "  --> {}:{}:{}\n",
-        diag.span.file().cyan(),
-        diag.span.line().to_string().cyan(),
-        diag.span.column().to_string().cyan()
-    ));
-
-    for related in &diag.related {
-        out.push_str(&format!(
-            "  ::: {}:{}:{}\n",
-            related.span.file().cyan(),
-            related.span.line().to_string().cyan(),
-            related.span.column().to_string().cyan()
-        ));
-        out.push_str(&format!("      {}\n", related.message));
-    }
-
-    if let Some(fix) = &diag.fix {
-        out.push_str(&format!("  {}: {}\n", "help".green(), fix.title));
-        for edit in &fix.edits {
-            out.push_str(&format!(
-                "    {}..{}: replace with `{}`\n",
-                edit.span.start(),
-                edit.span.end(),
-                edit.new_text
-            ));
-        }
-    }
-
-    out
-}
-
-/// Format verification summary for human output.
-pub fn format_summary_human(summary: &VerificationSummary) -> String {
-    let mut out = String::new();
-    out.push_str("\n");
-    out.push_str(&"═══ Verification Summary ═══\n".bold().to_string());
-    out.push_str(&format!(
-        "  Files checked:      {}\n",
-        summary.files_checked
-    ));
-    out.push_str(&format!("  Total VCs:          {}\n", summary.total_vcs));
-    out.push_str(&format!(
-        "  {} SAT\n",
-        format!("  SAT:              {}", summary.sat_count).red()
-    ));
-    out.push_str(&format!(
-        "  {} UNSAT\n",
-        format!("  UNSAT:            {}", summary.unsat_count).green()
-    ));
-    out.push_str(&format!(
-        "  {} UNKNOWN\n",
-        format!("  UNKNOWN:          {}", summary.unknown_count).yellow()
-    ));
-    out.push_str(&format!(
-        "  {} ERROR\n",
-        format!("  ERROR:            {}", summary.error_count).red()
-    ));
-    out.push_str(&format!(
-        "  Total time:         {}ms\n",
-        summary.total_time_ms
-    ));
-    out.push_str(&format!(
-        "  Cache hits:         {} ({:.1}%)\n",
-        summary.cache_hits,
-        if summary.cache_hits + summary.cache_misses > 0 {
-            summary.cache_hits as f64 / (summary.cache_hits + summary.cache_misses) as f64 * 100.0
-        } else {
+        if self.total_functions == 0 {
             0.0
+        } else {
+            self.verified as f64 / self.total_functions as f64
         }
+    }
+}
+
+#[cfg(feature = "z3")]
+/// Format verification results for human-readable output.
+pub fn format_human(summary: &VerificationSummary, config: &SolverConfig) -> String {
+    use colored::Colorize;
+
+    let mut out = String::new();
+
+    out.push_str(&format!(
+        "{} {}/{} functions verified ({:.1}%)\n",
+        "Verification Summary:".bold().cyan(),
+        summary.verified,
+        summary.total_functions,
+        summary.success_rate() * 100.0
     ));
+
+    out.push_str(&format!(
+        "  {} verified, {} failed, {} unknown, {} errors\n",
+        summary.verified.to_string().green(),
+        summary.failed.to_string().red(),
+        summary.unknown.to_string().yellow(),
+        summary.errors.to_string().red()
+    ));
+
+    out.push_str(&format!("  Total time: {:.2}s\n", summary.total_time.as_secs_f64()));
+
+    if !summary.diagnostics.is_empty() {
+        out.push_str("\n");
+        out.push_str(&"Diagnostics:".bold().underline().to_string());
+        out.push_str("\n");
+
+        for diag in &summary.diagnostics {
+            let severity_color = match diag.severity {
+                DiagnosticSeverity::Error => "ERROR".red().bold(),
+                DiagnosticSeverity::Warning => "WARN".yellow().bold(),
+                DiagnosticSeverity::Info => "INFO".blue().bold(),
+                DiagnosticSeverity::Hint => "HINT".cyan().bold(),
+            };
+
+            out.push_str(&format!(
+                "  [{}] {}: {}\n",
+                severity_color,
+                diag.code.bold(),
+                diag.message
+            ));
+
+            out.push_str(&format!(
+                "     at {}:{}:{}\n",
+                diag.span.file().cyan(),
+                diag.span.line().to_string().cyan(),
+                diag.span.column().to_string().cyan()
+            ));
+
+            if !diag.related.is_empty() {
+                out.push_str("  Related:\n");
+                for related in &diag.related {
+                    out.push_str(&format!(
+                        "    at {}:{}:{} - {}\n",
+                        related.span.file().cyan(),
+                        related.span.line().to_string().cyan(),
+                        related.span.column().to_string().cyan(),
+                        related.message
+                    ));
+                }
+            }
+
+            if let Some(fix) = &diag.fix {
+                out.push_str(&format!("  Fix: {}\n", fix.title.bold()));
+            }
+        }
+    }
+
     out
 }
 
-/// JSON output structure.
-#[derive(Debug, Serialize)]
-pub struct JsonOutput {
-    pub results: Vec<JsonFileResult>,
-    pub summary: VerificationSummary,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JsonFileResult {
-    pub file: String,
-    pub status: String, // "sat", "unsat", "unknown", "error"
-    pub diagnostics: Vec<JsonDiagnostic>,
-    pub stats: JsonStats,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JsonDiagnostic {
-    pub code: String,
-    pub message: String,
-    pub file: String,
-    pub line: usize,
-    pub column: usize,
-    pub end_line: usize,
-    pub end_column: usize,
-    pub severity: String,
-    pub related: Vec<JsonRelated>,
-    pub fix: Option<JsonFix>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JsonRelated {
-    pub file: String,
-    pub line: usize,
-    pub column: usize,
-    pub message: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JsonFix {
-    pub title: String,
-    pub edits: Vec<JsonEdit>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JsonEdit {
-    pub start_line: usize,
-    pub start_column: usize,
-    pub end_line: usize,
-    pub end_column: usize,
-    pub new_text: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JsonStats {
-    pub time_ms: u64,
-    pub logic: String,
-    pub cache_hit: bool,
-}
-
-/// Convert verification results to JSON output.
-pub fn to_json(
-    results: Vec<(String, VerifyResult)>,
-    config: &SolverConfig,
-    summary: &VerificationSummary,
-) -> String {
-    let mut json_results = Vec::new();
-
-    for (file, result) in results {
-        let (status, diagnostics) = match &result {
-            VerifyResult::Sat(_) => ("sat", vec![]),
-            VerifyResult::Unsat(core) => ("unsat", vec![]),
-            VerifyResult::Unknown(reason) => ("unknown", vec![]),
-            VerifyResult::Error(msg) => ("error", vec![]),
-        };
-
-        json_results.push(JsonFileResult {
-            file,
-            status: status.to_string(),
-            diagnostics,
-            stats: JsonStats {
-                time_ms: 0, // Would need per-file timing
-                logic: config.logic.as_str().to_string(),
-                cache_hit: false,
-            },
-        });
+#[cfg(feature = "z3")]
+/// Format verification results as JSON.
+pub fn format_json(summary: &VerificationSummary) -> Result<String, serde_json::Error> {
+    #[derive(Serialize)]
+    struct JsonOutput {
+        summary: VerificationSummary,
     }
 
     let output = JsonOutput {
-        results: json_results,
         summary: summary.clone(),
     };
-
-    serde_json::to_string_pretty(&output).unwrap_or_else(|_| "{}".to_string())
+    serde_json::to_string_pretty(&output)
 }
 
-/// SARIF 2.1.0 output structure.
-#[derive(Debug, Serialize)]
-pub struct SarifOutput {
-    pub version: String,
-    pub runs: Vec<SarifRun>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifRun {
-    pub tool: SarifTool,
-    pub results: Vec<SarifResult>,
-    pub column_kind: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifTool {
-    pub driver: SarifDriver,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifDriver {
-    pub name: String,
-    pub version: String,
-    pub information_uri: String,
-    pub rules: Vec<SarifRule>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifRule {
-    pub id: String,
-    pub name: String,
-    pub short_description: SarifMessage,
-    pub full_description: SarifMessage,
-    pub default_configuration: SarifConfig,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifConfig {
-    pub level: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifMessage {
-    pub text: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifResult {
-    pub rule_id: String,
-    pub level: String,
-    pub message: SarifMessage,
-    pub locations: Vec<SarifLocation>,
-    pub related_locations: Option<Vec<SarifRelatedLocation>>,
-    pub fixes: Option<Vec<SarifFix>>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifLocation {
-    pub physical_location: SarifPhysicalLocation,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifPhysicalLocation {
-    pub artifact_location: SarifArtifactLocation,
-    pub region: SarifRegion,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifArtifactLocation {
-    pub uri: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifRegion {
-    pub start_line: usize,
-    pub start_column: usize,
-    pub end_line: usize,
-    pub end_column: usize,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifRelatedLocation {
-    pub id: usize,
-    pub physical_location: SarifPhysicalLocation,
-    pub message: SarifMessage,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifFix {
-    pub description: SarifMessage,
-    pub artifact_changes: Vec<SarifArtifactChange>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifArtifactChange {
-    pub artifact_location: SarifArtifactLocation,
-    pub replacements: Vec<SarifReplacement>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SarifReplacement {
-    pub deleted_region: SarifRegion,
-    pub inserted_content: SarifMessage,
-}
-
-/// Convert verification results to SARIF output.
-pub fn to_sarif(
-    results: Vec<(String, VerifyResult, Vec<VerifyDiagnostic>)>,
-    config: &SolverConfig,
-) -> String {
-    let mut rules = Vec::new();
-    let mut sarif_results = Vec::new();
-
-    // Collect unique diagnostic codes for rules
-    let mut seen_codes = std::collections::HashSet::new();
-    for (_, _, diagnostics) in &results {
-        for diag in diagnostics {
-            if seen_codes.insert(diag.code.clone()) {
-                rules.push(SarifRule {
-                    id: diag.code.clone(),
-                    name: diag.code.clone(),
-                    short_description: SarifMessage {
-                        text: diag.message.clone(),
-                    },
-                    full_description: SarifMessage {
-                        text: diag.message.clone(),
-                    },
-                    default_configuration: SarifConfig {
-                        level: match diag.severity {
-                            DiagnosticSeverity::Error => "error".to_string(),
-                            DiagnosticSeverity::Warning => "warning".to_string(),
-                            DiagnosticSeverity::Info => "note".to_string(),
-                            DiagnosticSeverity::Hint => "none".to_string(),
-                        },
-                    },
-                });
-            }
-        }
+#[cfg(feature = "z3")]
+/// Format verification results as SARIF 2.1.0.
+pub fn format_sarif(summary: &VerificationSummary) -> Result<String, serde_json::Error> {
+    #[derive(Serialize)]
+    struct SarifOutput {
+        version: String,
+        runs: Vec<SarifRun>,
     }
 
-    for (file, result, diagnostics) in results {
-        for diag in diagnostics {
-            let level = match diag.severity {
-                DiagnosticSeverity::Error => "error",
-                DiagnosticSeverity::Warning => "warning",
-                DiagnosticSeverity::Info => "note",
-                DiagnosticSeverity::Hint => "none",
-            };
+    #[derive(Serialize)]
+    struct SarifRun {
+        tool: SarifTool,
+        results: Vec<SarifResult>,
+    }
 
-            sarif_results.push(SarifResult {
-                rule_id: diag.code.clone(),
-                level: level.to_string(),
-                message: SarifMessage {
+    #[derive(Serialize)]
+    struct SarifTool {
+        driver: SarifDriver,
+    }
+
+    #[derive(Serialize)]
+    struct SarifDriver {
+        name: String,
+        information_uri: String,
+        rules: Vec<SarifRule>,
+    }
+
+    #[derive(Serialize)]
+    struct SarifRule {
+        id: String,
+        name: String,
+        short_description: SarifDescription,
+        full_description: SarifDescription,
+        default_configuration: SarifConfiguration,
+    }
+
+    #[derive(Serialize)]
+    struct SarifDescription {
+        text: String,
+    }
+
+    #[derive(Serialize)]
+    struct SarifConfiguration {
+        level: String,
+    }
+
+    #[derive(Serialize)]
+    struct SarifResult {
+        rule_id: String,
+        level: String,
+        message: SarifMessage,
+        locations: Vec<SarifLocation>,
+    }
+
+    #[derive(Serialize)]
+    struct SarifMessage {
+        text: String,
+    }
+
+    #[derive(Serialize)]
+    struct SarifLocation {
+        physical_location: SarifPhysicalLocation,
+    }
+
+    #[derive(Serialize)]
+    struct SarifPhysicalLocation {
+        artifact_location: SarifArtifactLocation,
+        region: SarifRegion,
+    }
+
+    #[derive(Serialize)]
+    struct SarifArtifactLocation {
+        uri: String,
+    }
+
+    #[derive(Serialize)]
+    struct SarifRegion {
+        start_line: usize,
+        start_column: usize,
+        end_line: usize,
+        end_column: usize,
+    }
+
+    let mut rules = Vec::new();
+    let mut results = Vec::new();
+
+    for diag in &summary.diagnostics {
+        // Add rule if not already present
+        if !rules.iter().any(|r: &SarifRule| r.id == diag.code) {
+            rules.push(SarifRule {
+                id: diag.code.clone(),
+                name: diag.code.clone(),
+                short_description: SarifDescription {
                     text: diag.message.clone(),
                 },
-                locations: vec![SarifLocation {
-                    physical_location: SarifPhysicalLocation {
-                        artifact_location: SarifArtifactLocation { uri: file.clone() },
-                        region: SarifRegion {
-                            start_line: diag.span.line(),
-                            start_column: diag.span.column(),
-                            end_line: diag.span.end_line().unwrap_or(diag.span.line()),
-                            end_column: diag.span.end_column().unwrap_or(diag.span.column()),
-                        },
-                    },
-                }],
-                related_locations: if diag.related.is_empty() {
-                    None
-                } else {
-                    Some(
-                        diag.related
-                            .iter()
-                            .enumerate()
-                            .map(|(i, r)| SarifRelatedLocation {
-                                id: i,
-                                physical_location: SarifPhysicalLocation {
-                                    artifact_location: SarifArtifactLocation {
-                                        uri: r.span.file().to_string(),
-                                    },
-                                    region: SarifRegion {
-                                        start_line: r.span.line(),
-                                        start_column: r.span.column(),
-                                        end_line: r.span.end_line().unwrap_or(r.span.line()),
-                                        end_column: r.span.end_column().unwrap_or(r.span.column()),
-                                    },
-                                },
-                                message: SarifMessage {
-                                    text: r.message.clone(),
-                                },
-                            })
-                            .collect(),
-                    )
+                full_description: SarifDescription {
+                    text: diag.message.clone(),
                 },
-                fixes: diag.fix.as_ref().map(|fix| {
-                    vec![SarifFix {
-                        description: SarifMessage {
-                            text: fix.title.clone(),
-                        },
-                        artifact_changes: fix
-                            .edits
-                            .iter()
-                            .map(|edit| SarifArtifactChange {
-                                artifact_location: SarifArtifactLocation {
-                                    uri: edit.span.file().to_string(),
-                                },
-                                replacements: vec![SarifReplacement {
-                                    deleted_region: SarifRegion {
-                                        start_line: edit.span.line(),
-                                        start_column: edit.span.column(),
-                                        end_line: edit.span.end_line().unwrap_or(edit.span.line()),
-                                        end_column: edit
-                                            .span
-                                            .end_column()
-                                            .unwrap_or(edit.span.column()),
-                                    },
-                                    inserted_content: SarifMessage {
-                                        text: edit.new_text.clone(),
-                                    },
-                                }],
-                            })
-                            .collect(),
-                    }]
-                }),
+                default_configuration: SarifConfiguration {
+                    level: match diag.severity {
+                        DiagnosticSeverity::Error => "error".to_string(),
+                        DiagnosticSeverity::Warning => "warning".to_string(),
+                        DiagnosticSeverity::Info => "note".to_string(),
+                        DiagnosticSeverity::Hint => "note".to_string(),
+                    },
+                },
             });
         }
+
+        // Add result
+        results.push(SarifResult {
+            rule_id: diag.code.clone(),
+            level: match diag.severity {
+                DiagnosticSeverity::Error => "error".to_string(),
+                DiagnosticSeverity::Warning => "warning".to_string(),
+                DiagnosticSeverity::Info => "note".to_string(),
+                DiagnosticSeverity::Hint => "note".to_string(),
+            },
+            message: SarifMessage {
+                text: diag.message.clone(),
+            },
+            locations: vec![SarifLocation {
+                physical_location: SarifPhysicalLocation {
+                    artifact_location: SarifArtifactLocation {
+                        uri: diag.span.file().to_string(),
+                    },
+                    region: SarifRegion {
+                        start_line: diag.span.line() as usize,
+                        start_column: diag.span.column() as usize,
+                        end_line: diag.span.line() as usize,
+                        end_column: diag.span.column() as usize,
+                    },
+                },
+            }],
+        });
     }
 
-    let output = SarifOutput {
+    let sarif = SarifOutput {
         version: "2.1.0".to_string(),
         runs: vec![SarifRun {
             tool: SarifTool {
                 driver: SarifDriver {
-                    name: "naso-verify".to_string(),
-                    version: env!("CARGO_PKG_VERSION").to_string(),
+                    name: "Naso Verify".to_string(),
                     information_uri: "https://github.com/naso-lang/naso".to_string(),
                     rules,
                 },
             },
-            results: sarif_results,
-            column_kind: "utf16".to_string(),
+            results,
         }],
     };
 
-    serde_json::to_string_pretty(&output).unwrap_or_else(|_| "{}".to_string())
+    serde_json::to_string_pretty(&sarif)
+}
+
+#[cfg(feature = "z3")]
+/// Format a single verification result for output.
+pub fn format_result(result: &VerifyResult, config: &SolverConfig) -> String {
+    use colored::Colorize;
+
+    match result {
+        VerifyResult::Sat(model) => {
+            let mut out = String::new();
+            out.push_str(&"UNSAT (property violated)".red().bold().to_string());
+            out.push_str("\n");
+            out.push_str(&format!("  Model: {:?}\n", model));
+            out
+        }
+        VerifyResult::Unsat(core) => {
+            let mut out = String::new();
+            out.push_str(&"SAT (property holds)".green().bold().to_string());
+            out.push_str("\n");
+            if let Some(core) = core {
+                out.push_str(&format!("  Unsat core: {}\n", core.format()));
+            }
+            out
+        }
+        VerifyResult::Unknown(reason) => {
+            format!(
+                "{} {}\n",
+                "UNKNOWN".yellow().bold(),
+                reason
+            )
+        }
+        VerifyResult::Error(msg) => {
+            format!("{} {}\n", "ERROR".red().bold(), msg)
+        }
+    }
+}
+
+#[cfg(feature = "z3")]
+/// Print verification results to stdout.
+pub fn print_results(summary: &VerificationSummary, format: OutputFormat, config: &SolverConfig) {
+    match format {
+        OutputFormat::Human => {
+            println!("{}", format_human(summary, config));
+        }
+        OutputFormat::Json => {
+            if let Ok(json) = format_json(summary) {
+                println!("{}", json);
+            }
+        }
+        OutputFormat::Sarif => {
+            if let Ok(sarif) = format_sarif(summary) {
+                println!("{}", sarif);
+            }
+        }
+    }
 }

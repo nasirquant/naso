@@ -3,13 +3,19 @@
 //! This module provides structured argument parsing for verification modes,
 //! output formats, solver configuration, and cache control.
 
+#[cfg(feature = "z3")]
 use crate::config::{Logic, SolverConfig};
+#[cfg(feature = "z3")]
 use crate::output::OutputFormat;
+#[cfg(feature = "z3")]
 use clap::{Arg, ArgAction, Command};
+#[cfg(feature = "z3")]
 use std::path::PathBuf;
+#[cfg(feature = "z3")]
 use std::time::Duration;
 
 /// Verification mode selection.
+#[cfg(feature = "z3")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum VerifyMode {
     /// Run all provers (uncomputation + linearity)
@@ -39,6 +45,7 @@ impl VerifyMode {
 }
 
 /// Complete CLI configuration for verification.
+#[cfg(feature = "z3")]
 #[derive(Debug, Clone)]
 pub struct VerifyCliConfig {
     /// Input files or directories to verify
@@ -64,6 +71,7 @@ pub struct VerifyCliConfig {
     /// List available diagnostic codes and exit
     pub list_codes: bool,
 }
+#[cfg(feature = "z3")]
 
 impl Default for VerifyCliConfig {
     fn default() -> Self {
@@ -82,8 +90,10 @@ impl Default for VerifyCliConfig {
         }
     }
 }
+#[cfg(feature = "z3")]
 
 /// Parse command line arguments for `naso verify`.
+#[cfg(feature = "z3")]
 pub fn parse_verify_args(args: &[String]) -> Result<VerifyCliConfig, String> {
     let matches = Command::new("naso verify")
         .about("Formally verify Naso programs using SMT solving")
@@ -222,8 +232,10 @@ pub fn parse_verify_args(args: &[String]) -> Result<VerifyCliConfig, String> {
 
     Ok(config)
 }
+#[cfg(feature = "z3")]
 
 /// Print usage information.
+#[cfg(feature = "z3")]
 pub fn print_verify_usage() {
     eprintln!("Usage: naso verify [OPTIONS] [FILE|DIR]...");
     eprintln!();

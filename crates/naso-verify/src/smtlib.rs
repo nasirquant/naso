@@ -1,6 +1,6 @@
 //! SMT-LIB2 AST and pretty-printer.
 
-use std::fmt::{self, Write};
+use std::fmt;
 
 /// SMT-LIB2 script representation.
 #[derive(Debug, Clone)]
@@ -74,21 +74,20 @@ impl Script {
     pub fn exit(&mut self) {
         self.commands.push(Command::Exit);
     }
-
-    /// Emit as SMT-LIB2 string.
-    pub fn to_string(&self) -> String {
-        let mut out = String::new();
-        for cmd in &self.commands {
-            cmd.fmt(&mut out).unwrap();
-            out.push('\n');
-        }
-        out
-    }
 }
 
 impl Default for Script {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl fmt::Display for Script {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for cmd in &self.commands {
+            write!(f, "{}\n", cmd)?;
+        }
+        Ok(())
     }
 }
 
@@ -222,7 +221,7 @@ impl fmt::Display for Term {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Term::Const(c) => write!(f, "{}", c),
-            Term::Var(name, sort) => write!(f, "{}", name), // Sort in declaration
+            Term::Var(name, _sort) => write!(f, "{}", name), // Sort in declaration
             Term::App(name, args) => {
                 write!(f, "({}", name)?;
                 for arg in args {
@@ -490,10 +489,10 @@ pub mod theory {
     pub const BOOL: &str = "Bool";
     pub const INT: &str = "Int";
     pub const REAL: &str = "Real";
-    pub fn BV(w: u32) -> String {
+    pub fn bv(w: u32) -> String {
         format!("(_ BitVec {})", w)
     }
-    pub fn ARRAY(idx: &str, elem: &str) -> String {
+    pub fn array(idx: &str, elem: &str) -> String {
         format!("(Array {} {})", idx, elem)
     }
 }

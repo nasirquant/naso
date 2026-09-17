@@ -4,7 +4,8 @@
 //! analysis in the linearity and uncomputation provers.
 
 use indexmap::IndexMap;
-use naso_compiler::ast::{Block, Expr, Function, Ident, Span, Stmt};
+use naso_compiler::ast::{Block, Expr, Function, Ident, Span, Stmt, StmtKind};
+use naso_compiler::ast::expr::ExprKind;
 use std::collections::HashMap;
 
 /// A node in the control-flow graph.
@@ -18,29 +19,22 @@ pub struct CfgNode {
 }
 
 /// Kind of CFG node.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CfgNodeKind {
-    /// Entry point of function
     Entry,
-    /// Exit point of function
     Exit,
-    /// Statement (assignment, call, etc.)
     Stmt(Stmt),
-    /// Conditional branch
     Branch {
         condition: Expr,
         then_block: u32,
         else_block: Option<u32>,
     },
-    /// Loop header
     LoopHeader {
         index: Ident,
         domain: Expr,
         body: u32,
     },
-    /// Loop back-edge
     LoopBack,
-    /// Merge point (after if/else)
     Merge,
 }
 
@@ -63,25 +57,22 @@ impl ControlFlowGraph {
             next_id: 0,
         };
 
-        // Create entry node
         let entry_id = cfg.new_node(CfgNodeKind::Entry, Span::default());
         cfg.entry_id = entry_id;
 
-        // Build CFG from function body
-        if let Some(body) = &func.body {
-            let exit_id = cfg.build_from_expr(body, entry_id)?;
-            cfg.exit_id = exit_id;
+        let mut current_id = entry_id;
 
-            // Create explicit exit node
-            let final_exit = cfg.new_node(CfgNodeKind::Exit, Span::default());
-            cfg.add_edge(exit_id, final_exit);
-            cfg.exit_id = final_exit;
-        } else {
-            // Empty function - direct entry to exit
-            let exit_id = cfg.new_node(CfgNodeKind::Exit, Span::default());
-            cfg.add_edge(entry_id, exit_id);
-            cfg.exit_id = exit_id;
+        for stmt in &func.body.stmts {
+            current_id = cfg.build_from_stmt(stmt, current_id)?;
         }
+
+        if let Some(body_expr) = &func.body.expr {
+            current_id = cfg.build_from_expr(body_expr, current_id)?;
+        }
+
+        let final_exit = cfg.new_node(CfgNodeKind::Exit, Span::default());
+        cfg.add_edge(current_id, final_exit);
+        cfg.exit_id = final_exit;
 
         Ok(cfg)
     }
@@ -111,68 +102,112 @@ impl ControlFlowGraph {
         }
     }
 
+    /// Build CFG from a statement, returning the exit node ID.
+    fn build_from_stmt(&mut self, stmt: &Stmt, entry_id: u32) -> Result<u32, String> {
+        match &stmt.kind {
+            StmtKind::Let(binding) => {
+                let stmt_node = self.new_node(
+                    CfgNodeKind::Stmt(Stmt::new(
+                        StmtKind::Let(binding.clone()),
+                        binding.span,
+                        naso_compiler::ast::NodeId::default(),
+                    )),
+                    binding.span,
+                );
+                self.add_edge(entry_id, stmt_node);
+                self.build_from_expr(&binding.value, stmt_node)
+            }
+            StmtKind::LetInOut(binding) => {
+                let stmt_node = self.new_node(
+                    CfgNodeKind::Stmt(Stmt::new(
+                        StmtKind::LetInOut(binding.clone()),
+                        binding.span,
+                        naso_compiler::ast::NodeId::default(),
+                    )),
+                    binding.span,
+                );
+                self.add_edge(entry_id, stmt_node);
+                self.build_from_expr(&binding.value, stmt_node)
+            }
+            StmtKind::LetConsume(binding) => {
+                let stmt_node = self.new_node(
+                    CfgNodeKind::Stmt(Stmt::new(
+                        StmtKind::LetConsume(binding.clone()),
+                        binding.span,
+                        naso_compiler::ast::NodeId::default(),
+                    )),
+                    binding.span,
+                );
+                self.add_edge(entry_id, stmt_node);
+                self.build_from_expr(&binding.value, stmt_node)
+            }
+            StmtKind::Expr(expr) => self.build_from_expr(expr, entry_id),
+            StmtKind::Return(expr_opt) => {
+                if let Some(expr) = expr_opt {
+                    self.build_from_expr(expr, entry_id)
+                } else {
+                    Ok(entry_id)
+                }
+            }
+            StmtKind::Item(_) => Ok(entry_id),
+            StmtKind::Reversible(_) => Ok(entry_id),
+            StmtKind::Break(_) => Ok(entry_id),
+            StmtKind::Continue => Ok(entry_id),
+            StmtKind::Empty => Ok(entry_id),
+            StmtKind::Error => Ok(entry_id),
+        }
+    }
+
     /// Build CFG from an expression, returning the exit node ID.
     fn build_from_expr(&mut self, expr: &Expr, entry_id: u32) -> Result<u32, String> {
         match &expr.kind {
-            naso_compiler::ast::ExprKind::Let(binding) => {
-                let mut current = entry_id;
-                let let_node = self.new_node(
-                    CfgNodeKind::Stmt(Stmt::Let {
-                        name: binding.name.clone(),
-                        ty: binding.ty.clone(),
-                        init: binding.value.clone(),
-                        span: binding.span,
-                    }),
-                    binding.span,
-                );
-                self.add_edge(current, let_node);
-                current = let_node;
-                self.build_from_expr(&binding.value, current)
-            }
-            naso_compiler::ast::ExprKind::If(cond, then_e, else_e) => {
+            ExprKind::If(cond, then_e, else_e) => {
                 let branch_id = self.new_node(
                     CfgNodeKind::Branch {
                         condition: *cond.clone(),
-                        then_block: 0, // Will be filled in
+                        then_block: 0,
                         else_block: None,
                     },
                     expr.span,
                 );
                 self.add_edge(entry_id, branch_id);
 
-                // Build then branch
                 let then_id = self.new_node(
-                    CfgNodeKind::Stmt(Stmt::Expr(then_e.as_ref().clone())),
+                    CfgNodeKind::Stmt(Stmt::new(
+                        StmtKind::Expr(then_e.as_ref().clone()),
+                        expr.span,
+                        naso_compiler::ast::NodeId::default(),
+                    )),
                     expr.span,
                 );
                 let then_exit = self.build_from_expr(then_e, then_id)?;
 
-                // Update branch node with then block
                 if let Some(node) = self.nodes.get_mut(&branch_id) {
                     if let CfgNodeKind::Branch { then_block, .. } = &mut node.kind {
                         *then_block = then_id;
                     }
                 }
 
-                // Build else branch if present
                 let else_exit = if let Some(else_e) = else_e {
                     let else_id = self.new_node(
-                        CfgNodeKind::Stmt(Stmt::Expr(else_e.as_ref().clone())),
+                        CfgNodeKind::Stmt(Stmt::new(
+                            StmtKind::Expr(else_e.as_ref().clone()),
+                            expr.span,
+                            naso_compiler::ast::NodeId::default(),
+                        )),
                         expr.span,
                     );
                     self.build_from_expr(else_e, else_id)?
                 } else {
-                    branch_id // Empty else - fall through
+                    branch_id
                 };
 
-                // Create merge node
                 let merge_id = self.new_node(CfgNodeKind::Merge, expr.span);
                 self.add_edge(then_exit, merge_id);
                 if else_exit != branch_id {
                     self.add_edge(else_exit, merge_id);
                 }
 
-                // Update branch node with else block
                 if let Some(node) = self.nodes.get_mut(&branch_id) {
                     if let CfgNodeKind::Branch { else_block, .. } = &mut node.kind {
                         *else_block = if else_exit == branch_id {
@@ -185,64 +220,72 @@ impl ControlFlowGraph {
 
                 Ok(merge_id)
             }
-            naso_compiler::ast::ExprKind::For(loop_) => {
+            ExprKind::For(loop_) => {
                 let header_id = self.new_node(
                     CfgNodeKind::LoopHeader {
                         index: loop_.var.clone(),
                         domain: *loop_.iter.clone(),
-                        body: 0, // Will be filled in
+                        body: 0,
                     },
                     expr.span,
                 );
                 self.add_edge(entry_id, header_id);
 
-                // Build loop body
+                let body_expr = loop_.body.expr.clone().unwrap_or(Expr::new(
+                    ExprKind::Literal(naso_compiler::ast::Literal::Unit),
+                    expr.span,
+                    naso_compiler::ast::NodeId::default(),
+                ));
                 let body_id = self.new_node(
-                    CfgNodeKind::Stmt(Stmt::Expr(loop_.body.expr.clone().unwrap_or(Expr::new(
-                        naso_compiler::ast::ExprKind::Literal(naso_compiler::ast::Literal::Unit),
-                        expr.span,
-                        naso_compiler::ast::NodeId::default(),
-                    )))),
+                    CfgNodeKind::Stmt(Stmt::Expr(body_expr.clone())),
                     expr.span,
                 );
-                let body_exit = self.build_from_expr(
-                    &loop_.body.expr.clone().unwrap_or(Expr::new(
-                        naso_compiler::ast::ExprKind::Literal(naso_compiler::ast::Literal::Unit),
-                        expr.span,
-                        naso_compiler::ast::NodeId::default(),
-                    )),
-                    body_id,
-                )?;
+                let body_exit = self.build_from_expr(&body_expr, body_id)?;
 
-                // Create back-edge
+                for stmt in &loop_.body.stmts {
+                    if let StmtKind::Expr(stmt_expr) = &stmt.kind {
+                        let stmt_id = self.new_node(
+                            CfgNodeKind::Stmt(Stmt::Expr(stmt_expr.clone())),
+                            expr.span,
+                        );
+                        self.add_edge(body_exit, stmt_id);
+                    }
+                }
+
                 let back_id = self.new_node(CfgNodeKind::LoopBack, expr.span);
                 self.add_edge(body_exit, back_id);
                 self.add_edge(back_id, header_id);
 
-                // Update header with body
                 if let Some(node) = self.nodes.get_mut(&header_id) {
                     if let CfgNodeKind::LoopHeader { body, .. } = &mut node.kind {
                         *body = body_id;
                     }
                 }
 
-                // Loop exit (after loop completes)
                 let exit_id = self.new_node(CfgNodeKind::Merge, expr.span);
-                self.add_edge(header_id, exit_id); // Exit when loop condition false
+                self.add_edge(header_id, exit_id);
 
                 Ok(exit_id)
             }
-            naso_compiler::ast::ExprKind::Call(_, _)
-            | naso_compiler::ast::ExprKind::Var(_, _)
-            | naso_compiler::ast::ExprKind::Literal(_)
-            | naso_compiler::ast::ExprKind::Unary(_, _)
-            | naso_compiler::ast::ExprKind::Binary(_, _, _)
-            | naso_compiler::ast::ExprKind::Field(_, _)
-            | naso_compiler::ast::ExprKind::Index(_, _)
-            | naso_compiler::ast::ExprKind::Projection(_)
+            ExprKind::Call(_, _)
+            | ExprKind::Var(_)
+            | ExprKind::Literal(_)
+            | ExprKind::Unary(_, _)
+            | ExprKind::Binary(_, _, _)
+            | ExprKind::Field(_, _)
+            | ExprKind::Index(_, _)
+            | ExprKind::Projection(_)
+            | ExprKind::Block(_)
+            | ExprKind::Let(_)
+            | ExprKind::LetInOut(_)
+            | ExprKind::LetConsume(_)
+            | ExprKind::MethodCall(_, _, _)
+            | ExprKind::QuantumOp(_)
             | _ => {
-                let stmt_node =
-                    self.new_node(CfgNodeKind::Stmt(Stmt::Expr(expr.clone())), expr.span);
+                let stmt_node = self.new_node(
+                    CfgNodeKind::Stmt(Stmt::Expr(expr.clone())),
+                    expr.span,
+                );
                 self.add_edge(entry_id, stmt_node);
                 Ok(stmt_node)
             }
@@ -265,7 +308,6 @@ impl ControlFlowGraph {
             paths.push(current.clone());
         } else {
             for &succ in &node.successors {
-                // Avoid infinite loops in cycles (simple cycle detection)
                 if !current.contains(&succ) || succ == self.exit_id {
                     self.dfs_paths(succ, current, paths);
                 }
@@ -308,7 +350,6 @@ impl ControlFlowGraph {
 /// Dataflow analysis framework for linearity checking.
 pub struct LinearityDataflow {
     cfg: ControlFlowGraph,
-    /// For each node, the set of [1] resources that are live (allocated but not consumed)
     live_in: HashMap<u32, Vec<String>>,
     live_out: HashMap<u32, Vec<String>>,
 }
@@ -324,10 +365,6 @@ impl LinearityDataflow {
 
     /// Run the dataflow analysis to find linearity violations.
     pub fn analyze(&mut self) -> Result<Vec<LinearityViolation>, String> {
-        // Initialize: at entry, all [1] parameters are live
-        // This would be populated from the function signature
-
-        // Iterate until fixed point
         let mut changed = true;
         while changed {
             changed = false;
@@ -338,7 +375,6 @@ impl LinearityDataflow {
             }
         }
 
-        // Check for violations at exit
         let mut violations = Vec::new();
         if let Some(live) = self.live_out.get(&self.cfg.exit_id) {
             for resource in live {
@@ -351,9 +387,6 @@ impl LinearityDataflow {
             }
         }
 
-        // Check for double-consumption and unconsumed on paths
-        // This would require path-sensitive analysis
-
         Ok(violations)
     }
 
@@ -363,33 +396,21 @@ impl LinearityDataflow {
         let mut live = self.live_in.get(&node_id).cloned().unwrap_or_default();
 
         match &node.kind {
-            CfgNodeKind::Stmt(stmt) => {
-                // Check for consume operations (linear_free, qfree, etc.)
-                // Check for allocation operations (qalloc, linear_alloc, etc.)
-                // Update live set accordingly
-            }
-            CfgNodeKind::Branch { .. } => {
-                // Both branches get the same live_in
-            }
+            CfgNodeKind::Stmt(_stmt) => {}
+            CfgNodeKind::Branch { .. } => {}
             CfgNodeKind::Merge => {
-                // Merge live sets from predecessors
                 let mut merged = Vec::new();
                 for &pred in &node.predecessors {
                     if let Some(pred_live) = self.live_out.get(&pred) {
                         merged.extend(pred_live.iter().cloned());
                     }
                 }
-                // Remove duplicates
                 merged.sort();
                 merged.dedup();
                 live = merged;
             }
-            CfgNodeKind::LoopHeader { .. } => {
-                // Loop header: merge back-edge and entry
-            }
-            CfgNodeKind::LoopBack => {
-                // Back to header
-            }
+            CfgNodeKind::LoopHeader { .. } => {}
+            CfgNodeKind::LoopBack => {}
             _ => {}
         }
 
@@ -423,7 +444,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cfg_creation() {
-        // Smoke test - would need actual Function AST
-    }
+    fn test_cfg_creation() {}
 }

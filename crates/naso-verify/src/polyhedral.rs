@@ -3,12 +3,16 @@
 //! This module translates Naso's polyhedral loop constructs (forall, tile, fuse)
 //! into quantified SMT-LIB2 formulas over iteration domains.
 
+#[cfg(feature = "z3")]
 use crate::error::{LoweringError, VerifyError};
+#[cfg(feature = "z3")]
 use crate::smtlib::{builder::*, Sort, Term};
+#[cfg(feature = "z3")]
 use indexmap::IndexMap;
+#[cfg(feature = "z3")]
 use naso_compiler::ast::expr::ExprKind;
-use naso_compiler::ast::Span;
 
+#[cfg(feature = "z3")]
 /// Polyhedral iteration domain: a set of integer tuples defined by affine constraints.
 #[derive(Debug, Clone)]
 pub struct IterationDomain {
@@ -19,6 +23,7 @@ pub struct IterationDomain {
     pub constraints: Vec<(Vec<i64>, i64)>,
 }
 
+#[cfg(feature = "z3")]
 impl IterationDomain {
     pub fn new(dims: Vec<String>) -> Self {
         Self {
@@ -61,6 +66,7 @@ impl IterationDomain {
     }
 }
 
+#[cfg(feature = "z3")]
 /// Loop invariant: a property that holds at loop entry and is preserved by each iteration.
 #[derive(Debug, Clone)]
 pub struct LoopInvariant {
@@ -72,6 +78,7 @@ pub struct LoopInvariant {
     pub predicate: Term,
 }
 
+#[cfg(feature = "z3")]
 impl LoopInvariant {
     pub fn new(vars: Vec<(String, Sort)>, domain: IterationDomain, predicate: Term) -> Self {
         Self {
@@ -96,6 +103,7 @@ impl LoopInvariant {
     }
 }
 
+#[cfg(feature = "z3")]
 /// Tiling information for polyhedral optimization.
 #[derive(Debug, Clone)]
 pub struct TilingInfo {
@@ -109,6 +117,7 @@ pub struct TilingInfo {
     pub intra_indices: Vec<String>,
 }
 
+#[cfg(feature = "z3")]
 /// Fusion information for polyhedral optimization.
 #[derive(Debug, Clone)]
 pub struct FusionInfo {
@@ -120,6 +129,7 @@ pub struct FusionInfo {
     pub schedule: IndexMap<String, Vec<Term>>, // original_var -> affine expression in fused vars
 }
 
+#[cfg(feature = "z3")]
 /// Tracks polyhedral state during lowering.
 pub struct PolyhedralTracker {
     /// Current loop invariants being tracked
@@ -134,6 +144,7 @@ pub struct PolyhedralTracker {
     loop_indices: Vec<String>,
 }
 
+#[cfg(feature = "z3")]
 impl PolyhedralTracker {
     pub fn new() -> Self {
         Self {
@@ -208,12 +219,14 @@ impl PolyhedralTracker {
     }
 }
 
+#[cfg(feature = "z3")]
 impl Default for PolyhedralTracker {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[cfg(feature = "z3")]
 /// Encode polyhedral constructs for a function.
 pub fn encode_polyhedral_function(
     func: &naso_compiler::ast::Function,
@@ -221,8 +234,13 @@ pub fn encode_polyhedral_function(
 ) -> Result<Vec<Term>, VerifyError> {
     let mut constraints = Vec::new();
 
-    if let Some(body) = &func.body {
-        constraints.extend(encode_polyhedral_expr(body, tracker)?);
+    if let Some(body_expr) = &func.body.expr {
+        constraints.extend(encode_polyhedral_expr(body_expr.as_ref(), tracker)?);
+    }
+    for stmt in &func.body.stmts {
+        if let naso_compiler::ast::StmtKind::Expr(expr) = &stmt.kind {
+            constraints.extend(encode_polyhedral_expr(expr, tracker)?);
+        }
     }
 
     // Add all invariant constraints
@@ -231,6 +249,7 @@ pub fn encode_polyhedral_function(
     Ok(constraints)
 }
 
+#[cfg(feature = "z3")]
 /// Encode polyhedral constructs in an expression.
 pub fn encode_polyhedral_expr(
     expr: &naso_compiler::ast::Expr,
@@ -240,28 +259,39 @@ pub fn encode_polyhedral_expr(
 
     match &expr.kind {
         ExprKind::For(loop_expr) => {
-            // Parse domain bounds (simplified)
+            // Parse domain bounds from loop iterator expression
             let mut iter_domain = IterationDomain::new(vec![loop_expr.var.name.clone()]);
 
-            // Extract bounds from loop iterator
-            // For now, assume simple 0 <= index < N
-            if let ExprKind::Range { start, end, .. } = &loop_expr.iter.kind {
-                if let (Some(start_e), Some(end_e)) = (start, end) {
-                    // start <= index
-                    if let ExprKind::Literal(naso_compiler::ast::Literal::Int(s)) = &start_e.kind {
-                        iter_domain.add_constraint(vec![1], -(*s as i64)); // i - s >= 0
-                    }
-                    // index < end  =>  index - end + 1 <= 0  =>  -index + end - 1 >= 0
-                    if let ExprKind::Literal(naso_compiler::ast::Literal::Int(e)) = &end_e.kind {
-                        iter_domain.add_constraint(vec![-1], (*e as i64) - 1); // -i + e - 1 >= 0
+            // Extract bounds from loop iterator - check if it's a range-like call
+            if let ExprKind::Call(func, args) = &loop_expr.iter.kind {
+                if let ExprKind::Var(fname) = &func.kind {
+                    if fname.name == "range" && args.len() >= 2 {
+                        // range(start, end)
+                        if let ExprKind::Literal(naso_compiler::ast::Literal::Int(s)) =
+                            &args[0].kind
+                        {
+                            iter_domain.add_constraint(vec![1], -(*s as i64)); // i - s >= 0
+                        }
+                        if let ExprKind::Literal(naso_compiler::ast::Literal::Int(e)) =
+                            &args[1].kind
+                        {
+                            iter_domain.add_constraint(vec![-1], (*e as i64) - 1); // -i + e - 1 >= 0
+                        }
                     }
                 }
             }
 
             tracker.enter_forall(loop_expr.var.name.clone(), iter_domain.clone());
 
-            // Process body
-            constraints.extend(encode_polyhedral_expr(&loop_expr.body.expr, tracker)?);
+            // Process body - loop body is a Block
+            if let Some(body_expr) = &loop_expr.body.expr {
+                constraints.extend(encode_polyhedral_expr(body_expr.as_ref(), tracker)?);
+            }
+            for stmt in &loop_expr.body.stmts {
+                if let Some(stmt_expr) = &stmt.expr {
+                    constraints.extend(encode_polyhedral_expr(stmt_expr, tracker)?);
+                }
+            }
 
             tracker.exit_forall();
         }
@@ -270,43 +300,55 @@ pub fn encode_polyhedral_expr(
                 constraints.extend(encode_polyhedral_expr(arg, tracker)?);
             }
         }
-        ExprKind::Let(bindings, body, _) => {
-            for (_, _, init, _) in bindings {
-                if let Some(init_expr) = init {
-                    constraints.extend(encode_polyhedral_expr(init_expr, tracker)?);
+        ExprKind::Let(binding) => {
+            constraints.extend(encode_polyhedral_expr(&binding.value, tracker)?);
+            constraints.extend(encode_polyhedral_expr(&binding.body, tracker)?);
+        }
+        ExprKind::LetInOut(binding) => {
+            constraints.extend(encode_polyhedral_expr(&binding.value, tracker)?);
+            constraints.extend(encode_polyhedral_expr(&binding.body, tracker)?);
+        }
+        ExprKind::LetConsume(binding) => {
+            constraints.extend(encode_polyhedral_expr(&binding.value, tracker)?);
+            constraints.extend(encode_polyhedral_expr(&binding.body, tracker)?);
+        }
+        ExprKind::Block(block) => {
+            if let Some(body_expr) = &block.expr {
+                constraints.extend(encode_polyhedral_expr(body_expr.as_ref(), tracker)?);
+            }
+            for stmt in &block.stmts {
+                if let Some(stmt_expr) = &stmt.expr {
+                    constraints.extend(encode_polyhedral_expr(stmt_expr, tracker)?);
                 }
             }
-            constraints.extend(encode_polyhedral_expr(body, tracker)?);
+        }
+        ExprKind::If(cond, then_e, else_e) => {
+            constraints.extend(encode_polyhedral_expr(cond, tracker)?);
+            constraints.extend(encode_polyhedral_expr(then_e, tracker)?);
+            if let Some(else_e) = else_e {
+                constraints.extend(encode_polyhedral_expr(else_e, tracker)?);
+            }
+        }
+        ExprKind::Binary(_, lhs, rhs) => {
+            constraints.extend(encode_polyhedral_expr(lhs, tracker)?);
+            constraints.extend(encode_polyhedral_expr(rhs, tracker)?);
+        }
+        ExprKind::Unary(_, operand) => {
+            constraints.extend(encode_polyhedral_expr(operand, tracker)?);
+        }
+        ExprKind::MethodCall(receiver, _, args) => {
+            constraints.extend(encode_polyhedral_expr(receiver, tracker)?);
+            for arg in args {
+                constraints.extend(encode_polyhedral_expr(arg, tracker)?);
+            }
+        }
+        ExprKind::QuantumOp(_) => {
+            // Quantum ops don't have polyhedral content
         }
         _ => {
-            expr.visit_exprs(&mut |e| {
-                if let Ok(cs) = encode_polyhedral_expr(e, tracker) {
-                    constraints.extend(cs);
-                }
-            });
+            // For other expression types, we don't need special handling
         }
     }
 
     Ok(constraints)
-}
-
-/// Trait for visiting expressions.
-trait VisitExprs {
-    fn visit_exprs<F: FnMut(&naso_compiler::ast::Expr)>(&self, f: &mut F);
-}
-
-impl VisitExprs for naso_compiler::ast::Expr {
-    fn visit_exprs<F: FnMut(&naso_compiler::ast::Expr)>(&self, f: &mut F) {
-        f(self);
-        match &self.kind {
-            ExprKind::Call(_, args)
-            | ExprKind::Binary(_, _, args)
-            | ExprKind::Unary(_, arg)
-            | ExprKind::Let(_, body)
-            | ExprKind::If(_, _, then_e, else_e) => {
-                // Delegate to children
-            }
-            _ => {}
-        }
-    }
 }

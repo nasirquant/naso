@@ -4,15 +4,22 @@
 //! the SMT-based verification of quantum uncomputation safety and
 //! [1]-quantity leak detection.
 
+#[cfg(feature = "z3")]
 pub mod cfg;
+#[cfg(feature = "z3")]
 pub mod linearity;
+#[cfg(feature = "z3")]
 pub mod uncomputation;
 
+#[cfg(feature = "z3")]
 use crate::error::{ProverError, VerifyError};
+#[cfg(feature = "z3")]
 use crate::lower::LoweringContext;
+#[cfg(feature = "z3")]
 use naso_compiler::ast::Program;
 
 /// Main prover entry point: run all provers on an AST.
+#[cfg(feature = "z3")]
 pub fn run_all_provers(program: &Program) -> Result<Vec<VerifyDiagnostic>, VerifyError> {
     let mut diagnostics = Vec::new();
 
@@ -26,16 +33,19 @@ pub fn run_all_provers(program: &Program) -> Result<Vec<VerifyDiagnostic>, Verif
 }
 
 /// Run only the uncomputation prover.
+#[cfg(feature = "z3")]
 pub fn run_uncomputation_prover(program: &Program) -> Result<Vec<VerifyDiagnostic>, VerifyError> {
     uncomputation::prove_uncomputation(program)
 }
 
 /// Run only the linearity prover.
+#[cfg(feature = "z3")]
 pub fn run_linearity_prover(program: &Program) -> Result<Vec<VerifyDiagnostic>, VerifyError> {
     linearity::prove_linearity(program)
 }
 
 /// Prove a custom verification condition.
+#[cfg(feature = "z3")]
 pub fn prove_custom_vc(
     program: &Program,
     vc_name: &str,

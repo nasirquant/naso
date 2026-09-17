@@ -3,12 +3,11 @@
 //! This module translates Naso's quantum operations and uncomputation obligations
 //! into SMT-LIB2 constraints using symbolic unitary matrices and bitvector reasoning.
 
-use crate::error::{LoweringError, VerifyError};
-use crate::smtlib::{Sort, Term, builder::*, theory};
+use crate::error::VerifyError;
+use crate::smtlib::{builder::*, Sort, Term};
 use indexmap::IndexMap;
-use naso_compiler::ast::Span;
 use naso_compiler::ast::expr::{ExprKind, GateKind as AstGateKind};
-use std::collections::HashMap;
+use naso_compiler::ast::Span;
 
 /// Quantum gate kind for symbolic representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -50,27 +49,6 @@ impl GateKind {
         }
     }
 
-    /// Number of qubits this gate acts on.
-    pub fn num_qubits(&self) -> usize {
-        match self {
-            GateKind::H
-            | GateKind::T
-            | GateKind::S
-            | GateKind::X
-            | GateKind::Y
-            | GateKind::Z
-            | GateKind::Measure
-            | GateKind::Reset => 1,
-            GateKind::CX
-            | GateKind::CY
-            | GateKind::CZ
-            | GateKind::RX
-            | GateKind::RY
-            | GateKind::RZ => 2,
-            GateKind::Unitary => 0, // Variable
-        }
-    }
-
     /// Check if this gate is Clifford (efficiently simulable).
     pub fn is_clifford(&self) -> bool {
         matches!(
@@ -97,7 +75,7 @@ pub struct SymbolicQubit {
     /// Whether this qubit is a temporary (must be uncomputed)
     pub is_temp: bool,
     /// Current symbolic state (simplified: basis state index for computational basis)
-    pub state_var: String, // Variable tracking |0> or |1> or superposition
+    pub state_var: String,
     /// Unitary operations applied to this qubit (for uncomputation proof)
     pub operations: Vec<QubitOp>,
 }
@@ -189,21 +167,17 @@ impl QuantumTracker {
 
     /// Generate SMT declarations for qubits.
     pub fn generate_declarations(&self, script: &mut crate::smtlib::Script) {
-        for (id, qubit) in &self.qubits {
-            // Declare state variable (0 = |0>, 1 = |1>, 2 = superposition)
+        for (_id, qubit) in &self.qubits {
             script.declare_const(&qubit.state_var, Sort::Int);
 
-            // Constrain state to valid values
             script.assert(and(vec![
                 ge(var(&qubit.state_var, Sort::Int), int(0)),
                 le(var(&qubit.state_var, Sort::Int), int(2)),
             ]));
         }
 
-        // Declare unitary matrix variables for each gate application
-        for (name, term) in &self.unitary_vars {
+        for (name, _term) in &self.unitary_vars {
             script.declare_fun(name, vec![Sort::Int, Sort::Int], Sort::Int);
-            // Note: Full unitary matrix encoding is complex; this is a placeholder
         }
     }
 
@@ -213,16 +187,7 @@ impl QuantumTracker {
 
         for temp_id in &self.temp_qubits {
             if let Some(qubit) = self.qubits.get(temp_id) {
-                // For uncomputation: the final state must be |0> (state_var = 0)
-                // This is the core requirement: U_temp |0> = |0>
-                // We encode this as: state_var == 0 at function exit
-
                 constraints.push(eq(var(&qubit.state_var, Sort::Int), int(0)));
-
-                // Additional: if operations include non-Clifford gates, we need
-                // more sophisticated symbolic unitary reasoning
-                // For Clifford+T, we can use stabilizer formalism
-                // For now, just the final state constraint
             }
         }
 
@@ -234,16 +199,11 @@ impl QuantumTracker {
         let mut constraints = Vec::new();
 
         for qubit in self.qubits.values() {
-            // Track state evolution through operations
-            // This is a simplified version; real implementation would use
-            // symbolic matrix multiplication or stabilizer tableau
             let mut current_state = var(&qubit.state_var, Sort::Int);
 
             for op in &qubit.operations {
                 match op.gate {
                     GateKind::X => {
-                        // X flips |0> <-> |1>, leaves superposition as superposition
-                        // state' = ite(state == 0, 1, ite(state == 1, 0, 2))
                         current_state = ite(
                             eq(current_state.clone(), int(0)),
                             int(1),
@@ -251,46 +211,30 @@ impl QuantumTracker {
                         );
                     }
                     GateKind::H => {
-                        // H creates superposition from basis states
-                        // |0> -> superposition (2), |1> -> superposition (2), superposition -> basis
                         current_state = ite(
                             or(vec![
                                 eq(current_state.clone(), int(0)),
                                 eq(current_state.clone(), int(1)),
                             ]),
                             int(2),
-                            // Superposition under H becomes basis (simplified)
                             int(0),
                         );
                     }
-                    GateKind::Z | GateKind::S | GateKind::T => {
-                        // Phase gates don't change computational basis state
-                    }
+                    GateKind::Y | GateKind::Z | GateKind::S | GateKind::T => {}
                     GateKind::Measure => {
-                        // Measurement collapses to basis state
-                        // Result is non-deterministic: 0 or 1
-                        // For verification, we assert the result is a valid basis state
                         constraints.push(or(vec![
                             eq(current_state.clone(), int(0)),
                             eq(current_state.clone(), int(1)),
                         ]));
                     }
                     GateKind::Reset => {
-                        // Reset to |0>
                         current_state = int(0);
                     }
-                    GateKind::CX => {
-                        // CX: control and target both need tracking
-                        // Simplified: just track that target may change
-                        // Real impl: need multi-qubit state
-                    }
-                    GateKind::Unitary => {
-                        // Custom unitary - need matrix constraints
-                    }
+                    GateKind::CX | GateKind::CY | GateKind::CZ => {}
+                    GateKind::RX | GateKind::RY | GateKind::RZ => {}
+                    GateKind::Unitary => {}
                 }
             }
-
-            // Final state constraint already added in uncomputation constraints
         }
 
         constraints
@@ -304,36 +248,6 @@ impl Default for QuantumTracker {
 }
 
 /// Encode quantum operations for a function.
-pub fn encode_quantum_function(
-    func: &naso_compiler::ast::Function,
-    tracker: &mut QuantumTracker,
-) -> Result<Vec<Term>, VerifyError> {
-    let mut constraints = Vec::new();
-
-    tracker.current_function = Some(func.name.name.clone());
-
-    // Process function body
-    if let Some(body) = &func.body {
-        constraints.extend(encode_quantum_expr(&body.expr, tracker)?);
-        for stmt in &body.stmts {
-            if let Some(expr) = &stmt.expr {
-                constraints.extend(encode_quantum_expr(expr, tracker)?);
-            }
-        }
-    }
-
-    // Generate uncomputation constraints for temp qubits
-    constraints.extend(tracker.generate_uncomputation_constraints());
-
-    // Generate gate semantics constraints
-    constraints.extend(tracker.generate_gate_constraints());
-
-    tracker.current_function = None;
-
-    Ok(constraints)
-}
-
-/// Encode quantum operations in an expression.
 pub fn encode_quantum_expr(
     expr: &naso_compiler::ast::Expr,
     tracker: &mut QuantumTracker,
@@ -343,8 +257,8 @@ pub fn encode_quantum_expr(
     match &expr.kind {
         ExprKind::Call(func, args) => {
             if let ExprKind::Var(fname) = &func.kind {
-                if let Some(gate) = GateKind::from_name(&fname.name) {
-                    // Extract qubit arguments
+                // Try to parse as a gate name
+                if let Some(gate) = parse_gate_name(&fname.name) {
                     let mut targets = Vec::new();
                     let mut controls = Vec::new();
 
@@ -354,7 +268,6 @@ pub fn encode_quantum_expr(
                         }
                     }
 
-                    // For CX, first arg is control, second is target
                     if gate == GateKind::CX && targets.len() >= 2 {
                         controls.push(targets[0].clone());
                         targets = vec![targets[1].clone()];
@@ -362,121 +275,135 @@ pub fn encode_quantum_expr(
 
                     tracker.apply_gate(gate, &targets, &controls, expr.span);
                 } else if fname.name == "qalloc" {
-                    // Allocate qubit(s)
-                    for (i, arg) in args.iter().enumerate() {
-                        if let ExprKind::Literal(naso_compiler::ast::Literal::Int(n)) = &arg.kind {
-                            for _ in 0..*n as u32 {
-                                tracker.allocate_qubit(true, expr.span); // Assume temp
+                    for (_i, arg) in args.iter().enumerate() {
+                        if let ExprKind::Literal(naso_compiler::ast::Literal::Int(_n)) = &arg.kind {
+                            for _ in 0..*_n as u32 {
+                                tracker.allocate_qubit(true, expr.span);
                             }
                         }
                     }
                 } else if fname.name == "qfree" {
-                    // Free qubit - check if it was temp and verify uncomputed
                     for arg in args {
-                        if let ExprKind::Var(qname) = &arg.kind {
+                        if let ExprKind::Var(_qname) = &arg.kind {
                             // Mark as freed (in real impl, check state)
                         }
                     }
                 }
             }
 
-            // Recurse into arguments
             for arg in args {
                 constraints.extend(encode_quantum_expr(arg, tracker)?);
             }
         }
-        ExprKind::Let(bindings, body, _) => {
-            for (_, _, init, _) in bindings {
-                if let Some(init_expr) = init {
-                    constraints.extend(encode_quantum_expr(init_expr, tracker)?);
+        ExprKind::QuantumOp(qop) => {
+            match qop {
+                naso_compiler::ast::expr::QuantumOp::Alloc(_name) => {
+                    tracker.allocate_qubit(true, expr.span);
+                }
+                naso_compiler::ast::expr::QuantumOp::Measure(target) => {
+                    if let ExprKind::Var(qname) = &target.kind {
+                        if let Some(_qubit) = tracker.get_qubit(&qname.name) {
+                            // Measurement collapses state to basis
+                        }
+                    }
+                    constraints.extend(encode_quantum_expr(target, tracker)?);
+                }
+                naso_compiler::ast::expr::QuantumOp::ApplyGate(gate, args) => {
+                    let gate_kind = GateKind::from_ast(gate);
+                    let mut targets = Vec::new();
+                    let mut controls = Vec::new();
+
+                    for arg in args {
+                        if let ExprKind::Var(qname) = &arg.kind {
+                            targets.push(qname.name.clone());
+                        }
+                    }
+
+                    if gate_kind == GateKind::CX && targets.len() >= 2 {
+                        controls.push(targets[0].clone());
+                        targets = vec![targets[1].clone()];
+                    }
+
+                    tracker.apply_gate(gate_kind, &targets, &controls, expr.span);
+                }
+                naso_compiler::ast::expr::QuantumOp::Entangle(args) => {
+                    for arg in args {
+                        constraints.extend(encode_quantum_expr(arg, tracker)?);
+                    }
+                }
+                naso_compiler::ast::expr::QuantumOp::Phase(_, _) => {}
+                naso_compiler::ast::expr::QuantumOp::Hamiltonian(_, _) => {}
+            }
+        }
+        ExprKind::Let(binding) => {
+            constraints.extend(encode_quantum_expr(&binding.value, tracker)?);
+        }
+        ExprKind::LetInOut(binding) => {
+            constraints.extend(encode_quantum_expr(&binding.value, tracker)?);
+        }
+        ExprKind::LetConsume(binding) => {
+            constraints.extend(encode_quantum_expr(&binding.value, tracker)?);
+        }
+        ExprKind::Block(block) => {
+            if let Some(body_expr) = &block.expr {
+                constraints.extend(encode_quantum_expr(body_expr, tracker)?);
+            }
+            for stmt in &block.stmts {
+                if let naso_compiler::ast::StmtKind::Expr(stmt_expr) = &stmt.kind {
+                    constraints.extend(encode_quantum_expr(stmt_expr, tracker)?);
                 }
             }
-            constraints.extend(encode_quantum_expr(body, tracker)?);
         }
-        _ => {
-            expr.visit_exprs(&mut |e| {
-                if let Ok(cs) = encode_quantum_expr(e, tracker) {
-                    constraints.extend(cs);
-                }
-            });
-        }
-    }
-
-    Ok(constraints)
-}
-
-/// Encode unitary matrix constraints for a gate (Clifford+T fragment).
-pub fn encode_unitary_constraints(gate: GateKind, targets: &[String]) -> Vec<Term> {
-    let mut constraints = Vec::new();
-
-    // For each gate, we can encode its unitary matrix
-    // Using bitvector representation for Clifford gates
-    match gate {
-        GateKind::H => {
-            // H = 1/sqrt(2) * [[1, 1], [1, -1]]
-            // In bitvector: we can't easily represent 1/sqrt(2), so use stabilizer
-        }
-        GateKind::CX => {
-            // CX = [[1,0,0,0], [0,1,0,0], [0,0,0,1], [0,0,1,0]]
-            // Representable exactly in bitvectors
-        }
-        GateKind::T => {
-            // T = [[1, 0], [0, e^{iπ/4}]]
-            // Not Clifford, needs algebraic numbers
-        }
-        _ => {}
-    }
-
-    constraints
-}
-
-/// Trait for visiting expressions.
-trait VisitExprs {
-    fn visit_exprs<F: FnMut(&naso_compiler::ast::Expr)>(&self, f: &mut F);
-}
-
-impl VisitExprs for naso_compiler::ast::Expr {
-    fn visit_exprs<F: FnMut(&naso_compiler::ast::Expr)>(&self, f: &mut F) {
-        f(self);
-        match &self.kind {
-            ExprKind::Call(_, args, _)
-            | ExprKind::Binary(_, _, args, _)
-            | ExprKind::Unary(_, arg, _)
-            | ExprKind::Let(_, body, _)
-            | ExprKind::If(_, _, then_e, else_e, _) => {
-                // Delegate to children
+        ExprKind::If(cond, then_e, else_e) => {
+            constraints.extend(encode_quantum_expr(cond, tracker)?);
+            constraints.extend(encode_quantum_expr(then_e, tracker)?);
+            if let Some(else_e) = else_e {
+                constraints.extend(encode_quantum_expr(else_e, tracker)?);
             }
-            _ => {}
         }
-    }
-}
-
-/// Encode quantum operations for a statement.
-pub fn encode_quantum_stmt(
-    stmt: &naso_compiler::ast::Stmt,
-    tracker: &mut QuantumTracker,
-) -> Result<Vec<Term>, VerifyError> {
-    let mut constraints = Vec::new();
-
-    match &stmt.kind {
-        naso_compiler::ast::StmtKind::Let(binding) => {
-            constraints.extend(encode_quantum_expr(&binding.value, tracker)?);
-        }
-        naso_compiler::ast::StmtKind::LetInOut(binding) => {
-            constraints.extend(encode_quantum_expr(&binding.value, tracker)?);
-        }
-        naso_compiler::ast::StmtKind::LetConsume(binding) => {
-            constraints.extend(encode_quantum_expr(&binding.value, tracker)?);
-        }
-        naso_compiler::ast::StmtKind::Expr(expr) => {
-            constraints.extend(encode_quantum_expr(expr, tracker)?);
-        }
-        naso_compiler::ast::StmtKind::Assign(lhs, rhs) => {
+        ExprKind::Binary(_, lhs, rhs) => {
             constraints.extend(encode_quantum_expr(lhs, tracker)?);
             constraints.extend(encode_quantum_expr(rhs, tracker)?);
         }
+        ExprKind::Unary(_, operand) => {
+            constraints.extend(encode_quantum_expr(operand, tracker)?);
+        }
+        ExprKind::MethodCall(receiver, _, args) => {
+            constraints.extend(encode_quantum_expr(receiver, tracker)?);
+            for arg in args {
+                constraints.extend(encode_quantum_expr(arg, tracker)?);
+            }
+        }
         _ => {}
     }
 
     Ok(constraints)
+}
+
+/// Parse a gate name string to GateKind.
+fn parse_gate_name(name: &str) -> Option<GateKind> {
+    match name {
+        "H" | "hadamard" => Some(GateKind::H),
+        "X" => Some(GateKind::X),
+        "Y" => Some(GateKind::Y),
+        "Z" => Some(GateKind::Z),
+        "S" => Some(GateKind::S),
+        "T" => Some(GateKind::T),
+        "CX" | "cnot" => Some(GateKind::CX),
+        "CY" => Some(GateKind::CY),
+        "CZ" => Some(GateKind::CZ),
+        "RX" => Some(GateKind::RX),
+        "RY" => Some(GateKind::RY),
+        "RZ" => Some(GateKind::RZ),
+        "measure" => Some(GateKind::Measure),
+        "reset" => Some(GateKind::Reset),
+        _ => None,
+    }
+}
+
+/// Encode unitary matrix constraints for a gate (Clifford+T fragment).
+pub fn encode_unitary_constraints(_gate: GateKind, _targets: &[String]) -> Vec<Term> {
+    let constraints = Vec::new();
+
+    constraints
 }

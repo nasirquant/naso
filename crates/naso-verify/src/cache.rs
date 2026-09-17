@@ -3,16 +3,26 @@
 //! This module provides hash-based caching of verification results to avoid
 //! re-running the solver on unchanged code.
 
+#[cfg(feature = "z3")]
 use crate::error::{CacheError, VerifyError};
+#[cfg(feature = "z3")]
 use crate::solver::VerifyResult;
+#[cfg(feature = "z3")]
 use blake3;
+#[cfg(feature = "z3")]
 use naso_compiler::ast::Program;
+#[cfg(feature = "z3")]
 use naso_compiler::ast::Span;
+#[cfg(feature = "z3")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "z3")]
 use std::collections::HashMap;
+#[cfg(feature = "z3")]
 use std::path::{Path, PathBuf};
+#[cfg(feature = "z3")]
 use std::time::SystemTime;
 
+#[cfg(feature = "z3")]
 /// Cache entry for a verification result.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheEntry {
@@ -28,6 +38,7 @@ pub struct CacheEntry {
     pub stats: CacheStats,
 }
 
+#[cfg(feature = "z3")]
 /// Cached verification result (serializable).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CachedResult {
@@ -37,6 +48,7 @@ pub enum CachedResult {
     Error { message: String },
 }
 
+#[cfg(feature = "z3")]
 impl From<&crate::solver::VerifyResult> for CachedResult {
     fn from(result: &crate::solver::VerifyResult) -> Self {
         match result {
@@ -58,6 +70,7 @@ impl From<&crate::solver::VerifyResult> for CachedResult {
     }
 }
 
+#[cfg(feature = "z3")]
 impl From<CachedResult> for crate::solver::VerifyResult {
     fn from(cached: CachedResult) -> Self {
         match cached {
@@ -71,6 +84,7 @@ impl From<CachedResult> for crate::solver::VerifyResult {
     }
 }
 
+#[cfg(feature = "z3")]
 /// Cache statistics.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CacheStats {
@@ -80,6 +94,7 @@ pub struct CacheStats {
     pub total_time_saved_ms: u64,
 }
 
+#[cfg(feature = "z3")]
 impl CacheStats {
     pub fn hit_rate(&self) -> f64 {
         let total = self.hits + self.misses;
@@ -91,6 +106,7 @@ impl CacheStats {
     }
 }
 
+#[cfg(feature = "z3")]
 /// Verification cache manager.
 pub struct VerificationCache {
     cache_dir: PathBuf,
@@ -99,6 +115,7 @@ pub struct VerificationCache {
     max_entries: usize,
 }
 
+#[cfg(feature = "z3")]
 impl VerificationCache {
     /// Create a new cache manager.
     pub fn new(cache_dir: Option<PathBuf>) -> Result<Self, VerifyError> {
@@ -255,6 +272,7 @@ impl VerificationCache {
     }
 }
 
+#[cfg(feature = "z3")]
 /// Cached verification function.
 pub fn verify_cached(
     cache: &mut VerificationCache,
@@ -283,10 +301,13 @@ pub fn verify_cached(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "z3")]
     use super::*;
+    #[cfg(feature = "z3")]
     use tempfile::tempdir;
 
     #[test]
+    #[cfg(feature = "z3")]
     fn test_cache_creation() {
         let dir = tempdir().unwrap();
         let cache = VerificationCache::new(Some(dir.path().to_path_buf())).unwrap();
@@ -295,6 +316,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "z3")]
     fn test_key_generation() {
         let config = SolverConfig::default();
         let key1 = VerificationCache::make_key("ast_hash_1", &config);
@@ -307,6 +329,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "z3")]
     fn test_hash_file() {
         let dir = tempdir().unwrap();
         let file = dir.path().join("test.naso");
