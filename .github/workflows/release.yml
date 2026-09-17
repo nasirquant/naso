@@ -81,18 +81,19 @@ jobs:
         working-directory: .
 
       - name: Prepare artifacts
+        shell: bash
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
           ARTIFACT_DIR="artifacts/${{ matrix.artifact_name }}"
           mkdir -p "${ARTIFACT_DIR}"
-          
+
           # Copy naso binary
           cp "target/${{ matrix.target }}/release/naso${{ matrix.binary_suffix }}" "${ARTIFACT_DIR}/naso${{ matrix.binary_suffix }}"
-          
+
           # Copy naso-lsp binary
           cp "target/${{ matrix.target }}/release/naso-lsp${{ matrix.binary_suffix }}" "${ARTIFACT_DIR}/naso-lsp${{ matrix.binary_suffix }}"
-          
+
           # Make binaries executable on Unix
           if [ "${{ matrix.target }}" != "x86_64-pc-windows-msvc" ]; then
             chmod +x "${ARTIFACT_DIR}/naso"
@@ -100,11 +101,12 @@ jobs:
           fi
 
       - name: Create archive
+        shell: bash
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
           ARTIFACT_DIR="artifacts/${{ matrix.artifact_name }}"
-          
+
           if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
             cd artifacts
             zip -r "${{ matrix.artifact_name }}${{ matrix.archive_ext }}" "${{ matrix.artifact_name }}/"
@@ -116,12 +118,13 @@ jobs:
           fi
 
       - name: Generate SHA256 checksums
+        shell: bash
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
           ARTIFACT_DIR="artifacts"
           ARCHIVE="${{ matrix.artifact_name }}${{ matrix.archive_ext }}"
-          
+
           if [ -f "${ARTIFACT_DIR}/${ARCHIVE}" ]; then
             sha256sum "${ARTIFACT_DIR}/${ARCHIVE}" >> "${ARTIFACT_DIR}/SHA256SUMS.txt"
           fi
@@ -141,7 +144,7 @@ jobs:
     timeout-minutes: 15
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -156,8 +159,13 @@ jobs:
           merge-multiple: true
 
       - name: Combine SHA256SUMS
+        shell: bash
         run: |
-          cat release_artifacts/*/SHA256SUMS.txt > release_artifacts/SHA256SUMS 2>/dev/null || true
+          if [ -f "release_artifacts/SHA256SUMS.txt" ]; then
+            cat release_artifacts/SHA256SUMS.txt > release_artifacts/SHA256SUMS
+          else
+            cat release_artifacts/*/SHA256SUMS.txt > release_artifacts/SHA256SUMS
+          fi
           cat release_artifacts/SHA256SUMS
 
       - name: Copy installer scripts
