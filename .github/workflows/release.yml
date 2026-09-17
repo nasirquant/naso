@@ -116,13 +116,15 @@ jobs:
       - name: Generate SHA256 checksums
         shell: bash
         run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
           ARTIFACT_DIR="artifacts"
           ARCHIVE="${{ matrix.artifact_name }}${{ matrix.archive_ext }}"
 
           if [ -f "${ARTIFACT_DIR}/${ARCHIVE}" ]; then
-            sha256sum "${ARTIFACT_DIR}/${ARCHIVE}" >> "${ARTIFACT_DIR}/SHA256SUMS.txt"
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "${ARTIFACT_DIR}/${ARCHIVE}" >> "${ARTIFACT_DIR}/SHA256SUMS.txt"
+            else
+              shasum -a 256 "${ARTIFACT_DIR}/${ARCHIVE}" >> "${ARTIFACT_DIR}/SHA256SUMS.txt"
+            fi
           fi
 
       - name: Upload build artifacts
