@@ -24,18 +24,21 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "0.146.0"
+          extended: true
+
+      - name: Verify Hugo version
+        run: hugo version
+
       - name: Verify Hugo theme
         working-directory: docs
         run: |
           test -f themes/hextra/layouts/_shortcodes/hextra/hero-badge.html
           test -f themes/hextra/layouts/_shortcodes/hextra/feature-card.html
           find themes/hextra/layouts/_shortcodes -type f | sort | head -50
-
-      - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v3
-        with:
-          hugo-version: "0.146.0"
-          extended: true
 
       - name: Build
         run: cd docs && hugo --minify --destination public
