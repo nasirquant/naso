@@ -13,7 +13,7 @@ use z3::ast::Ast;
 
 /// Verification diagnostic for LSP integration.
 /// This type is always available for LSP integration regardless of Z3 feature.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerifyDiagnostic {
     pub code: String,
     pub message: String,
@@ -24,7 +24,7 @@ pub struct VerifyDiagnostic {
 }
 
 /// Diagnostic severity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DiagnosticSeverity {
     Error,
     Warning,
@@ -33,21 +33,21 @@ pub enum DiagnosticSeverity {
 }
 
 /// Related diagnostic information.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelatedInfo {
     pub span: Span,
     pub message: String,
 }
 
 /// Suggested code fix.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodeFix {
     pub title: String,
     pub edits: Vec<TextEdit>,
 }
 
 /// Text edit for a code fix.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TextEdit {
     pub span: Span,
     pub new_text: String,
@@ -308,9 +308,8 @@ mod z3_models {
             out.push_str("Counterexample:\n");
             for loc in &self.locations {
                 out.push_str(&format!(
-                    "  {} at {}:{}:{} = {}\n",
+                    "  {} at <unknown>:{}:{} = {}\n",
                     loc.variable,
-                    loc.span.file(),
                     loc.span.line(),
                     loc.span.column(),
                     loc.value

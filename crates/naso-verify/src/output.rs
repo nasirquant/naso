@@ -129,8 +129,7 @@ pub fn format_human(summary: &VerificationSummary, config: &SolverConfig) -> Str
             ));
 
             out.push_str(&format!(
-                "     at {}:{}:{}\n",
-                diag.span.file().cyan(),
+                "     at <unknown>:{}:{}\n",
                 diag.span.line().to_string().cyan(),
                 diag.span.column().to_string().cyan()
             ));
@@ -139,8 +138,7 @@ pub fn format_human(summary: &VerificationSummary, config: &SolverConfig) -> Str
                 out.push_str("  Related:\n");
                 for related in &diag.related {
                     out.push_str(&format!(
-                        "    at {}:{}:{} - {}\n",
-                        related.span.file().cyan(),
+                        "    at <unknown>:{}:{} - {}\n",
                         related.span.line().to_string().cyan(),
                         related.span.column().to_string().cyan(),
                         related.message
@@ -295,7 +293,7 @@ pub fn format_sarif(summary: &VerificationSummary) -> Result<String, serde_json:
             locations: vec![SarifLocation {
                 physical_location: SarifPhysicalLocation {
                     artifact_location: SarifArtifactLocation {
-                        uri: diag.span.file().to_string(),
+                        uri: "<unknown>".to_string(),
                     },
                     region: SarifRegion {
                         start_line: diag.span.line() as usize,
