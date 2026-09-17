@@ -1,4 +1,4 @@
 #![allow(unused)]
 
 // Core prelude - re-exports essential core types
-pub use alloc::prelude::v1::*;
+pub use std::prelude::rust_2021::*;
