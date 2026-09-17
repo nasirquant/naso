@@ -12,9 +12,11 @@ pub mod linearity;
 pub mod uncomputation;
 
 #[cfg(feature = "z3")]
-use crate::error::{ProverError, VerifyError};
+use crate::error::VerifyError;
 #[cfg(feature = "z3")]
 use crate::lower::LoweringContext;
+#[cfg(feature = "z3")]
+use crate::model::VerifyDiagnostic;
 #[cfg(feature = "z3")]
 use naso_compiler::ast::Program;
 

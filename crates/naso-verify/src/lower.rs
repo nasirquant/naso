@@ -7,12 +7,14 @@
 use crate::error::{LoweringError, LoweringError::*, VerifyError};
 use crate::quantity::{QuantityKind, QuantityTracker, encode_quantity_expr};
 use crate::quantum::{QuantumTracker, encode_quantum_expr};
-use naso_compiler::ast::{Expr, Function, Program, Quantity, Type};
+use naso_compiler::ast::{Expr, Function, Program};
 
 #[cfg(feature = "z3")]
 use crate::mvs::{MvsTracker, encode_mvs_function};
 #[cfg(feature = "z3")]
 use crate::polyhedral::{PolyhedralTracker, encode_polyhedral_function};
+#[cfg(feature = "z3")]
+use crate::smtlib::{Script, Sort, builder::*};
 
 #[cfg(feature = "z3")]
 /// Main lowering context that holds all trackers.
@@ -30,7 +32,7 @@ pub struct LoweringContext {
 impl LoweringContext {
     pub fn new() -> Self {
         let mut script = Script::new();
-        script.set_logic("QF_UFLIA");
+        script.set_logic("AUFLIA");
         Self {
             quantity: QuantityTracker::new(),
             mvs: MvsTracker::new(),
@@ -214,18 +216,23 @@ mod tests {
 
     #[test]
     fn test_script_basic() {
-        let mut script = Script::new();
-        script.set_logic("QF_UFLIA");
-        script.declare_const("x", Sort::Int);
-        script.assert(ge(var("x", Sort::Int), int(0)));
-        script.check_sat();
-        script.get_model();
+        #[cfg(feature = "z3")]
+        {
+            use crate::smtlib::{Script, Sort, builder::*};
 
-        let output = script.to_string();
-        assert!(output.contains("set-logic"));
-        assert!(output.contains("declare-const"));
-        assert!(output.contains("assert"));
-        assert!(output.contains("check-sat"));
-        assert!(output.contains("get-model"));
+            let mut script = Script::new();
+            script.set_logic("AUFLIA");
+            script.declare_const("x", Sort::Int);
+            script.assert(ge(var("x", Sort::Int), int(0)));
+            script.check_sat();
+            script.get_model();
+
+            let output = script.to_string();
+            assert!(output.contains("set-logic"));
+            assert!(output.contains("declare-const"));
+            assert!(output.contains("assert"));
+            assert!(output.contains("check-sat"));
+            assert!(output.contains("get-model"));
+        }
     }
 }

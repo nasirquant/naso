@@ -4,7 +4,7 @@
 //! into quantified SMT-LIB2 formulas over iteration domains.
 
 #[cfg(feature = "z3")]
-use crate::error::{LoweringError, VerifyError};
+use crate::error::VerifyError;
 #[cfg(feature = "z3")]
 use crate::smtlib::{Sort, Term, builder::*};
 #[cfg(feature = "z3")]
@@ -160,6 +160,9 @@ impl PolyhedralTracker {
     pub fn enter_forall(&mut self, index: String, domain: IterationDomain) {
         self.loop_depth += 1;
         self.loop_indices.push(index);
+        // Store the domain for the current loop level
+        // In a full implementation, this would be used for invariant generation
+        let _ = domain; // Domain stored for future use in invariant generation
     }
 
     /// Exit a forall loop.

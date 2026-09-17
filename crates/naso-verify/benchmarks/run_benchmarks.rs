@@ -9,7 +9,7 @@ use naso_verify::{
     cache::VerificationCache,
     cli::{VerifyCliConfig, VerifyMode},
     config::{Logic, SolverConfig},
-    output::{format_human, format_json, format_sarif, VerificationSummary},
+    output::{VerificationSummary, format_human, format_json, format_sarif},
     prover::{run_all_provers, run_linearity_prover, run_uncomputation_prover},
 };
 use serde::{Deserialize, Serialize};
