@@ -83,13 +83,13 @@ jobs:
 
       - name: Test parse command on valid program
         run: |
-          echo 'fn bell_pair() -> (Qubit, Qubit) { let q0 = qalloc(1); let q1 = qalloc(1); hadamard(q0); cnot(q0, q1); (q0, q1) }' > /tmp/test_valid.naso
+          echo 'fn bell_pair() -> [2] Qubit { let q0 = qalloc(); let q1 = qalloc(); hadamard(q0); cnot(q0, q1); [q0, q1] }' > /tmp/test_valid.naso
           cargo run --release -p naso-compiler -- parse /tmp/test_valid.naso
         working-directory: .
 
       - name: Test check command on valid program
         run: |
-          echo 'fn bell_pair() -> (Qubit, Qubit) { let q0 = qalloc(1); let q1 = qalloc(1); hadamard(q0); cnot(q0, q1); (q0, q1) }' > /tmp/test_valid.naso
+          echo 'fn bell_pair() -> [2] Qubit { let q0 = qalloc(); let q1 = qalloc(); hadamard(q0); cnot(q0, q1); [q0, q1] }' > /tmp/test_valid.naso
           cargo run --release -p naso-compiler -- check /tmp/test_valid.naso
         working-directory: .
 
@@ -101,7 +101,7 @@ jobs:
 
       - name: Test parse command with JSON output
         run: |
-          echo 'fn bell_pair() -> (Qubit, Qubit) { let q0 = qalloc(1); let q1 = qalloc(1); hadamard(q0); cnot(q0, q1); (q0, q1) }' > /tmp/test_json.naso
+          echo 'fn bell_pair() -> [2] Qubit { let q0 = qalloc(); let q1 = qalloc(); hadamard(q0); cnot(q0, q1); [q0, q1] }' > /tmp/test_json.naso
           cargo run --release -p naso-compiler -- parse /tmp/test_json.naso | head -50
         working-directory: .
 
