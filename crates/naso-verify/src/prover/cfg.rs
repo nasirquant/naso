@@ -4,8 +4,8 @@
 //! analysis in the linearity and uncomputation provers.
 
 use indexmap::IndexMap;
-use naso_compiler::ast::{Block, Expr, Function, Ident, Span, Stmt, StmtKind};
 use naso_compiler::ast::expr::ExprKind;
+use naso_compiler::ast::{Block, Expr, Function, Ident, Span, Stmt, StmtKind};
 use std::collections::HashMap;
 
 /// A node in the control-flow graph.
@@ -236,18 +236,14 @@ impl ControlFlowGraph {
                     expr.span,
                     naso_compiler::ast::NodeId::default(),
                 ));
-                let body_id = self.new_node(
-                    CfgNodeKind::Stmt(Stmt::Expr(body_expr.clone())),
-                    expr.span,
-                );
+                let body_id =
+                    self.new_node(CfgNodeKind::Stmt(Stmt::Expr(body_expr.clone())), expr.span);
                 let body_exit = self.build_from_expr(&body_expr, body_id)?;
 
                 for stmt in &loop_.body.stmts {
                     if let StmtKind::Expr(stmt_expr) = &stmt.kind {
-                        let stmt_id = self.new_node(
-                            CfgNodeKind::Stmt(Stmt::Expr(stmt_expr.clone())),
-                            expr.span,
-                        );
+                        let stmt_id = self
+                            .new_node(CfgNodeKind::Stmt(Stmt::Expr(stmt_expr.clone())), expr.span);
                         self.add_edge(body_exit, stmt_id);
                     }
                 }
@@ -282,10 +278,8 @@ impl ControlFlowGraph {
             | ExprKind::MethodCall(_, _, _)
             | ExprKind::QuantumOp(_)
             | _ => {
-                let stmt_node = self.new_node(
-                    CfgNodeKind::Stmt(Stmt::Expr(expr.clone())),
-                    expr.span,
-                );
+                let stmt_node =
+                    self.new_node(CfgNodeKind::Stmt(Stmt::Expr(expr.clone())), expr.span);
                 self.add_edge(entry_id, stmt_node);
                 Ok(stmt_node)
             }

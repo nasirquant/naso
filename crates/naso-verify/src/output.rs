@@ -106,7 +106,10 @@ pub fn format_human(summary: &VerificationSummary, config: &SolverConfig) -> Str
         summary.errors.to_string().red()
     ));
 
-    out.push_str(&format!("  Total time: {:.2}s\n", summary.total_time.as_secs_f64()));
+    out.push_str(&format!(
+        "  Total time: {:.2}s\n",
+        summary.total_time.as_secs_f64()
+    ));
 
     if !summary.diagnostics.is_empty() {
         out.push_str("\n");
@@ -346,11 +349,7 @@ pub fn format_result(result: &VerifyResult, config: &SolverConfig) -> String {
             out
         }
         VerifyResult::Unknown(reason) => {
-            format!(
-                "{} {}\n",
-                "UNKNOWN".yellow().bold(),
-                reason
-            )
+            format!("{} {}\n", "UNKNOWN".yellow().bold(), reason)
         }
         VerifyResult::Error(msg) => {
             format!("{} {}\n", "ERROR".red().bold(), msg)

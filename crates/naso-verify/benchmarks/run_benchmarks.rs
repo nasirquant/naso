@@ -4,6 +4,7 @@
 //! results against expected outcomes. It measures verification time,
 //! solver calls, memory usage, and false positive/negative rates.
 
+use naso_compiler::parser::parse_program;
 use naso_verify::{
     cache::VerificationCache,
     cli::{VerifyCliConfig, VerifyMode},
@@ -11,7 +12,6 @@ use naso_verify::{
     output::{format_human, format_json, format_sarif, VerificationSummary},
     prover::{run_all_provers, run_linearity_prover, run_uncomputation_prover},
 };
-use naso_compiler::parser::parse_program;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -125,9 +125,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let source = fs::read_to_string(&file_path)?;
-        let program = parse_program(&source).map_err(|e| {
-            format!("Parse error in {}: {}", file_name, e)
-        })?;
+        let program =
+            parse_program(&source).map_err(|e| format!("Parse error in {}: {}", file_name, e))?;
 
         // Run provers based on expected provers for each function
         for (func_name, case) in &bench_file.functions {
@@ -162,7 +161,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let elapsed = start.elapsed().as_millis() as u64;
-            let actual = if diagnostics.is_empty() { "unsat" } else { "sat" };
+            let actual = if diagnostics.is_empty() {
+                "unsat"
+            } else {
+                "sat"
+            };
             let passed = actual == case.expected;
 
             // Check diagnostic codes if expected
@@ -198,12 +201,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // Update category stats
-            let cat_entry = summary.category_results.entry(case.category.clone()).or_insert(CategoryResult {
-                total: 0,
-                passed: 0,
-                failed: 0,
-                total_time_ms: 0,
-            });
+            let cat_entry = summary
+                .category_results
+                .entry(case.category.clone())
+                .or_insert(CategoryResult {
+                    total: 0,
+                    passed: 0,
+                    failed: 0,
+                    total_time_ms: 0,
+                });
             cat_entry.total += 1;
             cat_entry.total_time_ms += elapsed;
             if result.passed {
@@ -265,11 +271,7 @@ fn estimate_memory(_diagnostics: &[naso_verify::model::VerifyDiagnostic]) -> usi
     64 // MB
 }
 
-fn print_summary(
-    summary: &BenchmarkSummary,
-    results: &[BenchmarkResult],
-    format: &str,
-) {
+fn print_summary(summary: &BenchmarkSummary, results: &[BenchmarkResult], format: &str) {
     match format {
         "json" => {
             println!("{}", serde_json::to_string_pretty(results).unwrap());
@@ -303,8 +305,10 @@ fn print_summary(
             println!("\n═══ Failures ═══");
             for r in results {
                 if !r.passed {
-                    println!("  ✗ {}::{} (expected {}, got {})",
-                        r.file, r.function, r.expected, r.actual);
+                    println!(
+                        "  ✗ {}::{} (expected {}, got {})",
+                        r.file, r.function, r.expected, r.actual
+                    );
                     if !r.diagnostic_codes.is_empty() {
                         println!("     Codes: {:?}", r.diagnostic_codes);
                     }

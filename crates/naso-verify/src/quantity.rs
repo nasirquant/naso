@@ -4,7 +4,7 @@
 //! into SMT-LIB2 constraints that can be verified by Z3.
 
 use crate::error::VerifyError;
-use crate::smtlib::{builder::*, Sort, Term};
+use crate::smtlib::{Sort, Term, builder::*};
 use indexmap::IndexMap;
 use naso_compiler::ast::expr::ExprKind;
 use naso_compiler::ast::{Quantity, Span};
@@ -248,7 +248,9 @@ pub fn encode_quantity_expr(
                 match fname.name.as_str() {
                     "qalloc" | "linear_alloc" | "alloc" => {
                         for (_i, arg) in args.iter().enumerate() {
-                            if let ExprKind::Literal(naso_compiler::ast::Literal::Int(_n)) = &arg.kind {
+                            if let ExprKind::Literal(naso_compiler::ast::Literal::Int(_n)) =
+                                &arg.kind
+                            {
                                 let resource_id = tracker.allocate_linear(
                                     &fname.name,
                                     expr.span,
@@ -284,7 +286,9 @@ pub fn encode_quantity_expr(
                             AllocSite::Param(binding.name.name.clone()),
                         );
                     }
-                    QuantityKind::Bounded(n) => tracker.register_bounded(&binding.name.name, n, binding.span),
+                    QuantityKind::Bounded(n) => {
+                        tracker.register_bounded(&binding.name.name, n, binding.span)
+                    }
                     QuantityKind::Many => {}
                 }
             }
@@ -302,7 +306,9 @@ pub fn encode_quantity_expr(
                             AllocSite::Param(binding.name.name.clone()),
                         );
                     }
-                    QuantityKind::Bounded(n) => tracker.register_bounded(&binding.name.name, n, binding.span),
+                    QuantityKind::Bounded(n) => {
+                        tracker.register_bounded(&binding.name.name, n, binding.span)
+                    }
                     QuantityKind::Many => {}
                 }
             }
@@ -320,7 +326,9 @@ pub fn encode_quantity_expr(
                             AllocSite::Param(binding.name.name.clone()),
                         );
                     }
-                    QuantityKind::Bounded(n) => tracker.register_bounded(&binding.name.name, n, binding.span),
+                    QuantityKind::Bounded(n) => {
+                        tracker.register_bounded(&binding.name.name, n, binding.span)
+                    }
                     QuantityKind::Many => {}
                 }
             }

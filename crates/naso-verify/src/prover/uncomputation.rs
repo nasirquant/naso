@@ -99,7 +99,20 @@ fn contains_quantum_expr(expr: &naso_compiler::ast::Expr) -> bool {
 fn is_quantum_gate_name(name: &str) -> bool {
     matches!(
         name,
-        "H" | "X" | "Y" | "Z" | "S" | "T" | "CX" | "CY" | "CZ" | "RX" | "RY" | "RZ" | "hadamard" | "cnot" | "measure"
+        "H" | "X"
+            | "Y"
+            | "Z"
+            | "S"
+            | "T"
+            | "CX"
+            | "CY"
+            | "CZ"
+            | "RX"
+            | "RY"
+            | "RZ"
+            | "hadamard"
+            | "cnot"
+            | "measure"
     )
 }
 
@@ -113,7 +126,10 @@ fn prove_function_uncomputation(func: &Function) -> Result<Vec<VerifyDiagnostic>
 
     let mut constraints = Vec::new();
     if let Some(body_expr) = &func.body.expr {
-        constraints.extend(crate::quantum::encode_quantum_expr(body_expr.as_ref(), &mut ctx.quantum)?);
+        constraints.extend(crate::quantum::encode_quantum_expr(
+            body_expr.as_ref(),
+            &mut ctx.quantum,
+        )?);
     }
     for stmt in &func.body.stmts {
         if let naso_compiler::ast::StmtKind::Expr(expr) = &stmt.kind {

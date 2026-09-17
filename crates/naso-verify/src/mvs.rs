@@ -6,13 +6,13 @@
 #[cfg(feature = "z3")]
 use crate::error::{LoweringError, VerifyError};
 #[cfg(feature = "z3")]
-use crate::smtlib::{builder::*, Sort, Term};
+use crate::smtlib::{Sort, Term, builder::*};
 #[cfg(feature = "z3")]
 use indexmap::IndexMap;
 #[cfg(feature = "z3")]
-use naso_compiler::ast::expr::ExprKind;
-#[cfg(feature = "z3")]
 use naso_compiler::ast::Span;
+#[cfg(feature = "z3")]
+use naso_compiler::ast::expr::ExprKind;
 
 #[cfg(feature = "z3")]
 /// Represents an `inout` parameter with its frame condition.

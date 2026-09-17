@@ -10,9 +10,12 @@ use crate::std::prelude::*;
 /// * The same register with the oracle applied (linearity preserved)
 #[inline(always)]
 pub fn grover_oracle<'a>(register: &'a mut [Qubit], marked_state: &'a [bool]) -> &'a mut [Qubit] {
-    assert_eq!(register.len(), marked_state.len(), 
-               "Register length must match marked state length");
-    
+    assert_eq!(
+        register.len(),
+        marked_state.len(),
+        "Register length must match marked state length"
+    );
+
     // Apply X gates to qubits where the marked state has 0
     // This transforms the marked state to all-1s
     for (i, &bit) in marked_state.iter().enumerate() {
@@ -20,19 +23,19 @@ pub fn grover_oracle<'a>(register: &'a mut [Qubit], marked_state: &'a [bool]) ->
             register[i] = pauli_x(register[i]);
         }
     }
-    
+
     // Apply multi-controlled Z gate (which marks the |11...1> state)
     // For simplicity, we'll implement a simplified version
     // A full implementation would use ancilla qubits for efficiency
     apply_mczt_gate(register);
-    
+
     // Apply X gates again to restore the original basis
     for (i, &bit) in marked_state.iter().enumerate() {
         if !bit {
             register[i] = pauli_x(register[i]);
         }
     }
-    
+
     register
 }
 
@@ -49,18 +52,18 @@ pub fn pauli_x(qubit: Qubit) -> Qubit {
 }
 
 /// Apply multi-controlled Z gate to a register of qubits.
-/// 
+///
 /// This is a simplified implementation that assumes all qubits are controls
 /// and applies a Z gate to the last qubit if all previous qubits are |1>.
-/// 
-/// For a production implementation, this would use ancilla qubits and 
+///
+/// For a production implementation, this would use ancilla qubits and
 /// decompose into elementary gates.
 #[inline(always)]
 fn apply_mczt_gate<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
     if register.is_empty() {
         return register;
     }
-    
+
     // For now, we'll just apply a Z gate to the last qubit as a placeholder
     // A proper implementation would check if all control qubits are |1>
     // This preserves linearity by consuming and returning the qubit
@@ -94,7 +97,7 @@ pub fn grover_diffusion<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
     for i in 0..register.len() {
         register[i] = hadamard(register[i]);
     }
-    
+
     // Apply oracle that marks |00...0> state (apply X gates, then MCZT, then X gates)
     for i in 0..register.len() {
         register[i] = pauli_x(register[i]);
@@ -103,11 +106,11 @@ pub fn grover_diffusion<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
     for i in 0..register.len() {
         register[i] = pauli_x(register[i]);
     }
-    
+
     // Apply Hadamard to all qubits again
     for i in 0..register.len() {
         register[i] = hadamard(register[i]);
     }
-    
+
     register
 }

@@ -11,10 +11,10 @@ use tower_lsp::{LspService, Server};
 use crate::backend::NasoLanguageServer;
 
 mod backend;
-mod handlers;
-mod document_store;
 mod compiler_bridge;
 mod diagnostics;
+mod document_store;
+mod handlers;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -27,9 +27,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Starting Naso Language Server");
 
     // Create the LSP service with our backend
-    let (service, socket) = LspService::new(|client| {
-        NasoLanguageServer::new(client)
-    });
+    let (service, socket) = LspService::new(|client| NasoLanguageServer::new(client));
 
     // Run the server on stdin/stdout
     Server::new(stdin(), stdout(), socket).serve(service).await;

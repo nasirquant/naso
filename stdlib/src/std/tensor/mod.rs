@@ -2,13 +2,13 @@
 //!
 //! Provides QTT-compliant tensor operations with linear type guarantees.
 
-pub mod tensor;
 pub mod ops;
 pub mod polyhedral_lowering;
+pub mod tensor;
 
-pub use tensor::*;
 pub use ops::*;
 pub use polyhedral_lowering::*;
+pub use tensor::*;
 
 use crate::core::prelude::*;
 
@@ -150,8 +150,14 @@ pub trait Shape: Clone + Send + Sync + 'static {
         let other_dims = other.dims();
         let max_rank = self_dims.len().max(other_dims.len());
         for i in 0..max_rank {
-            let d1 = self_dims.get(self_dims.len().saturating_sub(max_rank - i)).copied().unwrap_or(1);
-            let d2 = other_dims.get(other_dims.len().saturating_sub(max_rank - i)).copied().unwrap_or(1);
+            let d1 = self_dims
+                .get(self_dims.len().saturating_sub(max_rank - i))
+                .copied()
+                .unwrap_or(1);
+            let d2 = other_dims
+                .get(other_dims.len().saturating_sub(max_rank - i))
+                .copied()
+                .unwrap_or(1);
             if d1 != d2 && d1 != 1 && d2 != 1 {
                 return false;
             }
@@ -174,7 +180,9 @@ impl ConcreteShape {
         Self { dims: vec![] }
     }
     pub fn from_dims(dims: &[usize]) -> Self {
-        Self { dims: dims.to_vec() }
+        Self {
+            dims: dims.to_vec(),
+        }
     }
 }
 

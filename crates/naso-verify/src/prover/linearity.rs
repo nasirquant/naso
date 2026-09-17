@@ -12,7 +12,7 @@ use crate::error::VerifyError;
 use crate::lower::LoweringContext;
 #[cfg(feature = "z3")]
 use crate::model::VerifyDiagnostic;
-use crate::quantity::{encode_quantity_expr, QuantityKind, QuantityTracker};
+use crate::quantity::{QuantityKind, QuantityTracker, encode_quantity_expr};
 #[cfg(feature = "z3")]
 use crate::solver::verify;
 use naso_compiler::ast::{Function, Program};
@@ -117,23 +117,21 @@ fn extract_linearity_diagnostic(
     resource: &crate::quantity::ResourceId,
 ) -> Option<VerifyDiagnostic> {
     match result {
-        crate::solver::VerifyResult::Sat(_) => {
-            Some(VerifyDiagnostic {
-                code: "NASO-LIN-003".to_string(),
-                message: format!(
-                    "Potential [1]-quantity leak in '{}': resource '{}' may not be consumed on all paths",
-                    func_name, resource.name
-                ),
-                span: resource.span,
-                severity: crate::model::DiagnosticSeverity::Error,
-                related: vec![],
-                fix: Some(crate::model::CodeFix {
-                    title: "Ensure resource is consumed exactly once on all control-flow paths"
-                        .to_string(),
-                    edits: vec![],
-                }),
-            })
-        }
+        crate::solver::VerifyResult::Sat(_) => Some(VerifyDiagnostic {
+            code: "NASO-LIN-003".to_string(),
+            message: format!(
+                "Potential [1]-quantity leak in '{}': resource '{}' may not be consumed on all paths",
+                func_name, resource.name
+            ),
+            span: resource.span,
+            severity: crate::model::DiagnosticSeverity::Error,
+            related: vec![],
+            fix: Some(crate::model::CodeFix {
+                title: "Ensure resource is consumed exactly once on all control-flow paths"
+                    .to_string(),
+                edits: vec![],
+            }),
+        }),
         crate::solver::VerifyResult::Unsat(_) => None,
         crate::solver::VerifyResult::Unknown(reason) => Some(VerifyDiagnostic {
             code: "NASO-LIN-004".to_string(),

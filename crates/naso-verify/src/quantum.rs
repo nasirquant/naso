@@ -4,10 +4,10 @@
 //! into SMT-LIB2 constraints using symbolic unitary matrices and bitvector reasoning.
 
 use crate::error::VerifyError;
-use crate::smtlib::{builder::*, Sort, Term};
+use crate::smtlib::{Sort, Term, builder::*};
 use indexmap::IndexMap;
-use naso_compiler::ast::expr::{ExprKind, GateKind as AstGateKind};
 use naso_compiler::ast::Span;
+use naso_compiler::ast::expr::{ExprKind, GateKind as AstGateKind};
 
 /// Quantum gate kind for symbolic representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

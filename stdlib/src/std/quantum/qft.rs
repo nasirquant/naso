@@ -3,10 +3,10 @@ use crate::std::prelude::*;
 /// Apply Quantum Fourier Transform to a register of qubits.
 ///
 /// The QFT is applied in-place to the qubit register.
-/// 
+///
 /// # Arguments
 /// * `register` - A slice of qubits representing the quantum register
-/// 
+///
 /// # Returns
 /// * The same register with QFT applied (linearity preserved)
 #[inline(always)]
@@ -15,7 +15,7 @@ pub fn qft<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
     for i in 0..n {
         // Apply Hadamard to qubit i
         register[i] = hadamard(register[i]);
-        
+
         // Apply controlled phase gates
         for j in 0..i {
             let angle = std::f64::consts::PI / (2.0f64.powi((i - j) as i32));
@@ -32,10 +32,10 @@ pub fn qft<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
 /// Apply inverse Quantum Fourier Transform to a register of qubits.
 ///
 /// The inverse QFT is applied in-place to the qubit register.
-/// 
+///
 /// # Arguments
 /// * `register` - A slice of qubits representing the quantum register
-/// 
+///
 /// # Returns
 /// * The same register with inverse QFT applied (linearity preserved)
 #[inline(always)]

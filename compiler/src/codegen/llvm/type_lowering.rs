@@ -1,9 +1,9 @@
 // @generated
 #[cfg(feature = "llvm")]
 
-//! LLVM Type Lowering
-//!
-//! Maps Naso PIR types (with quantities) to LLVM types using inkwell.
+/// LLVM Type Lowering
+///
+/// Maps Naso PIR types (with quantities) to LLVM types using inkwell.
 
 use crate::codegen::abi::{QuantityAwareType, LlvmAggregateType, IntWidth, FloatWidth, LlvmPointerType};
 use crate::codegen::error::{CodegenError, CodegenResult};

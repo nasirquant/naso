@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::core::prelude::*;
-use std::ops::{Add, Div, Mul, Neg, Sub, Deref};
+use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
 
 // Q1 operations
 impl<D: Dims, T, L: Layout + Default> Tensor<Q1, D, T, L> {
@@ -71,11 +71,7 @@ impl<D: Dims, T, L: Layout + Default> Tensor<Q1, D, T, L> {
     where
         T: Neg<Output = T> + Clone,
     {
-        let result: Vec<T> = self
-            .get_slice()
-            .iter()
-            .map(|a| -a.clone())
-            .collect();
+        let result: Vec<T> = self.get_slice().iter().map(|a| -a.clone()).collect();
         Self::from_vec(result, self.shape().clone())
     }
 
@@ -202,11 +198,7 @@ impl<D: Dims, T, L: Layout + Default> Tensor<QStar, D, T, L> {
     where
         T: Neg<Output = T> + Clone,
     {
-        let result: Vec<T> = self
-            .get_slice()
-            .iter()
-            .map(|a| -a.clone())
-            .collect();
+        let result: Vec<T> = self.get_slice().iter().map(|a| -a.clone()).collect();
         Self::from_vec(result, self.shape().clone())
     }
 

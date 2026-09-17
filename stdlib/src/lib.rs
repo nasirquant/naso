@@ -3,7 +3,7 @@
 //! This crate contains the standard library for the Naso programming language.
 
 pub mod core;
-pub mod std;
 pub mod prelude;
+pub mod std;
 
 pub use prelude::*;

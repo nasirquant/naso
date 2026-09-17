@@ -1,10 +1,10 @@
 //! Quick fixes (code actions) for Naso Language Server diagnostics.
 //! Provides automatic fixes for common linearity, MVS, and uncomputation errors.
 
-use tower_lsp::lsp_types::*;
 use crate::compiler_bridge::CompilerBridge;
-use std::collections::HashMap;
 use crate::diagnostics::codes;
+use std::collections::HashMap;
+use tower_lsp::lsp_types::*;
 
 /// Generate quick fixes for a given diagnostic
 pub fn quick_fix_for_diagnostic(
@@ -90,7 +90,10 @@ pub fn quick_fix_for_diagnostic(
                     edit: Some(WorkspaceEdit {
                         changes: Some(HashMap::from_iter(vec![(
                             uri.clone(),
-                            vec![TextEdit::new(range, "revert { /* uncomputation */ };".to_string())],
+                            vec![TextEdit::new(
+                                range,
+                                "revert { /* uncomputation */ };".to_string(),
+                            )],
                         )])),
                         ..Default::default()
                     }),

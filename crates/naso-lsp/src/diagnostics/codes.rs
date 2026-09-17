@@ -8,13 +8,13 @@
 pub mod lin {
     /// Linear variable used more than once
     pub const DOUBLE_USE: &str = "NASO-LIN-001";
-    
+
     /// Linear variable not consumed (unused)
     pub const UNUSED: &str = "NASO-LIN-002";
-    
+
     /// Linear variable implicitly dropped without explicit consumption
     pub const IMPLICIT_DROP: &str = "NASO-LIN-003";
-    
+
     /// Use of moved value (consumed then used again)
     pub const USE_OF_MOVED: &str = "NASO-LIN-004";
 }
@@ -23,7 +23,7 @@ pub mod lin {
 pub mod era {
     /// Proof-only [0] quantity value retained at runtime
     pub const RETAINED_AT_RUNTIME: &str = "NASO-ERA-001";
-    
+
     /// Non-erased proof term in compiled output
     pub const NON_ERASED_PROOF: &str = "NASO-ERA-002";
 }
@@ -32,10 +32,10 @@ pub mod era {
 pub mod mvs {
     /// Inout parameter aliases with existing inout borrow
     pub const INOUT_ALIASING: &str = "NASO-MVS-001";
-    
+
     /// Inout parameter escapes its scope
     pub const INOUT_ESCAPE: &str = "NASO-MVS-002";
-    
+
     /// Inout requires unique ownership (quantity 1)
     pub const INOUT_REQUIRES_UNIQUE: &str = "NASO-MVS-003";
 }
@@ -44,10 +44,10 @@ pub mod mvs {
 pub mod unc {
     /// Missing uncomputation step for temporary variable
     pub const MISSING_UNCOMPUTE: &str = "NASO-UNC-001";
-    
+
     /// Cyclic uncomputation dependency detected
     pub const CYCLIC_UNCOMPUTE: &str = "NASO-UNC-002";
-    
+
     /// Non-invertible temporary value cannot be uncomputed
     pub const NON_INVERTIBLE_TEMP: &str = "NASO-UNC-003";
 }

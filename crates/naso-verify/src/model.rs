@@ -3,9 +3,9 @@
 //! This module provides model extraction and unsat core handling for the
 //! Z3 solver backend. All Z3-dependent types are gated behind the `z3` feature.
 
+use naso_compiler::ast::Span;
 #[cfg(feature = "z3")]
 use serde::{Deserialize, Serialize};
-use naso_compiler::ast::Span;
 #[cfg(feature = "z3")]
 use std::collections::HashMap;
 #[cfg(feature = "z3")]
@@ -171,10 +171,7 @@ mod z3_models {
         }
 
         /// Map model values back to Naso source locations.
-        pub fn to_counterexample(
-            &self,
-            var_spans: &HashMap<String, Span>,
-        ) -> Counterexample {
+        pub fn to_counterexample(&self, var_spans: &HashMap<String, Span>) -> Counterexample {
             let mut locations = Vec::new();
 
             for (name, value) in &self.assignments {

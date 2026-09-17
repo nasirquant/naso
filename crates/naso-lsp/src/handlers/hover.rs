@@ -1,7 +1,7 @@
 //! Hover Handler - Provides type information on hover
 
-use tower_lsp::lsp_types::*;
 use crate::NasoLanguageServer;
+use tower_lsp::lsp_types::*;
 
 pub async fn handle_hover(
     server: &NasoLanguageServer,
@@ -9,32 +9,35 @@ pub async fn handle_hover(
 ) -> Result<Option<Hover>, tower_lsp::jsonrpc::Error> {
     let uri = params.text_document_position_params.text_document.uri;
     let position = params.text_document_position_params.position;
-    
+
     tracing::debug!("Hover request: {} at {:?}", uri, position);
-    
+
     // Get hover info from compiler bridge
     if let Some(hover_info) = server.compiler_bridge.get_hover(&uri, position).await {
         let mut contents = Vec::new();
-        
+
         // Type information
-        contents.push(MarkedString::String(format!("**Type:** `{}`", hover_info.type_info)));
-        
+        contents.push(MarkedString::String(format!(
+            "**Type:** `{}`",
+            hover_info.type_info
+        )));
+
         // Quantity annotation
         if let Some(qty) = hover_info.quantity {
             contents.push(MarkedString::String(format!("**Quantity:** `{}`", qty)));
         }
-        
+
         // Documentation
         if let Some(doc) = hover_info.doc_comment {
             contents.push(MarkedString::String(format!("---\n{}", doc)));
         }
-        
+
         return Ok(Some(Hover {
             contents: HoverContents::Array(contents),
             range: Some(hover_info.range),
         }));
     }
-    
+
     // Fallback: check if there's a word at position and provide generic info
     if let Some(document) = server.document_store.get(&uri) {
         if let Some(word) = extract_word_at(&document.content, position) {
@@ -46,22 +49,22 @@ pub async fn handle_hover(
             }
         }
     }
-    
+
     Ok(None)
 }
 
 fn extract_word_at(content: &str, position: Position) -> Option<String> {
     let lines: Vec<&str> = content.lines().collect();
     let line = lines.get(position.line as usize)?;
-    
+
     let char_idx = position.character as usize;
     if char_idx >= line.len() {
         return None;
     }
-    
+
     let mut start = char_idx;
     let mut end = char_idx;
-    
+
     // Expand to word boundaries (alphanumeric and underscore)
     while start > 0 {
         let ch = line.chars().nth(start - 1)?;
@@ -71,7 +74,7 @@ fn extract_word_at(content: &str, position: Position) -> Option<String> {
             break;
         }
     }
-    
+
     while end < line.len() {
         let ch = line.chars().nth(end)?;
         if ch.is_alphanumeric() || ch == '_' {
@@ -80,7 +83,7 @@ fn extract_word_at(content: &str, position: Position) -> Option<String> {
             break;
         }
     }
-    
+
     if start < end {
         Some(line[start..end].to_string())
     } else {

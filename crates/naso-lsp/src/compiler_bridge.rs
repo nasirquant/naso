@@ -10,8 +10,8 @@ use dashmap::DashMap;
 use tower_lsp::lsp_types::*;
 use url::Url;
 
-use crate::document_store::{DocumentStore, Document};
 use crate::diagnostics::convert_all_errors;
+use crate::document_store::{Document, DocumentStore};
 
 /// Bridge to the Naso compiler frontend
 pub struct CompilerBridge {
@@ -51,10 +51,10 @@ impl CompilerBridge {
     pub async fn analyze(&self, uri: &Url) -> Option<Vec<Diagnostic>> {
         let document = self.document_store.get(uri)?;
         let result = self.perform_analysis(&document).await;
-        
+
         // Cache the result
         self.analysis_cache.insert(uri.clone(), result.clone());
-        
+
         Some(result.diagnostics)
     }
 
@@ -79,16 +79,16 @@ impl CompilerBridge {
         };
 
         let mut completions = Vec::new();
-        
+
         // Add keyword completions
         completions.extend(self.get_keyword_completions(&document, position));
-        
+
         // Add stdlib completions
         completions.extend(self.get_stdlib_completions(&document, position));
-        
+
         // Add type completions
         completions.extend(self.get_type_completions(&document, position));
-        
+
         completions
     }
 
@@ -96,17 +96,17 @@ impl CompilerBridge {
     pub async fn get_definition(&self, uri: &Url, position: Position) -> Option<Location> {
         let document = self.document_store.get(uri)?;
         let content = &document.content;
-        
+
         // Find the symbol at the position
         let symbol = self.find_symbol_at(content, position)?;
-        
+
         // Search for definition in current document
         if let Some(def_range) = self.find_definition_in_document(content, &symbol) {
             return Some(Location::new(uri.clone(), def_range));
         }
-        
+
         // TODO: Search in workspace dependencies
-        
+
         None
     }
 
@@ -122,10 +122,10 @@ impl CompilerBridge {
             // Convert compiler errors to LSP diagnostics
             diagnostics.extend(convert_all_errors(self, &errors, &document.uri));
         }
-        
+
         // Extract symbols for document outline
         symbols.extend(self.extract_symbols(content, &document.uri));
-        
+
         // Generate hover info for all identifiers
         hover_info.extend(self.generate_hover_info(content, document));
 
@@ -137,29 +137,32 @@ impl CompilerBridge {
     }
 
     /// Type check a document using the naso-compiler
-    fn type_check_document(&self, _content: &str) -> Result<Vec<naso_compiler::typecheck::error::TypeError>> {
+    fn type_check_document(
+        &self,
+        _content: &str,
+    ) -> Result<Vec<naso_compiler::typecheck::error::TypeError>> {
         // Use the naso-compiler's type checker
         // This will be implemented when the compiler frontend is available
         // For now, return empty to avoid breaking the build
-        
+
         // TODO: Integrate with actual naso-compiler type checker
         // let parser = naso_compiler::parser::Parser::new(content);
         // let ast = parser.parse()?;
         // let mut typechecker = naso_compiler::typecheck::TypeChecker::new();
         // typechecker.check(&ast)
-        
+
         Ok(Vec::new())
     }
 
     /// Basic syntax checking (fallback when type checker not available)
     fn check_syntax(&self, content: &str, _uri: &Url) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
-        
+
         // Check for unmatched brackets
         let mut paren_stack = Vec::new();
         let mut brace_stack = Vec::new();
         let mut bracket_stack = Vec::new();
-        
+
         for (line_idx, line) in content.lines().enumerate() {
             for (char_idx, ch) in line.char_indices() {
                 match ch {
@@ -172,7 +175,9 @@ impl CompilerBridge {
                                     Position::new(line_idx as u32, (char_idx + 1) as u32),
                                 ),
                                 Some(DiagnosticSeverity::ERROR),
-                                Some(tower_lsp::lsp_types::NumberOrString::String("naso-syntax".to_string())),
+                                Some(tower_lsp::lsp_types::NumberOrString::String(
+                                    "naso-syntax".to_string(),
+                                )),
                                 None,
                                 "Unmatched closing parenthesis".to_string(),
                                 None,
@@ -189,7 +194,9 @@ impl CompilerBridge {
                                     Position::new(line_idx as u32, (char_idx + 1) as u32),
                                 ),
                                 Some(DiagnosticSeverity::ERROR),
-                                Some(tower_lsp::lsp_types::NumberOrString::String("naso-syntax".to_string())),
+                                Some(tower_lsp::lsp_types::NumberOrString::String(
+                                    "naso-syntax".to_string(),
+                                )),
                                 None,
                                 "Unmatched closing brace".to_string(),
                                 None,
@@ -206,7 +213,9 @@ impl CompilerBridge {
                                     Position::new(line_idx as u32, (char_idx + 1) as u32),
                                 ),
                                 Some(DiagnosticSeverity::ERROR),
-                                Some(tower_lsp::lsp_types::NumberOrString::String("naso-syntax".to_string())),
+                                Some(tower_lsp::lsp_types::NumberOrString::String(
+                                    "naso-syntax".to_string(),
+                                )),
                                 None,
                                 "Unmatched closing bracket".to_string(),
                                 None,
@@ -218,7 +227,7 @@ impl CompilerBridge {
                 }
             }
         }
-        
+
         // Report unclosed brackets
         for (line_idx, char_idx) in paren_stack {
             diagnostics.push(Diagnostic::new(
@@ -226,28 +235,30 @@ impl CompilerBridge {
                     Position::new(line_idx as u32, char_idx as u32),
                     Position::new(line_idx as u32, (char_idx + 1) as u32),
                 ),
-                                Some(DiagnosticSeverity::ERROR),
-                                Some(tower_lsp::lsp_types::NumberOrString::String("naso-syntax".to_string())),
-                                None,
-                                "Unclosed parenthesis".to_string(),
-                                None,
-                                None,
+                Some(DiagnosticSeverity::ERROR),
+                Some(tower_lsp::lsp_types::NumberOrString::String(
+                    "naso-syntax".to_string(),
+                )),
+                None,
+                "Unclosed parenthesis".to_string(),
+                None,
+                None,
             ));
         }
-        
+
         diagnostics
     }
 
     /// Extract document symbols for outline
     fn extract_symbols(&self, content: &str, _uri: &Url) -> Vec<DocumentSymbol> {
         let mut symbols = Vec::new();
-        
+
         // Simple regex-based extraction for functions, structs, etc.
         let lines: Vec<&str> = content.lines().collect();
-        
+
         for (line_idx, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
-            
+
             // Function definitions
             if trimmed.starts_with("fn ") {
                 if let Some(name_end) = trimmed[3..].find('(') {
@@ -266,12 +277,12 @@ impl CompilerBridge {
                         children: None,
                         detail: Some("function".to_string()),
                         deprecated: None,
-                        
+
                         tags: None,
                     });
                 }
             }
-            
+
             // Struct definitions
             if trimmed.starts_with("struct ") {
                 if let Some(name_end) = trimmed[7..].find('{').or_else(|| trimmed[7..].find(' ')) {
@@ -290,21 +301,25 @@ impl CompilerBridge {
                         children: None,
                         detail: Some("struct".to_string()),
                         deprecated: None,
-                        
+
                         tags: None,
                     });
                 }
             }
         }
-        
+
         symbols
     }
 
     /// Generate hover info for identifiers
-    fn generate_hover_info(&self, content: &str, _document: &Document) -> HashMap<(u32, u32), HoverInfo> {
+    fn generate_hover_info(
+        &self,
+        content: &str,
+        _document: &Document,
+    ) -> HashMap<(u32, u32), HoverInfo> {
         let mut hover_info = HashMap::new();
         let lines: Vec<&str> = content.lines().collect();
-        
+
         // Known quantum intrinsics with hover info
         let quantum_intrinsics: HashMap<&str, (&str, naso_compiler::Quantity, &str)> = [
             ("qalloc", ("Qubit", naso_compiler::Quantity::One, "Allocate a new qubit in |0⟩ state. Returns a linear qubit that must be consumed exactly once.")),
@@ -313,14 +328,37 @@ impl CompilerBridge {
             ("cnot", ("(Qubit, Qubit) -> (Qubit, Qubit)", naso_compiler::Quantity::One, "Apply CNOT gate. Control and target qubits consumed linearly.")),
             ("measure", ("Qubit -> Bool", naso_compiler::Quantity::One, "Measure qubit in computational basis. Collapses state and consumes qubit.")),
         ].into_iter().collect();
-        
+
         // Known tensor operations
         let tensor_ops: HashMap<&str, (&str, naso_compiler::Quantity, &str)> = [
-            ("matmul", ("Tensor<[N]; [M, K]> -> Tensor<[N]; [K, L]> -> Tensor<[N]; [M, L]>", naso_compiler::Quantity::Many, "Matrix multiplication with polyhedral optimization.")),
-            ("contract", ("Tensor<[N]; Dims> -> Tensor<[N]; Dims> -> Tensor<[N]; Dims>", naso_compiler::Quantity::Many, "Tensor contraction over matching dimensions.")),
-            ("transpose", ("Tensor<[N]; [M, N]> -> Tensor<[N]; [N, M]>", naso_compiler::Quantity::Many, "Transpose a 2D tensor.")),
-        ].into_iter().collect();
-        
+            (
+                "matmul",
+                (
+                    "Tensor<[N]; [M, K]> -> Tensor<[N]; [K, L]> -> Tensor<[N]; [M, L]>",
+                    naso_compiler::Quantity::Many,
+                    "Matrix multiplication with polyhedral optimization.",
+                ),
+            ),
+            (
+                "contract",
+                (
+                    "Tensor<[N]; Dims> -> Tensor<[N]; Dims> -> Tensor<[N]; Dims>",
+                    naso_compiler::Quantity::Many,
+                    "Tensor contraction over matching dimensions.",
+                ),
+            ),
+            (
+                "transpose",
+                (
+                    "Tensor<[N]; [M, N]> -> Tensor<[N]; [N, M]>",
+                    naso_compiler::Quantity::Many,
+                    "Transpose a 2D tensor.",
+                ),
+            ),
+        ]
+        .into_iter()
+        .collect();
+
         // Scan for known identifiers
         for (line_idx, line) in lines.iter().enumerate() {
             for (name, (ty, qty, doc)) in &quantum_intrinsics {
@@ -330,15 +368,18 @@ impl CompilerBridge {
                         position,
                         Position::new(line_idx as u32, (pos + name.len()) as u32),
                     );
-                    hover_info.insert((position.line, position.character), HoverInfo {
-                        type_info: ty.to_string(),
-                        quantity: Some(qty.clone()),
-                        doc_comment: Some(doc.to_string()),
-                        range,
-                    });
+                    hover_info.insert(
+                        (position.line, position.character),
+                        HoverInfo {
+                            type_info: ty.to_string(),
+                            quantity: Some(qty.clone()),
+                            doc_comment: Some(doc.to_string()),
+                            range,
+                        },
+                    );
                 }
             }
-            
+
             for (name, (ty, qty, doc)) in &tensor_ops {
                 if let Some(pos) = line.find(name) {
                     let position = Position::new(line_idx as u32, pos as u32);
@@ -346,21 +387,28 @@ impl CompilerBridge {
                         position,
                         Position::new(line_idx as u32, (pos + name.len()) as u32),
                     );
-                    hover_info.insert((position.line, position.character), HoverInfo {
-                        type_info: ty.to_string(),
-                        quantity: Some(qty.clone()),
-                        doc_comment: Some(doc.to_string()),
-                        range,
-                    });
+                    hover_info.insert(
+                        (position.line, position.character),
+                        HoverInfo {
+                            type_info: ty.to_string(),
+                            quantity: Some(qty.clone()),
+                            doc_comment: Some(doc.to_string()),
+                            range,
+                        },
+                    );
                 }
             }
         }
-        
+
         hover_info
     }
 
     /// Get keyword completions
-    fn get_keyword_completions(&self, _document: &Document, _position: Position) -> Vec<CompletionItem> {
+    fn get_keyword_completions(
+        &self,
+        _document: &Document,
+        _position: Position,
+    ) -> Vec<CompletionItem> {
         let keywords = [
             ("fn", "Function definition"),
             ("struct", "Struct definition"),
@@ -395,42 +443,88 @@ impl CompilerBridge {
             ("transpose", "Transpose"),
         ];
 
-        keywords.iter().map(|(kw, desc)| CompletionItem {
-            label: kw.to_string(),
-            kind: Some(CompletionItemKind::KEYWORD),
-            detail: Some(desc.to_string()),
-            documentation: Some(Documentation::String(format!("Naso keyword: {}", desc))),
-            ..Default::default()
-        }).collect()
+        keywords
+            .iter()
+            .map(|(kw, desc)| CompletionItem {
+                label: kw.to_string(),
+                kind: Some(CompletionItemKind::KEYWORD),
+                detail: Some(desc.to_string()),
+                documentation: Some(Documentation::String(format!("Naso keyword: {}", desc))),
+                ..Default::default()
+            })
+            .collect()
     }
 
     /// Get stdlib completions
-    fn get_stdlib_completions(&self, _document: &Document, _position: Position) -> Vec<CompletionItem> {
+    fn get_stdlib_completions(
+        &self,
+        _document: &Document,
+        _position: Position,
+    ) -> Vec<CompletionItem> {
         let stdlib = [
             ("std::quantum::qalloc", "Qubit", "Allocate a qubit"),
             ("std::quantum::hadamard", "Qubit -> Qubit", "Hadamard gate"),
-            ("std::quantum::cnot", "(Qubit, Qubit) -> (Qubit, Qubit)", "CNOT gate"),
+            (
+                "std::quantum::cnot",
+                "(Qubit, Qubit) -> (Qubit, Qubit)",
+                "CNOT gate",
+            ),
             ("std::quantum::measure", "Qubit -> Bool", "Measure qubit"),
-            ("std::quantum::bell_pair", "() -> (Qubit, Qubit)", "Create Bell pair"),
-            ("std::quantum::qft", "[N] Qubit -> [N] Qubit", "Quantum Fourier Transform"),
-            ("std::tensor::matmul", "Tensor @ Tensor -> Tensor", "Matrix multiplication"),
-            ("std::tensor::contract", "Tensor @ Tensor -> Tensor", "Tensor contraction"),
-            ("std::tensor::transpose", "Tensor -> Tensor", "Transpose tensor"),
-            ("std::alloc::linear_alloc", "[1] T -> *mut T", "Linear allocation"),
-            ("std::alloc::bump_alloc", "[*] T -> *mut T", "Bump allocation"),
+            (
+                "std::quantum::bell_pair",
+                "() -> (Qubit, Qubit)",
+                "Create Bell pair",
+            ),
+            (
+                "std::quantum::qft",
+                "[N] Qubit -> [N] Qubit",
+                "Quantum Fourier Transform",
+            ),
+            (
+                "std::tensor::matmul",
+                "Tensor @ Tensor -> Tensor",
+                "Matrix multiplication",
+            ),
+            (
+                "std::tensor::contract",
+                "Tensor @ Tensor -> Tensor",
+                "Tensor contraction",
+            ),
+            (
+                "std::tensor::transpose",
+                "Tensor -> Tensor",
+                "Transpose tensor",
+            ),
+            (
+                "std::alloc::linear_alloc",
+                "[1] T -> *mut T",
+                "Linear allocation",
+            ),
+            (
+                "std::alloc::bump_alloc",
+                "[*] T -> *mut T",
+                "Bump allocation",
+            ),
         ];
 
-        stdlib.iter().map(|(name, ty, desc)| CompletionItem {
-            label: name.to_string(),
-            kind: Some(CompletionItemKind::FUNCTION),
-            detail: Some(ty.to_string()),
-            documentation: Some(Documentation::String(desc.to_string())),
-            ..Default::default()
-        }).collect()
+        stdlib
+            .iter()
+            .map(|(name, ty, desc)| CompletionItem {
+                label: name.to_string(),
+                kind: Some(CompletionItemKind::FUNCTION),
+                detail: Some(ty.to_string()),
+                documentation: Some(Documentation::String(desc.to_string())),
+                ..Default::default()
+            })
+            .collect()
     }
 
     /// Get type completions
-    fn get_type_completions(&self, _document: &Document, _position: Position) -> Vec<CompletionItem> {
+    fn get_type_completions(
+        &self,
+        _document: &Document,
+        _position: Position,
+    ) -> Vec<CompletionItem> {
         let types = [
             ("Qubit", "Quantum bit type"),
             ("Bit", "Classical bit"),
@@ -445,36 +539,44 @@ impl CompilerBridge {
             ("[N]", "Bounded quantity"),
         ];
 
-        types.iter().map(|(ty, desc)| CompletionItem {
-            label: ty.to_string(),
-            kind: Some(CompletionItemKind::TYPE_PARAMETER),
-            detail: Some(desc.to_string()),
-            ..Default::default()
-        }).collect()
+        types
+            .iter()
+            .map(|(ty, desc)| CompletionItem {
+                label: ty.to_string(),
+                kind: Some(CompletionItemKind::TYPE_PARAMETER),
+                detail: Some(desc.to_string()),
+                ..Default::default()
+            })
+            .collect()
     }
 
     /// Find symbol at position
     fn find_symbol_at(&self, content: &str, position: Position) -> Option<String> {
         let lines: Vec<&str> = content.lines().collect();
         let line = lines.get(position.line as usize)?;
-        
+
         // Find word at position
         let char_idx = position.character as usize;
         if char_idx >= line.len() {
             return None;
         }
-        
+
         let mut start = char_idx;
         let mut end = char_idx;
-        
+
         // Expand to word boundaries
-        while start > 0 && (line.chars().nth(start - 1)?.is_alphanumeric() || line.chars().nth(start - 1)? == '_') {
+        while start > 0
+            && (line.chars().nth(start - 1)?.is_alphanumeric()
+                || line.chars().nth(start - 1)? == '_')
+        {
             start -= 1;
         }
-        while end < line.len() && (line.chars().nth(end)?.is_alphanumeric() || line.chars().nth(end)? == '_') {
+        while end < line.len()
+            && (line.chars().nth(end)?.is_alphanumeric() || line.chars().nth(end)? == '_')
+        {
             end += 1;
         }
-        
+
         if start < end {
             Some(line[start..end].to_string())
         } else {
@@ -485,10 +587,10 @@ impl CompilerBridge {
     /// Find definition of symbol in document
     fn find_definition_in_document(&self, content: &str, symbol: &str) -> Option<Range> {
         let lines: Vec<&str> = content.lines().collect();
-        
+
         for (line_idx, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
-            
+
             // Function definition
             if trimmed.starts_with("fn ") {
                 if let Some(name_end) = trimmed[3..].find('(') {
@@ -501,7 +603,7 @@ impl CompilerBridge {
                     }
                 }
             }
-            
+
             // Struct definition
             if trimmed.starts_with("struct ") {
                 if let Some(name_end) = trimmed[7..].find('{').or_else(|| trimmed[7..].find(' ')) {
@@ -514,7 +616,7 @@ impl CompilerBridge {
                     }
                 }
             }
-            
+
             // Let binding
             if trimmed.starts_with("let ") {
                 if let Some(eq_pos) = trimmed[4..].find('=') {
@@ -528,7 +630,7 @@ impl CompilerBridge {
                 }
             }
         }
-        
+
         None
     }
 }

@@ -8,8 +8,8 @@ use dashmap::DashMap;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use crate::document_store::DocumentStore;
 use crate::compiler_bridge::CompilerBridge;
+use crate::document_store::DocumentStore;
 
 pub struct NasoLanguageServer {
     client: Client,
@@ -30,7 +30,7 @@ impl NasoLanguageServer {
     pub fn new(client: Client) -> Self {
         let document_store = Arc::new(DocumentStore::new());
         let compiler_bridge = Arc::new(CompilerBridge::new(document_store.clone()));
-        
+
         Self {
             client,
             document_store,
@@ -47,12 +47,17 @@ impl NasoLanguageServer {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for NasoLanguageServer {
-    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult, tower_lsp::jsonrpc::Error> {
+    async fn initialize(
+        &self,
+        params: InitializeParams,
+    ) -> Result<InitializeResult, tower_lsp::jsonrpc::Error> {
         tracing::info!("Initialize request received: {:?}", params.client_info);
-        
+
         // Store client capabilities if needed
         let capabilities = ServerCapabilities {
-            text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
+            text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                TextDocumentSyncKind::INCREMENTAL,
+            )),
             hover_provider: Some(HoverProviderCapability::Simple(true)),
             completion_provider: Some(CompletionOptions {
                 resolve_provider: Some(false),
@@ -90,9 +95,11 @@ impl LanguageServer for NasoLanguageServer {
 
     async fn initialized(&self, _: InitializedParams) {
         tracing::info!("Client initialized");
-        
+
         // Notify client we're ready
-        self.client.log_message(MessageType::INFO, "Naso Language Server ready").await;
+        self.client
+            .log_message(MessageType::INFO, "Naso Language Server ready")
+            .await;
     }
 
     async fn shutdown(&self) -> Result<(), tower_lsp::jsonrpc::Error> {
@@ -102,35 +109,36 @@ impl LanguageServer for NasoLanguageServer {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         tracing::debug!("Document opened: {}", params.text_document.uri);
-        
+
         let uri = params.text_document.uri.clone();
         let text = params.text_document.text.clone();
         let version = params.text_document.version;
-        
+
         // Store document
         self.document_store.open(uri.clone(), text, version);
-        
+
         // Trigger analysis
         self.analyze_document(&uri).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         tracing::debug!("Document changed: {}", params.text_document.uri);
-        
+
         let uri = params.text_document.uri.clone();
         let version = params.text_document.version;
-        
+
         for change in params.content_changes {
             match change.range {
                 Some(range) => {
-                    self.document_store.update_incremental(&uri, range, change.text, version);
+                    self.document_store
+                        .update_incremental(&uri, range, change.text, version);
                 }
                 None => {
                     self.document_store.update_full(&uri, change.text, version);
                 }
             }
         }
-        
+
         // Trigger incremental re-analysis
         self.analyze_document(&uri).await;
     }
@@ -149,15 +157,24 @@ impl LanguageServer for NasoLanguageServer {
         crate::handlers::hover::handle_hover(self, params).await
     }
 
-    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>, tower_lsp::jsonrpc::Error> {
+    async fn completion(
+        &self,
+        params: CompletionParams,
+    ) -> Result<Option<CompletionResponse>, tower_lsp::jsonrpc::Error> {
         crate::handlers::completion::handle_completion(self, params).await
     }
 
-    async fn goto_definition(&self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>, tower_lsp::jsonrpc::Error> {
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>, tower_lsp::jsonrpc::Error> {
         crate::handlers::definition::handle_definition(self, params).await
     }
 
-    async fn diagnostic(&self, params: DocumentDiagnosticParams) -> Result<DocumentDiagnosticReportResult, tower_lsp::jsonrpc::Error> {
+    async fn diagnostic(
+        &self,
+        params: DocumentDiagnosticParams,
+    ) -> Result<DocumentDiagnosticReportResult, tower_lsp::jsonrpc::Error> {
         let report = crate::handlers::diagnostics::handle_diagnostics(self, params).await?;
         Ok(DocumentDiagnosticReportResult::Report(report))
     }
@@ -166,7 +183,9 @@ impl LanguageServer for NasoLanguageServer {
 impl NasoLanguageServer {
     async fn analyze_document(&self, uri: &Url) {
         if let Some(diagnostics) = self.compiler_bridge.analyze(uri).await {
-            self.client.publish_diagnostics(uri.clone(), diagnostics, None).await;
+            self.client
+                .publish_diagnostics(uri.clone(), diagnostics, None)
+                .await;
         }
     }
 }

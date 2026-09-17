@@ -262,7 +262,9 @@ impl Solver {
                             solver.get_unsat_core().map(|v| v.into_iter().collect()),
                             &self.assertion_ids,
                         )
-                        .map_err(|e| VerifyError::Solver(SolverError::UnsatCoreExtractionFailed(e)))?,
+                        .map_err(|e| {
+                            VerifyError::Solver(SolverError::UnsatCoreExtractionFailed(e))
+                        })?,
                     )
                 } else {
                     None
@@ -320,7 +322,8 @@ pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, Ve
     })?;
 
     // Use Z3's SMT-LIB2 parser
-    let ast_vec = ctx.parse_smtlib2_string(smt_script, &[], &[], &[], &[])
+    let ast_vec = ctx
+        .parse_smtlib2_string(smt_script, &[], &[], &[], &[])
         .map_err(|e| VerifyError::Solver(SolverError::ParseError(e.to_string())))?;
 
     // Assert all parsed formulas

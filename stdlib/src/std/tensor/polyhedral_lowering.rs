@@ -61,29 +61,18 @@ pub enum ScheduleTransform {
         vector_width: usize,
     },
     /// Parallelize a loop
-    Parallelize {
-        loop_depth: usize,
-    },
+    Parallelize { loop_depth: usize },
     /// Interchange two loops
     Interchange {
         loop_depth1: usize,
         loop_depth2: usize,
     },
     /// Unroll a loop
-    Unroll {
-        loop_depth: usize,
-        factor: usize,
-    },
+    Unroll { loop_depth: usize, factor: usize },
     /// Shift a loop
-    Shift {
-        loop_depth: usize,
-        offset: i64,
-    },
+    Shift { loop_depth: usize, offset: i64 },
     /// Skew a loop
-    Skew {
-        loop_depth: usize,
-        factor: i64,
-    },
+    Skew { loop_depth: usize, factor: i64 },
 }
 
 /// Tensor operation for polyhedral lowering
@@ -165,29 +154,32 @@ impl LoweringContext {
     /// Create a schedule for a tensor operation
     pub fn create_schedule(&mut self, op: &TensorOp) -> ScheduleId {
         let schedule = match op {
-            TensorOp::MatMul { lhs_shape, rhs_shape, out_shape } => {
-                self.lower_matmul(lhs_shape, rhs_shape, out_shape)
-            }
-            TensorOp::ElementWise { op, shape } => {
-                self.lower_elementwise(*op, shape)
-            }
-            TensorOp::Contraction { lhs_shape, rhs_shape, lhs_dim, rhs_dim, out_shape } => {
-                self.lower_contraction(lhs_shape, rhs_shape, *lhs_dim, *rhs_dim, out_shape)
-            }
-            TensorOp::OuterProduct { lhs_shape, rhs_shape, out_shape } => {
-                self.lower_outer(lhs_shape, rhs_shape, out_shape)
-            }
-            TensorOp::Transpose { shape, perm } => {
-                self.lower_transpose(shape, perm)
-            }
-            TensorOp::Broadcast { shape, target_shape } => {
-                self.lower_broadcast(shape, target_shape)
-            }
-            TensorOp::Reduction { op, shape, dim } => {
-                self.lower_reduction(*op, shape, *dim)
-            }
+            TensorOp::MatMul {
+                lhs_shape,
+                rhs_shape,
+                out_shape,
+            } => self.lower_matmul(lhs_shape, rhs_shape, out_shape),
+            TensorOp::ElementWise { op, shape } => self.lower_elementwise(*op, shape),
+            TensorOp::Contraction {
+                lhs_shape,
+                rhs_shape,
+                lhs_dim,
+                rhs_dim,
+                out_shape,
+            } => self.lower_contraction(lhs_shape, rhs_shape, *lhs_dim, *rhs_dim, out_shape),
+            TensorOp::OuterProduct {
+                lhs_shape,
+                rhs_shape,
+                out_shape,
+            } => self.lower_outer(lhs_shape, rhs_shape, out_shape),
+            TensorOp::Transpose { shape, perm } => self.lower_transpose(shape, perm),
+            TensorOp::Broadcast {
+                shape,
+                target_shape,
+            } => self.lower_broadcast(shape, target_shape),
+            TensorOp::Reduction { op, shape, dim } => self.lower_reduction(*op, shape, *dim),
         };
-        
+
         let id = ScheduleId(self.next_schedule_id);
         self.schedules.push(schedule);
         self.next_schedule_id += 1;
@@ -219,7 +211,7 @@ impl LoweringContext {
 
         // Domain: 0 <= i < m, 0 <= j < n, 0 <= k < k
         let mut constraints = Vec::new();
-        
+
         // i >= 0
         constraints.push(AffineConstraint {
             coeffs: vec![1, 0, 0],
@@ -264,11 +256,7 @@ impl LoweringContext {
 
         // Schedule: (i, j, k) -> (i, j, k) - identity for now
         let schedule = AffineMap {
-            matrix: vec![
-                vec![1, 0, 0],
-                vec![0, 1, 0],
-                vec![0, 0, 1],
-            ],
+            matrix: vec![vec![1, 0, 0], vec![0, 1, 0], vec![0, 0, 1]],
             symbol_matrix: vec![],
             constant: vec![0, 0, 0],
         };
@@ -293,7 +281,7 @@ impl LoweringContext {
     fn lower_elementwise(&self, op: ElementWiseOp, shape: &ConcreteShape) -> Schedule {
         let rank = shape.rank();
         let mut constraints = Vec::new();
-        
+
         for i in 0..rank {
             let dim = shape.dims()[i];
             // idx_i >= 0
@@ -319,19 +307,19 @@ impl LoweringContext {
         };
 
         let schedule = AffineMap {
-            matrix: (0..rank).map(|i| {
-                let mut row = vec![0; rank];
-                row[i] = 1;
-                row
-            }).collect(),
+            matrix: (0..rank)
+                .map(|i| {
+                    let mut row = vec![0; rank];
+                    row[i] = 1;
+                    row
+                })
+                .collect(),
             symbol_matrix: vec![],
             constant: vec![0; rank],
         };
 
-        let mut transforms = vec![
-            ScheduleTransform::Parallelize { loop_depth: 0 },
-        ];
-        
+        let mut transforms = vec![ScheduleTransform::Parallelize { loop_depth: 0 }];
+
         // Add vectorization hint for last dimension if large enough
         if let Some(&last_dim) = shape.dims().last() {
             if last_dim >= 4 {
@@ -360,9 +348,9 @@ impl LoweringContext {
     ) -> Schedule {
         let rank = out_shape.rank();
         let contract_size = lhs_shape.dims()[lhs_dim];
-        
+
         let mut constraints = Vec::new();
-        
+
         // Output domain constraints
         for i in 0..rank {
             let dim = out_shape.dims()[i];
@@ -380,7 +368,7 @@ impl LoweringContext {
                 constant: dim as i64 - 1,
             });
         }
-        
+
         // Contraction dimension constraint
         let mut k_coeffs = vec![0; rank + 1];
         k_coeffs[rank] = 1;
@@ -402,11 +390,13 @@ impl LoweringContext {
         };
 
         let schedule = AffineMap {
-            matrix: (0..=rank).map(|i| {
-                let mut row = vec![0; rank + 1];
-                row[i] = 1;
-                row
-            }).collect(),
+            matrix: (0..=rank)
+                .map(|i| {
+                    let mut row = vec![0; rank + 1];
+                    row[i] = 1;
+                    row
+                })
+                .collect(),
             symbol_matrix: vec![],
             constant: vec![0; rank + 1],
         };
@@ -436,7 +426,7 @@ impl LoweringContext {
     ) -> Schedule {
         let rank = out_shape.rank();
         let mut constraints = Vec::new();
-        
+
         for i in 0..rank {
             let dim = out_shape.dims()[i];
             let mut coeffs = vec![0; rank];
@@ -460,11 +450,13 @@ impl LoweringContext {
         };
 
         let schedule = AffineMap {
-            matrix: (0..rank).map(|i| {
-                let mut row = vec![0; rank];
-                row[i] = 1;
-                row
-            }).collect(),
+            matrix: (0..rank)
+                .map(|i| {
+                    let mut row = vec![0; rank];
+                    row[i] = 1;
+                    row
+                })
+                .collect(),
             symbol_matrix: vec![],
             constant: vec![0; rank],
         };
@@ -472,9 +464,7 @@ impl LoweringContext {
         Schedule {
             domain,
             schedule,
-            transforms: vec![
-                ScheduleTransform::Parallelize { loop_depth: 0 },
-            ],
+            transforms: vec![ScheduleTransform::Parallelize { loop_depth: 0 }],
         }
     }
 
@@ -482,7 +472,7 @@ impl LoweringContext {
     fn lower_transpose(&self, shape: &ConcreteShape, perm: &[usize]) -> Schedule {
         let rank = shape.rank();
         let mut constraints = Vec::new();
-        
+
         for i in 0..rank {
             let dim = shape.dims()[perm[i]];
             let mut coeffs = vec![0; rank];
@@ -506,11 +496,13 @@ impl LoweringContext {
         };
 
         let schedule = AffineMap {
-            matrix: (0..rank).map(|i| {
-                let mut row = vec![0; rank];
-                row[perm[i]] = 1;
-                row
-            }).collect(),
+            matrix: (0..rank)
+                .map(|i| {
+                    let mut row = vec![0; rank];
+                    row[perm[i]] = 1;
+                    row
+                })
+                .collect(),
             symbol_matrix: vec![],
             constant: vec![0; rank],
         };
@@ -526,7 +518,7 @@ impl LoweringContext {
     fn lower_broadcast(&self, shape: &ConcreteShape, target_shape: &ConcreteShape) -> Schedule {
         let rank = target_shape.rank();
         let mut constraints = Vec::new();
-        
+
         for i in 0..rank {
             let dim = target_shape.dims()[i];
             let mut coeffs = vec![0; rank];
@@ -550,11 +542,13 @@ impl LoweringContext {
         };
 
         let schedule = AffineMap {
-            matrix: (0..rank).map(|i| {
-                let mut row = vec![0; rank];
-                row[i] = 1;
-                row
-            }).collect(),
+            matrix: (0..rank)
+                .map(|i| {
+                    let mut row = vec![0; rank];
+                    row[i] = 1;
+                    row
+                })
+                .collect(),
             symbol_matrix: vec![],
             constant: vec![0; rank],
         };
@@ -562,9 +556,7 @@ impl LoweringContext {
         Schedule {
             domain,
             schedule,
-            transforms: vec![
-                ScheduleTransform::Parallelize { loop_depth: 0 },
-            ],
+            transforms: vec![ScheduleTransform::Parallelize { loop_depth: 0 }],
         }
     }
 
@@ -577,7 +569,7 @@ impl LoweringContext {
     ) -> Schedule {
         let rank = shape.rank();
         let mut constraints = Vec::new();
-        
+
         if let Some(reduce_dim) = dim {
             // Output domain (excluding reduced dimension)
             let out_rank = rank - 1;
@@ -598,7 +590,7 @@ impl LoweringContext {
                     constant: dim as i64 - 1,
                 });
             }
-            
+
             // Reduction dimension
             let reduce_size = shape.dims()[reduce_dim];
             let mut k_coeffs = vec![0; rank];
@@ -640,11 +632,13 @@ impl LoweringContext {
         };
 
         let schedule = AffineMap {
-            matrix: (0..rank).map(|i| {
-                let mut row = vec![0; rank];
-                row[i] = 1;
-                row
-            }).collect(),
+            matrix: (0..rank)
+                .map(|i| {
+                    let mut row = vec![0; rank];
+                    row[i] = 1;
+                    row
+                })
+                .collect(),
             symbol_matrix: vec![],
             constant: vec![0; rank],
         };
@@ -652,9 +646,7 @@ impl LoweringContext {
         Schedule {
             domain,
             schedule,
-            transforms: vec![
-                ScheduleTransform::Parallelize { loop_depth: 0 },
-            ],
+            transforms: vec![ScheduleTransform::Parallelize { loop_depth: 0 }],
         }
     }
 }
@@ -672,22 +664,22 @@ pub mod pir_lowering {
         let mut pir = String::new();
         pir.push_str("// Polyhedral IR\n");
         pir.push_str(&format!("domain {{\n"));
-        
+
         for constraint in &schedule.domain.constraints {
             pir.push_str(&format!("  {};\n", format_constraint(constraint)));
         }
-        
+
         pir.push_str("}\n\n");
         pir.push_str("schedule {\n");
         pir.push_str(&format_schedule(&schedule.schedule));
         pir.push_str("}\n\n");
-        
+
         pir.push_str("transforms {\n");
         for transform in &schedule.transforms {
             pir.push_str(&format!("  {};\n", format_transform(transform)));
         }
         pir.push_str("}\n");
-        
+
         pir
     }
 
@@ -718,7 +710,13 @@ pub mod pir_lowering {
                     parts.push(format!("{}*x{}", coeff, j));
                 }
             }
-            for (j, &coeff) in map.symbol_matrix.get(i).unwrap_or(&vec![]).iter().enumerate() {
+            for (j, &coeff) in map
+                .symbol_matrix
+                .get(i)
+                .unwrap_or(&vec![])
+                .iter()
+                .enumerate()
+            {
                 if coeff != 0 {
                     parts.push(format!("{}*s{}", coeff, j));
                 }
@@ -733,19 +731,31 @@ pub mod pir_lowering {
 
     fn format_transform(t: &ScheduleTransform) -> String {
         match t {
-            ScheduleTransform::Tile { loop_depth, tile_sizes } => {
+            ScheduleTransform::Tile {
+                loop_depth,
+                tile_sizes,
+            } => {
                 format!("tile({}, {:?})", loop_depth, tile_sizes)
             }
-            ScheduleTransform::Fuse { loop_depth1, loop_depth2 } => {
+            ScheduleTransform::Fuse {
+                loop_depth1,
+                loop_depth2,
+            } => {
                 format!("fuse({}, {})", loop_depth1, loop_depth2)
             }
-            ScheduleTransform::Vectorize { loop_depth, vector_width } => {
+            ScheduleTransform::Vectorize {
+                loop_depth,
+                vector_width,
+            } => {
                 format!("vectorize({}, {})", loop_depth, vector_width)
             }
             ScheduleTransform::Parallelize { loop_depth } => {
                 format!("parallelize({})", loop_depth)
             }
-            ScheduleTransform::Interchange { loop_depth1, loop_depth2 } => {
+            ScheduleTransform::Interchange {
+                loop_depth1,
+                loop_depth2,
+            } => {
                 format!("interchange({}, {})", loop_depth1, loop_depth2)
             }
             ScheduleTransform::Unroll { loop_depth, factor } => {
@@ -775,11 +785,7 @@ pub mod autotune {
     impl Default for TuningConfig {
         fn default() -> Self {
             Self {
-                tile_sizes: vec![
-                    vec![32, 32, 32],
-                    vec![64, 64, 64],
-                    vec![16, 16, 16],
-                ],
+                tile_sizes: vec![vec![32, 32, 32], vec![64, 64, 64], vec![16, 16, 16]],
                 vector_widths: vec![2, 4, 8, 16],
                 unroll_factors: vec![2, 4, 8],
             }
@@ -789,7 +795,7 @@ pub mod autotune {
     /// Generate tuning candidates for a schedule
     pub fn generate_candidates(schedule: &Schedule, config: &TuningConfig) -> Vec<Schedule> {
         let mut candidates = Vec::new();
-        
+
         for tile_sizes in &config.tile_sizes {
             for &vector_width in &config.vector_widths {
                 for &unroll_factor in &config.unroll_factors {
@@ -812,7 +818,7 @@ pub mod autotune {
                 }
             }
         }
-        
+
         candidates
     }
 }
@@ -824,33 +830,37 @@ pub mod naso_ir {
     /// Convert tensor operation to Naso IR nodes
     pub fn tensor_op_to_naso_ir(op: &TensorOp) -> Vec<NasoIrNode> {
         match op {
-            TensorOp::MatMul { lhs_shape, rhs_shape, out_shape } => {
-                vec![
-                    NasoIrNode::MatMul {
-                        lhs_shape: lhs_shape.clone(),
-                        rhs_shape: rhs_shape.clone(),
-                        out_shape: out_shape.clone(),
-                    }
-                ]
+            TensorOp::MatMul {
+                lhs_shape,
+                rhs_shape,
+                out_shape,
+            } => {
+                vec![NasoIrNode::MatMul {
+                    lhs_shape: lhs_shape.clone(),
+                    rhs_shape: rhs_shape.clone(),
+                    out_shape: out_shape.clone(),
+                }]
             }
             TensorOp::ElementWise { op, shape } => {
-                vec![
-                    NasoIrNode::ElementWise {
-                        op: *op,
-                        shape: shape.clone(),
-                    }
-                ]
+                vec![NasoIrNode::ElementWise {
+                    op: *op,
+                    shape: shape.clone(),
+                }]
             }
-            TensorOp::Contraction { lhs_shape, rhs_shape, lhs_dim, rhs_dim, out_shape } => {
-                vec![
-                    NasoIrNode::Contraction {
-                        lhs_shape: lhs_shape.clone(),
-                        rhs_shape: rhs_shape.clone(),
-                        lhs_dim: *lhs_dim,
-                        rhs_dim: *rhs_dim,
-                        out_shape: out_shape.clone(),
-                    }
-                ]
+            TensorOp::Contraction {
+                lhs_shape,
+                rhs_shape,
+                lhs_dim,
+                rhs_dim,
+                out_shape,
+            } => {
+                vec![NasoIrNode::Contraction {
+                    lhs_shape: lhs_shape.clone(),
+                    rhs_shape: rhs_shape.clone(),
+                    lhs_dim: *lhs_dim,
+                    rhs_dim: *rhs_dim,
+                    out_shape: out_shape.clone(),
+                }]
             }
             _ => vec![],
         }

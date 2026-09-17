@@ -5,14 +5,14 @@
 //! polyhedral encoders.
 
 use crate::error::{LoweringError, LoweringError::*, VerifyError};
-use crate::quantity::{encode_quantity_expr, QuantityKind, QuantityTracker};
-use crate::quantum::{encode_quantum_expr, QuantumTracker};
+use crate::quantity::{QuantityKind, QuantityTracker, encode_quantity_expr};
+use crate::quantum::{QuantumTracker, encode_quantum_expr};
 use naso_compiler::ast::{Expr, Function, Program, Quantity, Type};
 
 #[cfg(feature = "z3")]
-use crate::mvs::{encode_mvs_function, MvsTracker};
+use crate::mvs::{MvsTracker, encode_mvs_function};
 #[cfg(feature = "z3")]
-use crate::polyhedral::{encode_polyhedral_function, PolyhedralTracker};
+use crate::polyhedral::{PolyhedralTracker, encode_polyhedral_function};
 
 #[cfg(feature = "z3")]
 /// Main lowering context that holds all trackers.

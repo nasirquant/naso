@@ -33,7 +33,7 @@ pub fn hadamard(qubit: Qubit) -> Qubit {
     extern "C" {
         fn __quantum__qis__h__body(qubit: Qubit);
     }
-    unsafe { 
+    unsafe {
         __quantum__qis__h__body(qubit);
         qubit // Return the same qubit (now transformed)
     }
@@ -48,7 +48,7 @@ pub fn cnot(control: Qubit, target: Qubit) -> (Qubit, Qubit) {
     extern "C" {
         fn __quantum__qis__cnot__body(control: Qubit, target: Qubit);
     }
-    unsafe { 
+    unsafe {
         __quantum__qis__cnot__body(control, target);
         (control, target) // Return both qubits (now transformed)
     }
