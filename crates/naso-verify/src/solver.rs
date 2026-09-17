@@ -149,10 +149,15 @@ impl Solver {
         config: &SolverConfig,
     ) -> Result<z3::Solver<'static>, VerifyError> {
         // Use a fresh solver for each check if not incremental
-        let solver = z3::Solver::new(ctx);
+        let solver = if config.incremental {
+            z3::Solver::new(ctx)
+        } else {
+            z3::Solver::new(ctx)
+        };
 
         // Set logic on solver
-        ctx.set_logic(config.logic.as_str())
+        solver
+            .set_logic(config.logic.as_str())
             .map_err(|e| VerifyError::Solver(SolverError::Z3Error(e.to_string())))?;
 
         Ok(solver)
@@ -258,13 +263,9 @@ impl Solver {
             z3::SatResult::Unsat => {
                 let unsat_core = if self.config.produce_unsat_cores {
                     Some(
-                        UnsatCore::from_z3(
-                            solver.get_unsat_core().map(|v| v.into_iter().collect()),
-                            &self.assertion_ids,
-                        )
-                        .map_err(|e| {
-                            VerifyError::Solver(SolverError::UnsatCoreExtractionFailed(e))
-                        })?,
+                        UnsatCore::from_z3(solver.get_unsat_core(), &self.assertion_ids).map_err(
+                            |e| VerifyError::Solver(SolverError::UnsatCoreExtractionFailed(e)),
+                        )?,
                     )
                 } else {
                     None
@@ -274,7 +275,6 @@ impl Solver {
             z3::SatResult::Unknown => {
                 let reason = solver
                     .get_reason_unknown()
-                    .map(|s| s.to_string())
                     .unwrap_or_else(|| "Unknown reason".to_string());
                 Ok(VerifyResult::Unknown(reason))
             }
@@ -322,8 +322,7 @@ pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, Ve
     })?;
 
     // Use Z3's SMT-LIB2 parser
-    let ast_vec = ctx
-        .parse_smtlib2_string(smt_script, &[], &[], &[], &[])
+    let ast_vec = z3::ast::Ast::parse_smtlib2_string(ctx, smt_script, &[], &[], &[], &[])
         .map_err(|e| VerifyError::Solver(SolverError::ParseError(e.to_string())))?;
 
     // Assert all parsed formulas

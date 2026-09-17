@@ -138,10 +138,10 @@ mod z3_models {
 
             if let Some(m) = z3_model {
                 for decl in m.get_func_decls() {
-                    let name = decl.get_name().to_string();
-                    let sort = decl.get_range();
+                    let name = decl.name().to_string();
+                    let sort = decl.range();
 
-                    if decl.get_arity() == 0 {
+                    if decl.arity() == 0 {
                         if let Some(value) = m.get_const_interp(&decl) {
                             model.assignments.insert(name, ModelValue::from_z3(&value)?);
                         }
@@ -202,7 +202,7 @@ mod z3_models {
     impl ModelValue {
         fn from_z3(value: &z3::ast::Ast<'_>) -> Result<Self, String> {
             let sort = value.get_sort();
-            let kind = sort.get_kind();
+            let kind = sort.kind();
 
             match kind {
                 z3::SortKind::Int => value
@@ -214,7 +214,7 @@ mod z3_models {
                     .ok_or_else(|| "Failed to extract bool value".to_string())
                     .map(ModelValue::Bool),
                 z3::SortKind::BitVec => {
-                    let width = sort.get_bv_size().ok_or("Invalid BV sort")?;
+                    let width = sort.bv_size().ok_or("Invalid BV sort")?;
                     value
                         .as_u64()
                         .ok_or_else(|| "Failed to extract BV value".to_string())

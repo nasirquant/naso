@@ -15,7 +15,7 @@ z3 = ["dep:z3"]
 naso-compiler = { path = "../../compiler" }
 
 # SMT Solver
-z3 = { version = "0.21", features = ["bundled"], optional = true }
+z3 = { version = "0.13", features = ["vendored"], optional = true }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
