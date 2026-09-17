@@ -43,6 +43,9 @@ jobs:
       - name: Build
         run: cd docs && hugo --minify --destination public
 
+      - name: Add .nojekyll file
+        run: touch docs/public/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
