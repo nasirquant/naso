@@ -1,0 +1,10 @@
+# /netlify.toml (Repository Root)
+
+[build]
+  base    = "docs"
+  command = "hugo --gc --minify"
+  publish = "public"
+
+[build.environment]
+  HUGO_VERSION = "0.128.0"
+  HUGO_ENV     = "production"
