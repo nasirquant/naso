@@ -23,7 +23,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "cranelift"))]
 mod tests {
     use super::*;
 

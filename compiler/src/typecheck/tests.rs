@@ -339,6 +339,39 @@ mod tests {
         "#;
         assert!(check_source(source).is_ok());
     }
+
+    /// Test that gate then measure works (gate borrows, measure consumes)
+    #[test]
+    fn test_gate_then_measure_works() {
+        let source = r#"
+            fn test() {
+                let [1] q = qalloc();
+                hadamard(q); // borrows q
+                measure(q); // consumes q
+            }
+        "#;
+        assert!(check_source(source).is_ok());
+    }
+
+    /// Test that measure then gate fails (measure consumes, gate finds moved)
+    #[test]
+    fn test_measure_then_gate_fails() {
+        let source = r#"
+            fn test() {
+                let [1] q = qalloc();
+                measure(q); // consumes q
+                hadamard(q); // ERROR: use of moved value
+            }
+        "#;
+        let result = check_source(source);
+        assert!(result.is_err(), "Measure then gate should fail");
+        let errors = result.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, TypeError::UseOfMovedValue { .. }))
+        );
+    }
 }
 
 /// Unit tests for quantity unification and lattice operations (TASK-205)

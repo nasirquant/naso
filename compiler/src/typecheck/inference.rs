@@ -10,7 +10,6 @@ use crate::ast::ty::{TypeKind, TypeVar};
 use crate::ast::*;
 use crate::typecheck::check::{check_block, check_stmt};
 use crate::typecheck::error::TypeError;
-use crate::typecheck::type_env::Place;
 use crate::typecheck::*;
 
 /// Infer the type of an expression (synthesis mode)
@@ -838,18 +837,46 @@ fn infer_quantum_op(
             Ok(Type::new(TypeKind::Bool, Quantity::One, span))
         }
         QuantumOp::ApplyGate(_gate, args) => {
-            // Quantum gates are in-place operations that borrow qubits
-            // (like inout), they don't consume them
+            // Quantum gates are in-place operations that borrow qubits temporarily
+            // They don't consume the qubit and don't create persistent borrows
             for arg in args {
-                let arg_ty = infer_expr(checker, arg)?;
+                // Get the type without consuming the variable (borrow mode)
+                // For variables, we look up the type directly without recording a use
+                let arg_ty = if let ExprKind::Var(ident) = &arg.kind {
+                    if let Some(info) = checker.env.lookup_var(ident) {
+                        // Check that the qubit is available (not moved)
+                        if info.moved {
+                            return Err(TypeError::UseOfMovedValue {
+                                name: ident.clone(),
+                                moved_at: info.used_at.last().cloned().unwrap_or(span),
+                                used_at: span,
+                            });
+                        }
+                        // Check for Zero quantity - erased variables cannot be used at runtime
+                        if info.quantity == Quantity::Zero {
+                            return Err(TypeError::ErasedVariableUsedAtRuntime {
+                                name: ident.clone(),
+                                span: arg.span,
+                            });
+                        }
+                        let mut ty = info.ty.clone();
+                        ty.quantity = info.quantity;
+                        // Don't call use_var here - we're borrowing temporarily, not consuming
+                        ty
+                    } else {
+                        return Err(TypeError::VariableNotAvailable {
+                            name: ident.clone(),
+                            reason: "undefined variable".to_string(),
+                            span: arg.span,
+                        });
+                    }
+                } else {
+                    // For non-variable expressions (e.g., field access), infer normally
+                    infer_expr(checker, arg)?
+                };
                 // Validate that argument is a Qubit with quantity 1
                 unify::unify_types(checker, &arg_ty, &Type::qubit(span))?;
-                // Borrow the qubit for the gate operation (in-place, like inout)
-                if let ExprKind::Var(ident) = &arg.kind {
-                    checker
-                        .env
-                        .borrow_inout(ident.clone(), Place::Var(ident.clone()), span)?;
-                }
+                // No persistent borrow - gate borrows only for the expression duration
             }
             Ok(Type::unit(span))
         }

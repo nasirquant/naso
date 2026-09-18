@@ -62,7 +62,7 @@ impl Drop for JitEngine {
 unsafe impl Send for JitEngine {}
 unsafe impl Sync for JitEngine {}
 
-#[cfg(test)]
+#[cfg(all(test, feature = "cranelift"))]
 mod tests {
     use super::*;
 

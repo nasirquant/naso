@@ -1,5 +1,6 @@
 pub mod dispatcher;
 pub mod exporter;
+#[cfg(feature = "cranelift")]
 pub mod jit;
 /// Naso Runtime Execution Engine
 ///
