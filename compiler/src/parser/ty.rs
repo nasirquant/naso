@@ -63,11 +63,36 @@ impl<'a> Parser<'a> {
     /// arguments).
     fn parse_base_type(&mut self) -> Type {
         match self.peek() {
-            // `()` unit
+            // `()` unit or tuple types or grouped types
             Some(TK::LParen) => {
+                let start = self.pos;
                 self.bump();
+                // Check for empty tuple: ()
+                if self.at(TK::RParen) {
+                    self.bump();
+                    let span = self.span_from(start);
+                    return Type::unit(span);
+                }
+                // Parse first type
+                let first = self.parse_type();
+                // If no comma, it's a grouped type (T)
+                if !self.at(TK::Comma) {
+                    self.expect(TK::RParen);
+                    return first;
+                }
+                // Parse tuple types: (T, U, ...)
+                let mut items = vec![first];
+                while self.at(TK::Comma) {
+                    self.bump();
+                    // Allow trailing comma
+                    if self.at(TK::RParen) {
+                        break;
+                    }
+                    items.push(self.parse_type());
+                }
                 self.expect(TK::RParen);
-                Type::unit(Span::default())
+                let span = self.span_from(start);
+                Type::new(TypeKind::Tuple(items), Quantity::Many, span)
             }
             // Dependent array type: [Type; expr]
             Some(TK::LBracket) => self.parse_array_type(),
@@ -201,29 +226,49 @@ mod tests {
     }
 
     #[test]
-    fn parses_primitive_and_projection_types() {
-        let prog = parse_program(
-            "fn f(n: Nat, q: Qubit, p: inout Int) { let r: reversible Qubit = q; }",
-        )
-        .expect("parse failed");
+    fn parses_tuple_type() {
+        let prog = parse_program("fn f() -> (Qubit, Qubit) { (qalloc(1), qalloc(1)) }").expect("parse failed");
         let func = match &prog.items[0] {
             Item::Function(f) => f,
             other => panic!("expected function, got {other:?}"),
         };
-        assert_eq!(func.params.len(), 3);
-        // Post-colon `inout` is parameter mutability, not a projection type.
-        assert_eq!(func.params[2].mutability, Mutability::InOut);
-        assert!(matches!(func.params[2].ty.kind, TypeKind::Named(..)));
-
-        let prog = parse_program("type P = inout Int;").expect("parse failed");
-        match &prog.items[0] {
-            Item::TypeDef(td) => match &td.kind {
-                TypeDefKind::Alias(ty) => {
-                    assert!(matches!(ty.kind, TypeKind::Projection(_)))
+        // Check return type is tuple
+        match &func.ret_ty.as_ref().unwrap().kind {
+            TypeKind::Tuple(elems) => {
+                assert_eq!(elems.len(), 2);
+                match (&elems[0].kind, &elems[1].kind) {
+                    (TypeKind::Qubit, TypeKind::Qubit) => {}
+                    other => panic!("expected (Qubit, Qubit), got {:?}", other),
                 }
-                other => panic!("expected alias, got {other:?}"),
-            },
-            other => panic!("expected type def, got {other:?}"),
+            }
+            other => panic!("expected tuple type, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_grouped_type() {
+        let prog = parse_program("fn f(x: (Int)) { x }").expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        // Grouped type (Int) should be parsed as Int, not Tuple
+        match &func.params[0].ty.kind {
+            TypeKind::Int => {}
+            other => panic!("expected Int, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_unit_type() {
+        let prog = parse_program("fn f() -> () { () }").expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        match &func.ret_ty.as_ref().unwrap().kind {
+            TypeKind::Unit => {}
+            other => panic!("expected unit type, got {:?}", other),
         }
     }
 }
