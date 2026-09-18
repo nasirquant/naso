@@ -113,7 +113,9 @@ impl<'a> Parser<'a> {
         } else {
             // let [qty] mut? name = value;
             let quantity = self.parse_quantity().unwrap_or(Quantity::Many);
-            let mutability = if self.eat(TK::InOut) {
+            let mutability = if self.eat(TK::Mut) {
+                Mutability::Mut
+            } else if self.eat(TK::InOut) {
                 Mutability::InOut
             } else if self.eat(TK::Consume) {
                 Mutability::Consume

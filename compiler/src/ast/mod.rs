@@ -114,6 +114,8 @@ impl fmt::Display for Quantity {
 pub enum Mutability {
     /// Immutable binding (default)
     Immutable,
+    /// Mutable binding (mut)
+    Mut,
     /// Mutable via inout projection (no aliasing)
     InOut,
     /// Consumed exactly once (linear move)
@@ -124,6 +126,7 @@ impl fmt::Display for Mutability {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Mutability::Immutable => write!(f, ""),
+            Mutability::Mut => write!(f, "mut "),
             Mutability::InOut => write!(f, "inout "),
             Mutability::Consume => write!(f, "consume "),
         }

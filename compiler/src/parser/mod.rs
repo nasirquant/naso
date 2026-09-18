@@ -685,4 +685,48 @@ mod tests {
             other => panic!("expected expr stmt, got {other:?}"),
         }
     }
+
+    #[test]
+    fn parses_let_mut_binding() {
+        let prog = parse_program(
+            r#"
+            fn f() {
+                let x = 1;
+                let mut sum = 0.0;
+                sum = sum + 1.0;
+            }
+        "#,
+        )
+        .expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        // Check first let binding (immutable)
+        match &func.body.stmts[0].kind {
+            StmtKind::Let(LetStmt { name, mutability, .. }) => {
+                assert_eq!(name.name, "x");
+                assert_eq!(mutability, Mutability::Immutable);
+            }
+            other => panic!("expected let stmt, got {other:?}"),
+        }
+        // Check second let binding (mut)
+        match &func.body.stmts[1].kind {
+            StmtKind::Let(LetStmt { name, mutability, .. }) => {
+                assert_eq!(name.name, "sum");
+                assert_eq!(mutability, Mutability::Mut);
+            }
+            other => panic!("expected let mut stmt, got {other:?}"),
+        }
+        // Check assignment statement
+        match &func.body.stmts[2].kind {
+            StmtKind::Expr(e) => match &e.kind {
+                ExprKind::Assign(lhs, rhs) => {
+                    assert!(matches!(lhs.kind, ExprKind::Var(_)));
+                }
+                other => panic!("expected assign, got {other:?}"),
+            },
+            other => panic!("expected expr stmt, got {other:?}"),
+        }
+    }
 }

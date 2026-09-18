@@ -87,6 +87,8 @@ pub enum TokenKind {
     InOut,
     #[regex("[cC][oO][nN][sS][uU][mM][eE]", priority = 3)]
     Consume,
+    #[regex("[mM][uU][tT]", priority = 3)]
+    Mut,
     #[regex("[rR][eE][vV][eE][rR][sS][iI][bB][lL][eE]", priority = 3)]
     Reversible,
     #[regex("[rR][eE][tT][uU][rR][nN]", priority = 3)]
@@ -282,6 +284,7 @@ impl TokenKind {
             TokenKind::Mod => "'mod'",
             TokenKind::Import => "'import'",
             TokenKind::Const => "'const'",
+            TokenKind::Mut => "'mut'",
             TokenKind::Int8 => "'i8'",
             TokenKind::Int16 => "'i16'",
             TokenKind::Int32 => "'i32'",
