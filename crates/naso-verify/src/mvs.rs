@@ -10,9 +10,9 @@ use crate::smtlib::{Sort, Term, builder::*};
 #[cfg(feature = "z3")]
 use indexmap::IndexMap;
 #[cfg(feature = "z3")]
-use naso_compiler::ast::{Mutability, Span};
-#[cfg(feature = "z3")]
 use naso_compiler::ast::expr::ExprKind;
+#[cfg(feature = "z3")]
+use naso_compiler::ast::{Mutability, Span};
 
 #[cfg(feature = "z3")]
 /// Represents an `inout` parameter with its frame condition.

@@ -4,6 +4,8 @@
 //! re-running the solver on unchanged code.
 
 #[cfg(feature = "z3")]
+use crate::config::SolverConfig;
+#[cfg(feature = "z3")]
 use crate::error::{CacheError, VerifyError};
 #[cfg(feature = "z3")]
 use crate::solver::VerifyResult;

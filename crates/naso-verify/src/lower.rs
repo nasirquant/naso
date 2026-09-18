@@ -7,12 +7,12 @@
 use crate::error::{LoweringError, LoweringError::*, VerifyError};
 use crate::quantity::{QuantityKind, QuantityTracker, encode_quantity_expr};
 use crate::quantum::{QuantumTracker, encode_quantum_expr};
-use naso_compiler::ast::{Expr, Function, Program, Mutability};
+use naso_compiler::ast::{Expr, Function, Mutability, Program};
 
 #[cfg(feature = "z3")]
 use crate::mvs::{MvsTracker, encode_mvs_function};
 #[cfg(feature = "z3")]
-use crate::polyhedral::{PolyhedralTracker, encode_polyhedral_function};
+use crate::polyhedral::{PolyhedralTracker, encode_polyhedral_expr, encode_polyhedral_function};
 #[cfg(feature = "z3")]
 use crate::smtlib::{Script, Sort, builder::*};
 

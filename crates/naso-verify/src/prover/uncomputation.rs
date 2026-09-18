@@ -143,6 +143,12 @@ fn prove_function_uncomputation(func: &Function) -> Result<Vec<VerifyDiagnostic>
         return Ok(Vec::new());
     }
 
+    // Collect qubits before finalize() takes ownership of ctx
+    let qubits: Vec<_> = temp_qubits
+        .iter()
+        .filter_map(|id| ctx.quantum.get_qubit(id).cloned())
+        .collect();
+
     let uncomputation_constraints = ctx.quantum.generate_uncomputation_constraints();
     let gate_constraints = ctx.quantum.generate_gate_constraints();
 
@@ -160,12 +166,10 @@ fn prove_function_uncomputation(func: &Function) -> Result<Vec<VerifyDiagnostic>
     let result = verify(&smt_script, config)?;
 
     let mut diagnostics = Vec::new();
-    for temp_id in temp_qubits {
-        if let Some(qubit) = ctx.quantum.get_qubit(&temp_id) {
-            let diag = extract_uncomputation_diagnostic(&result, &func.name.name, qubit);
-            if let Some(d) = diag {
-                diagnostics.push(d);
-            }
+    for qubit in qubits {
+        let diag = extract_uncomputation_diagnostic(&result, &func.name.name, &qubit);
+        if let Some(d) = diag {
+            diagnostics.push(d);
         }
     }
 

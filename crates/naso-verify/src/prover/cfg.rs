@@ -224,26 +224,40 @@ impl ControlFlowGraph {
                 let header_id = self.new_node(
                     CfgNodeKind::LoopHeader {
                         index: loop_.var.clone(),
-                        domain: *loop_.iter.clone(),
+                        domain: loop_.iter.clone(),
                         body: 0,
                     },
                     expr.span,
                 );
                 self.add_edge(entry_id, header_id);
 
-                let body_expr = loop_.body.expr.clone().unwrap_or(Expr::new(
-                    ExprKind::Literal(naso_compiler::ast::Literal::Unit),
+                let body_expr = loop_.body.expr.clone().unwrap_or_else(|| {
+                    Box::new(naso_compiler::ast::Expr::new(
+                        ExprKind::Literal(naso_compiler::ast::Literal::Unit),
+                        expr.span,
+                        naso_compiler::ast::NodeId::default(),
+                    ))
+                });
+                let body_id = self.new_node(
+                    CfgNodeKind::Stmt(Stmt::new(
+                        StmtKind::Expr(*body_expr.clone()),
+                        expr.span,
+                        naso_compiler::ast::NodeId::default(),
+                    )),
                     expr.span,
-                    naso_compiler::ast::NodeId::default(),
-                ));
-                let body_id =
-                    self.new_node(CfgNodeKind::Stmt(Stmt::Expr(body_expr.clone())), expr.span);
+                );
                 let body_exit = self.build_from_expr(&body_expr, body_id)?;
 
                 for stmt in &loop_.body.stmts {
                     if let StmtKind::Expr(stmt_expr) = &stmt.kind {
-                        let stmt_id = self
-                            .new_node(CfgNodeKind::Stmt(Stmt::Expr(stmt_expr.clone())), expr.span);
+                        let stmt_id = self.new_node(
+                            CfgNodeKind::Stmt(Stmt::new(
+                                StmtKind::Expr(stmt_expr.clone()),
+                                expr.span,
+                                naso_compiler::ast::NodeId::default(),
+                            )),
+                            expr.span,
+                        );
                         self.add_edge(body_exit, stmt_id);
                     }
                 }
@@ -278,8 +292,14 @@ impl ControlFlowGraph {
             | ExprKind::MethodCall(_, _, _)
             | ExprKind::QuantumOp(_)
             | _ => {
-                let stmt_node =
-                    self.new_node(CfgNodeKind::Stmt(Stmt::Expr(expr.clone())), expr.span);
+                let stmt_node = self.new_node(
+                    CfgNodeKind::Stmt(Stmt::new(
+                        StmtKind::Expr(expr.clone()),
+                        expr.span,
+                        naso_compiler::ast::NodeId::default(),
+                    )),
+                    expr.span,
+                );
                 self.add_edge(entry_id, stmt_node);
                 Ok(stmt_node)
             }

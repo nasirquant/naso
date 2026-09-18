@@ -243,7 +243,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn run_provers_for_case(
     program: &naso_compiler::ast::Program,
-    func_name: &str,
+    _func_name: &str,
     provers: &[String],
 ) -> Result<Vec<naso_verify::model::VerifyDiagnostic>, String> {
     // Filter program to just the target function

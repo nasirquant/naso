@@ -291,7 +291,7 @@ pub fn encode_polyhedral_expr(
                 constraints.extend(encode_polyhedral_expr(body_expr.as_ref(), tracker)?);
             }
             for stmt in &loop_expr.body.stmts {
-                if let Some(stmt_expr) = &stmt.expr {
+                if let naso_compiler::ast::StmtKind::Expr(stmt_expr) = &stmt.kind {
                     constraints.extend(encode_polyhedral_expr(stmt_expr, tracker)?);
                 }
             }
@@ -305,22 +305,22 @@ pub fn encode_polyhedral_expr(
         }
         ExprKind::Let(binding) => {
             constraints.extend(encode_polyhedral_expr(&binding.value, tracker)?);
-            constraints.extend(encode_polyhedral_expr(&binding.body, tracker)?);
+            // Let binding body is handled by the outer context
         }
         ExprKind::LetInOut(binding) => {
             constraints.extend(encode_polyhedral_expr(&binding.value, tracker)?);
-            constraints.extend(encode_polyhedral_expr(&binding.body, tracker)?);
+            // LetInOut binding body is handled by the outer context
         }
         ExprKind::LetConsume(binding) => {
             constraints.extend(encode_polyhedral_expr(&binding.value, tracker)?);
-            constraints.extend(encode_polyhedral_expr(&binding.body, tracker)?);
+            // LetConsume binding body is handled by the outer context
         }
         ExprKind::Block(block) => {
             if let Some(body_expr) = &block.expr {
                 constraints.extend(encode_polyhedral_expr(body_expr.as_ref(), tracker)?);
             }
             for stmt in &block.stmts {
-                if let Some(stmt_expr) = &stmt.expr {
+                if let naso_compiler::ast::StmtKind::Expr(stmt_expr) = &stmt.kind {
                     constraints.extend(encode_polyhedral_expr(stmt_expr, tracker)?);
                 }
             }

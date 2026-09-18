@@ -1,8 +1,7 @@
 // Integration tests for the prover module.
-use naso_compiler::ast::Program;
 use naso_compiler::parser::parse_program;
-use naso_verify::{
-    prove_custom_vc, prove_linearity, prove_uncomputation, run_all_provers, run_linearity_prover,
+use naso_verify::prover::{
+    prove_linearity, prove_uncomputation, run_all_provers, run_linearity_prover,
     run_uncomputation_prover,
 };
 
@@ -11,7 +10,6 @@ fn test_prover_module_compiles() {
     // Smoke test - all prover functions should be accessible
     let _ = prove_uncomputation;
     let _ = prove_linearity;
-    let _ = prove_custom_vc;
     let _ = run_all_provers;
     let _ = run_uncomputation_prover;
     let _ = run_linearity_prover;

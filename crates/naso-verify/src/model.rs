@@ -116,6 +116,10 @@ impl Default for VerifyDiagnostic {
 mod z3_models {
     use super::*;
     use crate::solver::VerifyResult;
+    use z3::FuncDecl;
+    use z3::Sort;
+    use z3::ast::{Ast, BV, Bool, Dynamic, Int};
+    use z3_sys::Z3_get_bv_sort_size;
 
     /// Extracted model from a SAT result.
     #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -142,7 +146,9 @@ mod z3_models {
                     let _sort_kind = decl.range();
 
                     if decl.arity() == 0 {
-                        if let Some(value) = m.get_const_interp(decl) {
+                        // For constants (arity 0), apply with no args to get the Ast
+                        let const_ast = decl.apply(&[]);
+                        if let Some(value) = m.get_const_interp(&const_ast) {
                             model.assignments.insert(name, ModelValue::from_z3(&value)?);
                         }
                     } else {
@@ -200,24 +206,39 @@ mod z3_models {
     }
 
     impl ModelValue {
-        fn from_z3(value: &dyn z3::ast::Ast) -> Result<Self, String> {
+        fn from_z3(value: &Dynamic) -> Result<Self, String> {
             let sort = value.get_sort();
-            let kind = sort.get_kind();
+            let kind = sort.kind();
 
             match kind {
                 z3::SortKind::Int => value
-                    .as_i64()
+                    .as_int()
                     .ok_or_else(|| "Failed to extract int value".to_string())
+                    .and_then(|v| {
+                        v.as_i64()
+                            .ok_or_else(|| "Failed to convert int".to_string())
+                    })
                     .map(ModelValue::Int),
                 z3::SortKind::Bool => value
                     .as_bool()
                     .ok_or_else(|| "Failed to extract bool value".to_string())
+                    .and_then(|v| {
+                        v.as_bool()
+                            .ok_or_else(|| "Failed to convert bool".to_string())
+                    })
                     .map(ModelValue::Bool),
-                z3::SortKind::BitVec => {
-                    let width = sort.get_bv_size().ok_or("Invalid BV sort")?;
+                z3::SortKind::Bv => {
+                    // Use z3_sys to get bitvector size since Sort doesn't have a public method for this
+                    let ctx = z3::Context::thread_local();
+                    let width =
+                        unsafe { Z3_get_bv_sort_size(ctx.get_z3_context(), sort.get_z3_sort()) };
+                    if width == 0 {
+                        return Err("Invalid BV sort".to_string());
+                    }
                     value
-                        .as_u64()
+                        .as_bv()
                         .ok_or_else(|| "Failed to extract BV value".to_string())
+                        .and_then(|v| v.as_u64().ok_or_else(|| "Failed to convert BV".to_string()))
                         .map(|v| ModelValue::BitVec(width, v))
                 }
                 z3::SortKind::Real => Ok(ModelValue::Real(value.to_string())),
@@ -306,10 +327,7 @@ mod z3_models {
             for loc in &self.locations {
                 out.push_str(&format!(
                     "  {} at <unknown>:{}:{} = {}\n",
-                    loc.variable,
-                    loc.span.line,
-                    loc.span.column,
-                    loc.value
+                    loc.variable, loc.span.line, loc.span.column, loc.value
                 ));
             }
             out

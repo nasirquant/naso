@@ -96,30 +96,31 @@ impl Solver {
 
     /// Create Z3 context with configuration.
     fn create_context(config: &SolverConfig) -> Result<z3::Context, VerifyError> {
-        let cfg = z3::Config::new();
+        // Use thread-local context and configure it
+        let mut ctx = z3::Context::thread_local();
 
         // Set logic
-        cfg.set_param_value("logic", config.logic.as_str());
+        ctx.update_param_value("logic", config.logic.as_str());
 
         // Set timeout
-        cfg.set_param_value("timeout", &config.timeout.as_millis().to_string());
+        ctx.update_param_value("timeout", &config.timeout.as_millis().to_string());
 
         // Set memory limit (advisory)
-        cfg.set_param_value("memory_limit", &config.memory_mb.to_string());
+        ctx.update_param_value("memory_limit", &config.memory_mb.to_string());
 
         // Set random seed for reproducibility
         if let Some(seed) = config.seed {
-            cfg.set_param_value("random_seed", &seed.to_string());
+            ctx.update_param_value("random_seed", &seed.to_string());
         }
 
         // Set number of threads
         if config.threads > 0 {
-            cfg.set_param_value("parallel.enable", "true");
-            cfg.set_param_value("parallel.threads_max", &config.threads.to_string());
+            ctx.update_param_value("parallel.enable", "true");
+            ctx.update_param_value("parallel.threads_max", &config.threads.to_string());
         }
 
         // Enable model generation
-        cfg.set_param_value(
+        ctx.update_param_value(
             "model",
             if config.produce_models {
                 "true"
@@ -129,7 +130,7 @@ impl Solver {
         );
 
         // Enable unsat core generation
-        cfg.set_param_value(
+        ctx.update_param_value(
             "unsat_core",
             if config.produce_unsat_cores {
                 "true"
@@ -138,8 +139,7 @@ impl Solver {
             },
         );
 
-        // Create context
-        z3::Context::new(&cfg).map_err(|e| VerifyError::Solver(SolverError::ContextFailed(e.to_string())))
+        Ok(ctx)
     }
 
     /// Create Z3 solver from context.
@@ -216,7 +216,10 @@ impl Solver {
     }
 
     /// Check satisfiability with optional assumptions.
-    pub fn check_sat(&mut self, assumptions: &[&z3::ast::Bool]) -> Result<VerifyResult, VerifyError> {
+    pub fn check_sat(
+        &mut self,
+        assumptions: &[z3::ast::Bool],
+    ) -> Result<VerifyResult, VerifyError> {
         let solver = self.solver.as_mut().ok_or_else(|| {
             VerifyError::Solver(SolverError::ContextFailed(
                 "Solver not initialized".to_string(),
@@ -257,15 +260,9 @@ impl Solver {
                     if core.is_empty() {
                         None
                     } else {
-                        Some(
-                            UnsatCore::from_z3(
-                                core,
-                                &self.assertion_ids,
-                            )
-                            .map_err(|e| {
-                                VerifyError::Solver(SolverError::UnsatCoreExtractionFailed(e))
-                            })?,
-                        )
+                        Some(UnsatCore::from_z3(core, &self.assertion_ids).map_err(|e| {
+                            VerifyError::Solver(SolverError::UnsatCoreExtractionFailed(e))
+                        })?)
                     }
                 } else {
                     None
@@ -316,11 +313,15 @@ pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, Ve
     let mut solver = Solver::new(config)?;
 
     // Parse SMT-LIB2 script using high-level API
-    solver.solver.as_mut().ok_or_else(|| {
-        VerifyError::Solver(SolverError::ContextFailed(
-            "Solver not initialized".to_string(),
-        ))
-    })?.from_string(smt_script);
+    solver
+        .solver
+        .as_mut()
+        .ok_or_else(|| {
+            VerifyError::Solver(SolverError::ContextFailed(
+                "Solver not initialized".to_string(),
+            ))
+        })?
+        .from_string(smt_script);
 
     // Check satisfiability
     solver.check_sat(&[])
