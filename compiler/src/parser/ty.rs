@@ -128,6 +128,54 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Type::new(TypeKind::Float, Quantity::Many, Span::default())
             }
+            Some(TK::Int8) => {
+                self.bump();
+                Type::new(TypeKind::Int, Quantity::Many, Span::default())
+            }
+            Some(TK::Int16) => {
+                self.bump();
+                Type::new(TypeKind::Int, Quantity::Many, Span::default())
+            }
+            Some(TK::Int32) => {
+                self.bump();
+                Type::new(TypeKind::Int, Quantity::Many, Span::default())
+            }
+            Some(TK::Int64) => {
+                self.bump();
+                Type::new(TypeKind::Int, Quantity::Many, Span::default())
+            }
+            Some(TK::ISize) => {
+                self.bump();
+                Type::new(TypeKind::Int, Quantity::Many, Span::default())
+            }
+            Some(TK::UInt8) => {
+                self.bump();
+                Type::new(TypeKind::UInt, Quantity::Many, Span::default())
+            }
+            Some(TK::UInt16) => {
+                self.bump();
+                Type::new(TypeKind::UInt, Quantity::Many, Span::default())
+            }
+            Some(TK::UInt32) => {
+                self.bump();
+                Type::new(TypeKind::UInt, Quantity::Many, Span::default())
+            }
+            Some(TK::UInt64) => {
+                self.bump();
+                Type::new(TypeKind::UInt, Quantity::Many, Span::default())
+            }
+            Some(TK::USize) => {
+                self.bump();
+                Type::new(TypeKind::UInt, Quantity::Many, Span::default())
+            }
+            Some(TK::Float32) => {
+                self.bump();
+                Type::new(TypeKind::Float, Quantity::Many, Span::default())
+            }
+            Some(TK::Float64) => {
+                self.bump();
+                Type::new(TypeKind::Float, Quantity::Many, Span::default())
+            }
             Some(TK::TypeIdent(_)) | Some(TK::QRegister) => self.parse_named_type(),
             Some(TK::Ident(_)) if self.at_ident("int") => {
                 self.bump();
@@ -274,6 +322,85 @@ mod tests {
         match &func.ret_ty.as_ref().unwrap().kind {
             TypeKind::Unit => {}
             other => panic!("expected unit type, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_primitive_type_i32() {
+        let prog = parse_program("fn f(x: [1] i32) -> i32 { x }").expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.params[0].ty.quantity, Quantity::One);
+        match &func.params[0].ty.kind {
+            TypeKind::Int => {}
+            other => panic!("expected Int, got {:?}", other),
+        }
+        match &func.ret_ty.as_ref().unwrap().kind {
+            TypeKind::Int => {}
+            other => panic!("expected Int, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_primitive_type_f64() {
+        let prog = parse_program("fn f(x: [1] f64) -> f64 { x }").expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.params[0].ty.quantity, Quantity::One);
+        match &func.params[0].ty.kind {
+            TypeKind::Float => {}
+            other => panic!("expected Float, got {:?}", other),
+        }
+        match &func.ret_ty.as_ref().unwrap().kind {
+            TypeKind::Float => {}
+            other => panic!("expected Float, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_primitive_types_all() {
+        // Test all signed integer types
+        for ty in ["i8", "i16", "i32", "i64", "isize"] {
+            let src = format!("fn f(x: [1] {ty}) -> {ty} {{ x }}");
+            let prog = parse_program(&src).expect(&format!("parse failed for {ty}"));
+            let func = match &prog.items[0] {
+                Item::Function(f) => f,
+                other => panic!("expected function, got {other:?}"),
+            };
+            match &func.params[0].ty.kind {
+                TypeKind::Int => {}
+                other => panic!("{ty}: expected Int, got {:?}", other),
+            }
+        }
+        // Test all unsigned integer types
+        for ty in ["u8", "u16", "u32", "u64", "usize"] {
+            let src = format!("fn f(x: [1] {ty}) -> {ty} {{ x }}");
+            let prog = parse_program(&src).expect(&format!("parse failed for {ty}"));
+            let func = match &prog.items[0] {
+                Item::Function(f) => f,
+                other => panic!("expected function, got {other:?}"),
+            };
+            match &func.params[0].ty.kind {
+                TypeKind::UInt => {}
+                other => panic!("{ty}: expected UInt, got {:?}", other),
+            }
+        }
+        // Test floating point types
+        for ty in ["f32", "f64"] {
+            let src = format!("fn f(x: [1] {ty}) -> {ty} {{ x }}");
+            let prog = parse_program(&src).expect(&format!("parse failed for {ty}"));
+            let func = match &prog.items[0] {
+                Item::Function(f) => f,
+                other => panic!("expected function, got {other:?}"),
+            };
+            match &func.params[0].ty.kind {
+                TypeKind::Float => {}
+                other => panic!("{ty}: expected Float, got {:?}", other),
+            }
         }
     }
 }

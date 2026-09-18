@@ -117,6 +117,30 @@ pub enum TokenKind {
     Import,
     #[regex("[cC][oO][nN][sS][tT]", priority = 3)]
     Const,
+    #[regex("[iI]8", priority = 3)]
+    Int8,
+    #[regex("[iI]16", priority = 3)]
+    Int16,
+    #[regex("[iI]32", priority = 3)]
+    Int32,
+    #[regex("[iI]64", priority = 3)]
+    Int64,
+    #[regex("[iI][sS][iI][zZ][eE]", priority = 3)]
+    ISize,
+    #[regex("[uU]8", priority = 3)]
+    UInt8,
+    #[regex("[uU]16", priority = 3)]
+    UInt16,
+    #[regex("[uU]32", priority = 3)]
+    UInt32,
+    #[regex("[uU]64", priority = 3)]
+    UInt64,
+    #[regex("[uU][sS][iI][zZ][eE]", priority = 3)]
+    USize,
+    #[regex("[fF]32", priority = 3)]
+    Float32,
+    #[regex("[fF]64", priority = 3)]
+    Float64,
     #[regex("[qQ][uU][bB][iI][tT]", priority = 3)]
     Qubit,
     #[regex("[qQ][rR][eE][gG][iI][sS][tT][eE][rR]", priority = 3)]
@@ -258,6 +282,18 @@ impl TokenKind {
             TokenKind::Mod => "'mod'",
             TokenKind::Import => "'import'",
             TokenKind::Const => "'const'",
+            TokenKind::Int8 => "'i8'",
+            TokenKind::Int16 => "'i16'",
+            TokenKind::Int32 => "'i32'",
+            TokenKind::Int64 => "'i64'",
+            TokenKind::ISize => "'isize'",
+            TokenKind::UInt8 => "'u8'",
+            TokenKind::UInt16 => "'u16'",
+            TokenKind::UInt32 => "'u32'",
+            TokenKind::UInt64 => "'u64'",
+            TokenKind::USize => "'usize'",
+            TokenKind::Float32 => "'f32'",
+            TokenKind::Float64 => "'f64'",
             TokenKind::Qubit => "'qubit'",
             TokenKind::QRegister => "'qregister'",
             TokenKind::Measure => "'measure'",
