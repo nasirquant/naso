@@ -1014,7 +1014,6 @@ dependencies = [
  "naso-compiler",
  "rayon",
  "serde",
- "serde_derive",
  "serde_json",
  "smallvec",
  "tempfile",

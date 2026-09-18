@@ -7,6 +7,7 @@ edition = "2024"
 default = []
 llvm = ["dep:inkwell"]
 cranelift = ["dep:cranelift", "dep:cranelift-jit", "dep:cranelift-module", "dep:cranelift-native"]
+serde = ["serde/derive"]
 
 [dependencies]
 logos = { workspace = true }

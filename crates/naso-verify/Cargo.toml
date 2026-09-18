@@ -19,8 +19,7 @@ z3 = { version = "0.21", optional = true }
 z3-sys = { version = "0.13", optional = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_derive = "1.0"
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
 # Data structures
