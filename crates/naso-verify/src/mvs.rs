@@ -229,7 +229,7 @@ pub fn encode_mvs_function(
 
     // Register inout parameters
     for param in &func.params {
-        if param.mutability == crate::ast::Mutability::InOut {
+        if param.mutability == Mutability::InOut {
             let region_name = format!("param_{}", param.name.name);
             let base = var(&format!("inout_{}_base", param.name.name), Sort::Int);
             let size = var(&format!("inout_{}_size", param.name.name), Sort::Int);
