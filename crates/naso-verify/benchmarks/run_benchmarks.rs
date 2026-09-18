@@ -126,7 +126,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let source = fs::read_to_string(&file_path)?;
         let program =
-            parse_program(&source).map_err(|e| format!("Parse error in {}: {}", file_name, e))?;
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| parse_program(&source)))
+                .map_err(|_| format!("Parse panic in {}", file_name))?
+                .map_err(|e| format!("Parse error in {}: {}", file_name, e))?;
 
         // Run provers based on expected provers for each function
         for (func_name, case) in &bench_file.functions {

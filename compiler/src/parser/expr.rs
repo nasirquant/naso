@@ -521,10 +521,17 @@ impl<'a> Parser<'a> {
     fn parse_qalloc(&mut self) -> Expr {
         let start = self.pos;
         self.expect(TK::QAlloc);
-        // qalloc() - consume parentheses
+        // qalloc() or qalloc(n) - consume parentheses
         self.expect(TK::LParen);
+        // Parse optional size argument
+        let _size = if self.at(TK::RParen) {
+            None
+        } else {
+            let expr = self.parse_expr();
+            Some(expr)
+        };
         self.expect(TK::RParen);
-        // qalloc() returns a qubit
+        // qalloc returns a qubit (or qubit array if size specified)
         let span = self.span_from(start);
         Expr::new(
             ExprKind::QuantumOp(QuantumOp::Alloc(Ident::new("qalloc", span))),
