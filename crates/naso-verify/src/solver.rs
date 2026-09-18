@@ -18,10 +18,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 #[cfg(feature = "z3")]
 use std::time::{Duration, Instant};
-#[cfg(feature = "z3")]
-use z3::ast::Ast;
-#[cfg(feature = "z3")]
-use z3_sys::Z3_parse_smtlib2_string;
 
 /// Verification result from the solver.
 #[cfg(feature = "z3")]
@@ -159,7 +155,7 @@ impl Solver {
     }
 
     /// Assert a formula (by name for unsat core tracking).
-    pub fn assert_named(&mut self, name: &str, formula: &dyn Ast) -> Result<(), VerifyError> {
+    pub fn assert_named(&mut self, name: &str, formula: &z3::ast::Bool) -> Result<(), VerifyError> {
         let solver = self.solver.as_mut().ok_or_else(|| {
             VerifyError::Solver(SolverError::ContextFailed(
                 "Solver not initialized".to_string(),
@@ -175,7 +171,7 @@ impl Solver {
     }
 
     /// Assert a formula without name.
-    pub fn assert(&mut self, formula: &dyn Ast) -> Result<(), VerifyError> {
+    pub fn assert(&mut self, formula: &z3::ast::Bool) -> Result<(), VerifyError> {
         let solver = self.solver.as_mut().ok_or_else(|| {
             VerifyError::Solver(SolverError::ContextFailed(
                 "Solver not initialized".to_string(),
@@ -220,7 +216,7 @@ impl Solver {
     }
 
     /// Check satisfiability with optional assumptions.
-    pub fn check_sat(&mut self, assumptions: &[&dyn Ast]) -> Result<VerifyResult, VerifyError> {
+    pub fn check_sat(&mut self, assumptions: &[&z3::ast::Bool]) -> Result<VerifyResult, VerifyError> {
         let solver = self.solver.as_mut().ok_or_else(|| {
             VerifyError::Solver(SolverError::ContextFailed(
                 "Solver not initialized".to_string(),
@@ -263,7 +259,7 @@ impl Solver {
                     } else {
                         Some(
                             UnsatCore::from_z3(
-                                core.into_iter().map(|b| b.into()).collect(),
+                                core,
                                 &self.assertion_ids,
                             )
                             .map_err(|e| {
@@ -319,50 +315,12 @@ impl Solver {
 pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, VerifyError> {
     let mut solver = Solver::new(config)?;
 
-    // Parse SMT-LIB2 script using low-level API (not exposed in z3 0.21 high-level API)
-    let ctx = solver.context().ok_or_else(|| {
+    // Parse SMT-LIB2 script using high-level API
+    solver.solver.as_mut().ok_or_else(|| {
         VerifyError::Solver(SolverError::ContextFailed(
-            "Context not available".to_string(),
+            "Solver not initialized".to_string(),
         ))
-    })?;
-
-    // Use Z3's SMT-LIB2 parser via z3_sys
-    let c_str = std::ffi::CString::new(smt_script)
-        .map_err(|e| VerifyError::Solver(SolverError::ParseError(e.to_string())))?;
-    let z3_ctx = ctx.get_z3_context();
-    let ast_vector_ptr = unsafe {
-        Z3_parse_smtlib2_string(
-            z3_ctx,
-            c_str.as_ptr(),
-            0,
-            std::ptr::null(),
-            std::ptr::null(),
-            0,
-            std::ptr::null(),
-            std::ptr::null(),
-        )
-    };
-
-    let ast_vector = ast_vector_ptr.ok_or_else(|| {
-        VerifyError::Solver(SolverError::ParseError(
-            "Failed to parse SMT-LIB2 string".to_string(),
-        ))
-    })?;
-
-    // Get the number of ASTs in the vector
-    let size = unsafe { z3_sys::Z3_ast_vector_size(z3_ctx, ast_vector) } as usize;
-
-    // Assert all parsed formulas
-    for i in 0..size {
-        let ast_ptr = unsafe { z3_sys::Z3_ast_vector_get(z3_ctx, ast_vector, i as u32) };
-        if let Some(ast_ptr) = ast_ptr {
-            let ast = z3::ast::Dynamic::wrap(ctx.clone(), ast_ptr);
-            solver.assert(&ast)?;
-        }
-    }
-
-    // Decrease ref count for the ast_vector
-    unsafe { z3_sys::Z3_ast_vector_dec_ref(z3_ctx, ast_vector) };
+    })?.from_string(smt_script);
 
     // Check satisfiability
     solver.check_sat(&[])

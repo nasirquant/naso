@@ -8,15 +8,14 @@ repository = "https://github.com/naso-lang/naso"
 
 [features]
 default = ["z3"]
-z3 = ["dep:z3", "dep:z3-sys"]
+z3 = ["dep:z3"]
 
 [dependencies]
 # Core Naso compiler types
 naso-compiler = { path = "../../compiler" }
 
 # SMT Solver
-z3 = { version = "0.21", optional = true }
-z3-sys = { version = "0.13", optional = true }
+z3 = { version = "0.21", features = ["bundled"], optional = true }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

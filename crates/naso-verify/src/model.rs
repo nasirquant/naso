@@ -200,7 +200,7 @@ mod z3_models {
     }
 
     impl ModelValue {
-        fn from_z3(value: &z3::ast::Ast<'_>) -> Result<Self, String> {
+        fn from_z3(value: &dyn z3::ast::Ast) -> Result<Self, String> {
             let sort = value.get_sort();
             let kind = sort.get_kind();
 
@@ -276,7 +276,7 @@ mod z3_models {
     }
 
     impl FuncInterpretation {
-        fn from_z3(model: &z3::Model, decl: &z3::FuncDecl<'_>) -> Result<Self, String> {
+        fn from_z3(model: &z3::Model, decl: &z3::FuncDecl) -> Result<Self, String> {
             Ok(Self {
                 entries: Vec::new(),
                 else_branch: None,
