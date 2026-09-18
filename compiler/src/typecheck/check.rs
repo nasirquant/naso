@@ -304,20 +304,17 @@ pub fn check_function(checker: &mut TypeChecker, func: &Function) -> Result<(), 
 
     // Bind function parameters with their quantities and mutabilities
     for param in &func.params {
+        // Use the quantity from the type (e.g., `x: [1] i32`) as the authoritative quantity
+        let param_qty = param.ty.quantity;
         checker.env.bind_var(
             param.name.clone(),
             param.ty.clone(),
-            param.quantity,
+            param_qty,
             param.mutability,
         );
 
         // Validate parameter quantity/mutability
-        validate_binding_quantity_mutability(
-            &param.name,
-            param.quantity,
-            param.mutability,
-            param.span,
-        )?;
+        validate_binding_quantity_mutability(&param.name, param_qty, param.mutability, param.span)?;
     }
 
     // Check function body
