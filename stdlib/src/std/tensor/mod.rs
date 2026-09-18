@@ -4,6 +4,7 @@
 
 pub mod ops;
 pub mod polyhedral_lowering;
+#[allow(clippy::module_inception)]
 pub mod tensor;
 
 pub use ops::*;

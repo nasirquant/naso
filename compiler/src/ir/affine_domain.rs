@@ -6,8 +6,9 @@
 //! This is a native Rust implementation avoiding external C dependencies.
 //! For production use, the `isl` crate can be swapped in when it compiles on Windows.
 
+#![allow(clippy::identity_op)]
+
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Type of affine constraint
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

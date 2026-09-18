@@ -1,6 +1,5 @@
 // @generated
 #[cfg(feature = "cranelift")]
-
 /// Cranelift JIT Compilation
 ///
 /// Stub implementation for fast JIT compilation and execution.
@@ -95,12 +94,13 @@ impl CraneliftJit {
 }
 
 /// Dummy function for symbol registration
+#[allow(dead_code)]
 extern "C" fn dummy_function() -> i32 {
     0
 }
 
 /// Compile and execute a PIR module via Cranelift JIT (stub)
-pub fn compile_and_execute(module: &PirModule, context: &CodegenContext) -> CodegenResult<i32> {
+pub fn compile_and_execute(_module: &PirModule, _context: &CodegenContext) -> CodegenResult<i32> {
     let mut jit = CraneliftJit::new()?;
     jit.compile_and_execute_trivial()
 }

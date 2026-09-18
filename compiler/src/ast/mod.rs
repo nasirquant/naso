@@ -3,9 +3,7 @@
 //! This module defines the Abstract Syntax Tree (AST) for the Naso language,
 //! including quantitative type annotations, reversible blocks, and mutable value semantics.
 
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use std::fmt;
 use std::hash::Hash;
 
@@ -22,18 +20,12 @@ pub use ty::*;
 pub use visit::*;
 
 /// Unique identifier for AST nodes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct NodeId(pub u32);
 
 impl NodeId {
     pub const fn new(id: u32) -> Self {
         Self(id)
-    }
-}
-
-impl Default for NodeId {
-    fn default() -> Self {
-        Self(0)
     }
 }
 
@@ -79,7 +71,7 @@ impl Default for Span {
 }
 
 /// Quantitative usage annotation: [0], [1], [*], [N]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum Quantity {
     /// Erased at compile time - proofs, invariants
     Zero,
@@ -88,6 +80,7 @@ pub enum Quantity {
     /// Bounded reuse - exactly N times (stored separately)
     Bounded(u32),
     /// Unrestricted - can be used any number of times
+    #[default]
     Many,
 }
 
@@ -113,12 +106,6 @@ impl fmt::Display for Quantity {
             Quantity::Bounded(n) => write!(f, "[{}]", n),
             Quantity::Many => write!(f, "[*]"),
         }
-    }
-}
-
-impl Default for Quantity {
-    fn default() -> Self {
-        Quantity::Many
     }
 }
 

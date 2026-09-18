@@ -275,7 +275,7 @@ pub fn encode_quantum_expr(
 
                     tracker.apply_gate(gate, &targets, &controls, expr.span);
                 } else if fname.name == "qalloc" {
-                    for (_i, arg) in args.iter().enumerate() {
+                    for arg in args.iter() {
                         if let ExprKind::Literal(naso_compiler::ast::Literal::Int(_n)) = &arg.kind {
                             for _ in 0..*_n as u32 {
                                 tracker.allocate_qubit(true, expr.span);
@@ -301,6 +301,7 @@ pub fn encode_quantum_expr(
                     tracker.allocate_qubit(true, expr.span);
                 }
                 naso_compiler::ast::expr::QuantumOp::Measure(target) => {
+                    #[allow(clippy::collapsible_if)]
                     if let ExprKind::Var(qname) = &target.kind {
                         if let Some(_qubit) = tracker.get_qubit(&qname.name) {
                             // Measurement collapses state to basis
@@ -403,7 +404,5 @@ fn parse_gate_name(name: &str) -> Option<GateKind> {
 
 /// Encode unitary matrix constraints for a gate (Clifford+T fragment).
 pub fn encode_unitary_constraints(_gate: GateKind, _targets: &[String]) -> Vec<Term> {
-    let constraints = Vec::new();
-
-    constraints
+    Vec::new()
 }

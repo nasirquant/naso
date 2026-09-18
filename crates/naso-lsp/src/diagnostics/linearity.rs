@@ -10,10 +10,7 @@ use tower_lsp::lsp_types::*;
 fn span_to_range(_compiler_bridge: &CompilerBridge, span: &naso_compiler::ast::Span) -> Range {
     Range::new(
         Position::new(span.line - 1, span.column - 1),
-        Position::new(
-            span.line - 1,
-            span.column - 1 + (span.end - span.start) as u32,
-        ),
+        Position::new(span.line - 1, span.column - 1 + (span.end - span.start)),
     )
 }
 
@@ -37,9 +34,10 @@ pub fn type_error_to_diagnostics(
             );
             let severity = DiagnosticSeverity::ERROR;
             let code = codes::lin::DOUBLE_USE.to_string();
-            let mut related = Vec::new();
-            related.push(span_to_range(compiler_bridge, first_use));
-            related.push(span_to_range(compiler_bridge, second_use));
+            let related = vec![
+                span_to_range(compiler_bridge, first_use),
+                span_to_range(compiler_bridge, second_use),
+            ];
             (message, severity, code, Some(related))
         }
         TypeError::UnusedLinearVariable { name, defined_at } => {
@@ -63,9 +61,10 @@ pub fn type_error_to_diagnostics(
             );
             let severity = DiagnosticSeverity::ERROR;
             let code = codes::lin::USE_OF_MOVED.to_string();
-            let mut related = Vec::new();
-            related.push(span_to_range(compiler_bridge, moved_at));
-            related.push(span_to_range(compiler_bridge, used_at));
+            let related = vec![
+                span_to_range(compiler_bridge, moved_at),
+                span_to_range(compiler_bridge, used_at),
+            ];
             (message, severity, code, Some(related))
         }
         TypeError::QuantityMismatch {
@@ -130,7 +129,7 @@ pub fn type_error_to_diagnostics(
             .map(|range| DiagnosticRelatedInformation {
                 location: Location {
                     uri: document_url.clone(),
-                    range: range.clone(),
+                    range,
                 },
                 message: String::new(),
             })
@@ -141,6 +140,7 @@ pub fn type_error_to_diagnostics(
 }
 
 // Helper to extract the primary span from various error types
+#[allow(dead_code)]
 fn get_primary_span(error: &TypeError) -> naso_compiler::ast::Span {
     match error {
         TypeError::LinearVariableUsedTwice { first_use, .. } => *first_use,

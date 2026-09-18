@@ -4,7 +4,6 @@
 
 use std::sync::Arc;
 
-use dashmap::DashMap;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
@@ -16,10 +15,12 @@ pub struct NasoLanguageServer {
     pub document_store: Arc<DocumentStore>,
     pub compiler_bridge: Arc<CompilerBridge>,
     // Configuration settings
+    #[allow(dead_code)]
     config: Arc<tokio::sync::RwLock<ServerConfig>>,
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
 struct ServerConfig {
     diagnostics_severity: Option<DiagnosticSeverity>,
     completion_detail: bool,
@@ -40,6 +41,7 @@ impl NasoLanguageServer {
     }
 
     /// Get the client for sending notifications
+    #[allow(dead_code)]
     fn client(&self) -> &Client {
         &self.client
     }
@@ -89,7 +91,6 @@ impl LanguageServer for NasoLanguageServer {
                 name: "Naso Language Server".to_string(),
                 version: Some("0.1.0".to_string()),
             }),
-            ..Default::default()
         })
     }
 

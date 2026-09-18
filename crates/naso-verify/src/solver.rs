@@ -65,7 +65,6 @@ impl VerifyResult {
     }
 }
 #[cfg(feature = "z3")]
-
 /// Z3 solver wrapper with context management.
 #[cfg(feature = "z3")]
 pub struct Solver {
@@ -77,7 +76,6 @@ pub struct Solver {
     next_assertion_id: usize,
 }
 #[cfg(feature = "z3")]
-
 impl Solver {
     /// Create a new solver with the given configuration.
     pub fn new(config: SolverConfig) -> Result<Self, VerifyError> {
@@ -306,7 +304,6 @@ impl Solver {
     }
 }
 #[cfg(feature = "z3")]
-
 /// Parse and execute an SMT-LIB2 script using Z3.
 #[cfg(feature = "z3")]
 pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, VerifyError> {
@@ -327,7 +324,6 @@ pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, Ve
     solver.check_sat(&[])
 }
 #[cfg(feature = "z3")]
-
 /// Execute multiple independent verification conditions in parallel.
 #[cfg(feature = "z3")]
 pub fn verify_parallel(
@@ -345,7 +341,6 @@ pub fn verify_parallel(
         .collect()
 }
 #[cfg(feature = "z3")]
-
 /// Solver statistics.
 #[cfg(feature = "z3")]
 #[derive(Debug, Clone, Default)]
@@ -358,7 +353,6 @@ pub struct SolverStats {
     pub total_assertions: usize,
 }
 #[cfg(feature = "z3")]
-
 impl SolverStats {
     pub fn record(&mut self, result: &VerifyResult, elapsed: Duration) {
         self.total_time += elapsed;

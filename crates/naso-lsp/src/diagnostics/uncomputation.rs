@@ -10,10 +10,7 @@ use tower_lsp::lsp_types::*;
 fn span_to_range(_compiler_bridge: &CompilerBridge, span: &naso_compiler::ast::Span) -> Range {
     Range::new(
         Position::new(span.line - 1, span.column - 1),
-        Position::new(
-            span.line - 1,
-            span.column - 1 + (span.end - span.start) as u32,
-        ),
+        Position::new(span.line - 1, span.column - 1 + (span.end - span.start)),
     )
 }
 
@@ -80,7 +77,7 @@ pub fn type_error_to_diagnostics(
             .map(|range| DiagnosticRelatedInformation {
                 location: Location {
                     uri: document_url.clone(),
-                    range: range.clone(),
+                    range,
                 },
                 message: String::new(),
             })

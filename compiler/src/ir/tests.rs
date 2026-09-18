@@ -170,13 +170,13 @@ fn test_affine_map_composition() {
     let dom1 = AffineDomain::universe(2, 0);
     let mut m1 = Matrix::new(1, 2);
     m1.set(0, 0, 1);
-    let map1 = AffineMap::total(dom1.clone(), m1);
+    let _map1 = AffineMap::total(dom1.clone(), m1);
 
     // Map 2: (i) -> (i * 2)
     let dom2 = AffineDomain::universe(1, 0);
     let mut m2 = Matrix::new(1, 1);
     m2.set(0, 0, 2);
-    let map2 = AffineMap::total(dom2, m2);
+    let _map2 = AffineMap::total(dom2, m2);
 
     // Can't compose directly due to dimension mismatch
     // But we can test same-dimension composition

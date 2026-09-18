@@ -3,6 +3,8 @@
 //! Maps statement instances to memory locations with read/write annotations.
 //! Used for dependence analysis, memory footprint computation, and code generation.
 
+#![allow(clippy::collapsible_if)]
+
 use super::affine_domain::AffineDomain;
 use super::affine_map::AffineMap;
 use serde::{Deserialize, Serialize};

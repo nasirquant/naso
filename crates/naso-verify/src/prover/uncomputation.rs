@@ -24,6 +24,7 @@ pub fn prove_uncomputation(program: &Program) -> Result<Vec<VerifyDiagnostic>, V
     let mut diagnostics = Vec::new();
 
     for item in &program.items {
+        #[allow(clippy::collapsible_if)]
         if let naso_compiler::ast::Item::Function(func) = item {
             if is_quantum_function(func) {
                 let func_diagnostics = prove_function_uncomputation(func)?;
@@ -42,6 +43,7 @@ fn is_quantum_function(func: &Function) -> bool {
 
 /// Check if a block contains quantum operations.
 fn contains_quantum_ops(body: &naso_compiler::ast::Block) -> bool {
+    #[allow(clippy::collapsible_if)]
     if let Some(expr) = &body.expr {
         if contains_quantum_expr(expr) {
             return true;
@@ -68,6 +70,7 @@ fn contains_quantum_stmt(stmt: &naso_compiler::ast::Stmt) -> bool {
 fn contains_quantum_expr(expr: &naso_compiler::ast::Expr) -> bool {
     match &expr.kind {
         naso_compiler::ast::ExprKind::Call(func, args) => {
+            #[allow(clippy::collapsible_if)]
             if let naso_compiler::ast::ExprKind::Var(name) = &func.kind {
                 if is_quantum_gate_name(&name.name) || name.name == "qalloc" || name.name == "qfree"
                 {
@@ -81,7 +84,7 @@ fn contains_quantum_expr(expr: &naso_compiler::ast::Expr) -> bool {
         naso_compiler::ast::ExprKind::LetConsume(binding) => contains_quantum_expr(&binding.value),
         naso_compiler::ast::ExprKind::If(_, then_e, else_e) => {
             contains_quantum_expr(then_e)
-                || else_e.as_ref().map_or(false, |e| contains_quantum_expr(e))
+                || else_e.as_ref().is_some_and(|e| contains_quantum_expr(e))
         }
         naso_compiler::ast::ExprKind::QuantumOp(_) => true,
         naso_compiler::ast::ExprKind::Block(block) => contains_quantum_ops(block),

@@ -14,8 +14,11 @@
 //! 8) Generate adjoint/mirror operations for reversible assignments, in-place updates, and quantum gate operations.
 //! 9) Ancilla qubit zeroing verification: track temporary ancilla allocations (|0⟩) and synthesize inverse circuits to ensure clean uncomputation.
 
+#![allow(clippy::match_like_matches_macro)]
+#![allow(clippy::collapsible_if)]
+
 use super::{LoweringContext, LoweringError};
-use crate::ast::{Mutability, Quantity};
+use crate::ast::Quantity;
 use crate::ir::{
     AffineDomain, AffineMap, Matrix, PirExpr, PirStatement, QuantityMap, ScheduleNode,
     ScheduleTree, StmtId,
@@ -63,6 +66,7 @@ struct DAGNode {
 }
 
 /// Inverse operation for a temporary value
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct InverseOperation {
     /// The inverse expression
@@ -157,7 +161,7 @@ impl DataflowDAG {
             PirExpr::Let {
                 name,
                 qty,
-                mutability,
+                mutability: _,
                 value,
                 body,
             } => {
@@ -455,7 +459,7 @@ fn is_rng(name: &str) -> bool {
 fn generate_quantum_adjoint(
     gate: &str,
     args: &[PirExpr],
-    stmt_id: StmtId,
+    _stmt_id: StmtId,
 ) -> Result<InverseOperation, LoweringError> {
     let adjoint_gate = match gate {
         "H" => "H",    // Self-adjoint
@@ -506,7 +510,7 @@ fn generate_quantum_adjoint(
 fn generate_measurement_uncompute(
     _name: &str,
     args: &[PirExpr],
-    stmt_id: StmtId,
+    _stmt_id: StmtId,
 ) -> Result<InverseOperation, LoweringError> {
     // Measurement is not invertible - requires ancilla qubit to record outcome
     // The uncompute would need to reverse the measurement basis
@@ -636,7 +640,7 @@ fn find_def_expr(temp: &str, stmts: &[PirStatement]) -> Result<PirExpr, Lowering
 fn allocate_ancilla_and_verify(
     dag: &DataflowDAG,
     inverse_ops: &HashMap<String, InverseOperation>,
-    ctx: &LoweringContext,
+    _ctx: &LoweringContext,
 ) -> Result<Vec<AncillaRequirement>, LoweringError> {
     let mut requirements = Vec::new();
     let mut ancilla_counter = 0;
@@ -715,7 +719,7 @@ fn build_inverse_schedule(
 
     // Add inverse operations in reverse topological order (already sorted)
     for temp_name in dag.topological_sort()? {
-        if let Some(inv_op) = inverse_ops.get(&temp_name) {
+        if inverse_ops.contains_key(&temp_name) {
             // Skip zero-quantity temps
             if dag.zero_qty_temps.contains(&temp_name) {
                 continue;
@@ -725,15 +729,6 @@ fn build_inverse_schedule(
             stmt_id_counter += 1;
 
             let domain = AffineDomain::universe(0, 0);
-            let stmt = PirStatement {
-                id: stmt_id,
-                domain: domain.clone(),
-                body: inv_op.expr.clone(),
-                quantity: Quantity::Many,
-                mutability: Mutability::Immutable,
-                span: None,
-            };
-
             // Build schedule node for this inverse op
             let mut m = Matrix::new(1, 1);
             m.set(0, 0, 1);
@@ -754,18 +749,7 @@ fn build_inverse_schedule(
             stmt_id_counter += 1;
 
             let domain = AffineDomain::universe(0, 0);
-            let stmt = PirStatement {
-                id: stmt_id,
-                domain: domain.clone(),
-                body: PirExpr::Call {
-                    name: "dealloc_qubit".to_string(),
-                    args: vec![PirExpr::Var(req.name.clone())],
-                },
-                quantity: Quantity::Many,
-                mutability: Mutability::Immutable,
-                span: None,
-            };
-
+            // Build dealloc schedule node
             let mut m = Matrix::new(1, 1);
             m.set(0, 0, 1);
             let map = AffineMap::total(domain.clone(), m);
@@ -828,17 +812,13 @@ fn lower_forward_block(
     block: &crate::ast::expr::ReversibleBlock,
     ctx: &mut LoweringContext,
 ) -> Result<Vec<PirStatement>, LoweringError> {
-    let mut forward_stmts = Vec::new();
-
     for stmt in &block.body.stmts {
         ctx.lower_stmt(stmt)?;
     }
 
     // Collect the statements that were added
     // (In practice, we'd track which ones belong to this block)
-    forward_stmts = ctx.statements.clone();
-
-    Ok(forward_stmts)
+    Ok(ctx.statements.clone())
 }
 
 /// Public entry point: lower reversible block to dual ScheduleTrees
@@ -853,10 +833,7 @@ pub fn lower_reversible_block_to_pair(
 mod tests {
     use super::*;
     use crate::ast::{Block, Mutability, Quantity, Span};
-    use crate::ir::{
-        AffineDomain, AffineMap, Matrix, PirExpr, PirStatement, QuantityMap, ScheduleNode,
-        ScheduleTree, StmtId,
-    };
+    use crate::ir::{AffineDomain, PirExpr, PirStatement, QuantityMap, ScheduleNode, StmtId};
 
     fn make_span() -> Span {
         Span::new(0, 0, 1, 1)
@@ -1165,7 +1142,7 @@ mod tests {
         assert!(!dag.erased_temps().contains("runtime_var"));
 
         // In topological sort, zero-qty temps should be skipped
-        let topo = dag.topological_sort().unwrap();
+        let _topo = dag.topological_sort().unwrap();
         // proof_var has no uses, so it might not appear in DAG at all
         // or it should be filtered out
     }

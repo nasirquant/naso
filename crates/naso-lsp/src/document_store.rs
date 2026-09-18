@@ -1,9 +1,7 @@
 //! Document Store - In-memory document management with incremental updates
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::Result;
 use dashmap::DashMap;
 use tower_lsp::lsp_types::*;
 
@@ -60,6 +58,7 @@ impl Document {
     }
 
     /// Convert a byte offset to a Position
+    #[allow(dead_code)]
     pub fn offset_to_position(&self, offset: usize) -> Position {
         let offset = offset.min(self.content.len());
 
@@ -74,6 +73,7 @@ impl Document {
     }
 
     /// Get a range as a string slice
+    #[allow(dead_code)]
     pub fn get_range(&self, range: Range) -> Option<&str> {
         let start = self.position_to_offset(range.start);
         let end = self.position_to_offset(range.end);
@@ -142,6 +142,7 @@ impl DocumentStore {
         self.documents.get(uri).map(|doc| Arc::new(doc.clone()))
     }
 
+    #[allow(dead_code)]
     pub fn get_mut(&self, uri: &Url) -> Option<dashmap::mapref::one::RefMut<'_, Url, Document>> {
         self.documents.get_mut(uri)
     }

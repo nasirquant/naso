@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![allow(ambiguous_glob_reexports)]
 
 // Standard library prelude - re-exports common stdlib items
 pub use crate::std::alloc::*;

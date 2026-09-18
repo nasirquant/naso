@@ -3,7 +3,6 @@
 /// This module provides the high-level prover interface that orchestrates
 /// the SMT-based verification of quantum uncomputation safety and
 /// [1]-quantity leak detection.
-
 #[cfg(feature = "z3")]
 pub mod cfg;
 #[cfg(feature = "z3")]
@@ -55,8 +54,8 @@ pub fn run_linearity_prover(program: &Program) -> Result<Vec<VerifyDiagnostic>, 
 /// Prove a custom verification condition.
 #[cfg(feature = "z3")]
 pub fn prove_custom_vc(
-    program: &Program,
-    vc_name: &str,
+    _program: &Program,
+    _vc_name: &str,
     predicate: impl FnOnce(&mut LoweringContext) -> Result<(), VerifyError>,
 ) -> Result<Vec<VerifyDiagnostic>, VerifyError> {
     let mut ctx = LoweringContext::new();

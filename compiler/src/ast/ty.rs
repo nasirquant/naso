@@ -4,9 +4,7 @@
 //! dependent types (Nat), function types, and quantum types.
 
 use crate::ast::{Ident, Quantity, Span};
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use std::fmt;
 
 /// Type expression in the AST

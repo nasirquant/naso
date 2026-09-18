@@ -3,7 +3,12 @@
 //! Piecewise quasi-affine functions for access functions, schedules, and transformations.
 //! Each piece is defined on a disjoint domain with an affine transformation.
 
-use super::affine_domain::{AffineConstraint, AffineDomain, AffineExpr, ConstraintType};
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::question_mark)]
+#![allow(clippy::identity_op)]
+#![allow(clippy::neg_multiply)]
+
+use super::affine_domain::AffineDomain;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -420,7 +425,7 @@ mod tests {
     fn test_affine_map_compose() {
         // Map 1: (i, j) -> (i, j)  identity
         let dom1 = AffineDomain::universe(2, 0);
-        let mut m1 = Matrix::identity(2);
+        let m1 = Matrix::identity(2);
         let map1 = AffineMap::total(dom1, m1);
 
         // Map 2: (i, j) -> (i+1, j+2)

@@ -3,6 +3,8 @@
 //! Converts typed AST (from Sprint 2 typechecker) to well-formed Polyhedral IR.
 //! Handles loop nests, array accesses, reversible blocks, and quantity semantics.
 
+#![allow(clippy::collapsible_if)]
+
 pub mod access_analysis;
 pub mod ast_to_pir;
 pub mod loop_extraction;
@@ -11,9 +13,8 @@ pub mod reversible_lowering;
 use crate::ast::Program;
 use crate::ir::validate::validate_pir;
 use crate::ir::{
-    AccessRelation, AccessRelations, AccessType, AffineDomain, AffineMap, BinaryOp as PirBinaryOp,
-    PirExpr, PirModule, PirStatement, QuantityMap, ScheduleNode, ScheduleTree, StmtId,
-    UnaryOp as PirUnaryOp,
+    AccessRelations, AffineDomain, AffineMap, PirModule, PirStatement, QuantityMap, ScheduleNode,
+    ScheduleTree, StmtId,
 };
 
 /// Lowering error types
@@ -50,9 +51,9 @@ pub fn lower_ast(program: &Program) -> Result<PirModule, LoweringError> {
 }
 
 /// Internal lowering context
-struct LoweringContext {
+pub struct LoweringContext {
     next_stmt_id: usize,
-    next_var_id: usize,
+    _next_var_id: usize,
     quantities: QuantityMap,
     statements: Vec<PirStatement>,
     accesses: AccessRelations,
@@ -64,7 +65,7 @@ impl LoweringContext {
     fn new() -> Self {
         Self {
             next_stmt_id: 0,
-            next_var_id: 0,
+            _next_var_id: 0,
             quantities: QuantityMap::new(),
             statements: Vec::new(),
             accesses: AccessRelations::new(),
@@ -436,6 +437,7 @@ impl LoweringContext {
         }
     }
 
+    #[allow(dead_code)]
     fn build_access_map(&self, indices: &[crate::ir::PirExpr]) -> Result<AffineMap, LoweringError> {
         // Build access map from index expressions
         // Simplified

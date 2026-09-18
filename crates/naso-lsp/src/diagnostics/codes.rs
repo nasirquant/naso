@@ -20,6 +20,7 @@ pub mod lin {
 }
 
 /// Erasure diagnostic codes
+#[allow(dead_code)]
 pub mod era {
     /// Proof-only [0] quantity value retained at runtime
     pub const RETAINED_AT_RUNTIME: &str = "NASO-ERA-001";
@@ -29,6 +30,7 @@ pub mod era {
 }
 
 /// Mutable Value Semantics diagnostic codes
+#[allow(dead_code)]
 pub mod mvs {
     /// Inout parameter aliases with existing inout borrow
     pub const INOUT_ALIASING: &str = "NASO-MVS-001";
@@ -41,6 +43,7 @@ pub mod mvs {
 }
 
 /// Uncomputation diagnostic codes
+#[allow(dead_code)]
 pub mod unc {
     /// Missing uncomputation step for temporary variable
     pub const MISSING_UNCOMPUTE: &str = "NASO-UNC-001";
@@ -53,6 +56,7 @@ pub mod unc {
 }
 
 /// All diagnostic codes as a flat list for registration
+#[allow(dead_code)]
 pub const ALL_CODES: &[&str] = &[
     lin::DOUBLE_USE,
     lin::UNUSED,

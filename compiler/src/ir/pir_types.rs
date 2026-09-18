@@ -3,10 +3,11 @@
 //! Top-level Polyhedral IR module container integrating all IR components
 //! with QTT quantity tracking from the type checker.
 
-use super::access_relation::{AccessRelation, AccessRelations, AccessType};
+#![allow(clippy::useless_format)]
+
+use super::access_relation::AccessRelations;
 use super::affine_domain::AffineDomain;
-use super::affine_map::AffineMap;
-use super::schedule_tree::{ScheduleNode, ScheduleTree, StmtId};
+use super::schedule_tree::{ScheduleTree, StmtId};
 use crate::ast::{Mutability, Quantity};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -353,8 +354,7 @@ impl std::fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
-fn pir_expr_to_string(expr: &PirExpr, indent: usize) -> String {
-    let prefix = "  ".repeat(indent);
+fn pir_expr_to_string(expr: &PirExpr, _indent: usize) -> String {
     match expr {
         PirExpr::IntLit(v) => format!("{}", v),
         PirExpr::FloatLit(v) => format!("{}", v),

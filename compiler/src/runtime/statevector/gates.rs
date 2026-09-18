@@ -39,7 +39,6 @@ impl SingleQubitGate {
     /// Get the 2x2 unitary matrix for this gate
     pub fn matrix(&self) -> [[Complex64; 2]; 2] {
         use std::f64::consts::PI;
-        let i = Complex64::new(0.0, 1.0);
 
         match self {
             SingleQubitGate::X => [
@@ -200,7 +199,6 @@ pub enum TwoQubitGate {
 impl TwoQubitGate {
     /// Get the 4x4 unitary matrix for this gate
     pub fn matrix(&self) -> [[Complex64; 4]; 4] {
-        use std::f64::consts::PI;
         let i = Complex64::new(0.0, 1.0);
         let zero = Complex64::new(0.0, 0.0);
         let one = Complex64::new(1.0, 0.0);

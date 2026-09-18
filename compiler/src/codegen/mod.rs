@@ -17,11 +17,7 @@ pub mod llvm;
 #[cfg(feature = "llvm")]
 pub mod qir;
 
-use crate::ast::Ident;
-use crate::ast::Quantity;
-use crate::ast::Span;
-use crate::ast::Type;
-use crate::ir::pir_types::{PirModule, PirStatement};
+use crate::ir::pir_types::PirModule;
 
 pub use abi::{QuantityAwareType, lower_pir_module_types, lower_pir_type};
 pub use context::{CodegenTarget, OptLevel};

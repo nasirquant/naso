@@ -2,8 +2,6 @@
 //!
 //! Core types for codegen that don't require LLVM.
 
-use target_lexicon::{Architecture, BinaryFormat, Environment, OperatingSystem, Triple};
-
 /// Target platforms supported by Naso
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CodegenTarget {
@@ -31,6 +29,7 @@ impl CodegenTarget {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     /// Parse a target from a string
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
@@ -42,6 +41,14 @@ impl CodegenTarget {
                 other.to_string().into_boxed_str(),
             ))),
         }
+    }
+}
+
+impl std::str::FromStr for CodegenTarget {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str(s)
     }
 }
 

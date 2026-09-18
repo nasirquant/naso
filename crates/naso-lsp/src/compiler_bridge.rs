@@ -22,6 +22,7 @@ pub struct CompilerBridge {
 
 /// Result of analyzing a document
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AnalysisResult {
     pub diagnostics: Vec<Diagnostic>,
     pub symbols: Vec<DocumentSymbol>,
@@ -155,6 +156,7 @@ impl CompilerBridge {
     }
 
     /// Basic syntax checking (fallback when type checker not available)
+    #[allow(dead_code)]
     fn check_syntax(&self, content: &str, _uri: &Url) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
 
@@ -205,6 +207,7 @@ impl CompilerBridge {
                         }
                     }
                     '[' => bracket_stack.push((line_idx, char_idx)),
+                    #[allow(clippy::collapsible_match)]
                     ']' => {
                         if bracket_stack.pop().is_none() {
                             diagnostics.push(Diagnostic::new(
@@ -250,6 +253,7 @@ impl CompilerBridge {
     }
 
     /// Extract document symbols for outline
+    #[allow(deprecated)]
     fn extract_symbols(&self, content: &str, _uri: &Url) -> Vec<DocumentSymbol> {
         let mut symbols = Vec::new();
 
@@ -260,6 +264,7 @@ impl CompilerBridge {
             let trimmed = line.trim();
 
             // Function definitions
+            #[allow(clippy::collapsible_if, clippy::manual_strip)]
             if trimmed.starts_with("fn ") {
                 if let Some(name_end) = trimmed[3..].find('(') {
                     let name = trimmed[3..3 + name_end].trim();
@@ -284,6 +289,7 @@ impl CompilerBridge {
             }
 
             // Struct definitions
+            #[allow(clippy::collapsible_if, clippy::manual_strip)]
             if trimmed.starts_with("struct ") {
                 if let Some(name_end) = trimmed[7..].find('{').or_else(|| trimmed[7..].find(' ')) {
                     let name = trimmed[7..7 + name_end].trim();
@@ -372,7 +378,7 @@ impl CompilerBridge {
                         (position.line, position.character),
                         HoverInfo {
                             type_info: ty.to_string(),
-                            quantity: Some(qty.clone()),
+                            quantity: Some(*qty),
                             doc_comment: Some(doc.to_string()),
                             range,
                         },
@@ -391,7 +397,7 @@ impl CompilerBridge {
                         (position.line, position.character),
                         HoverInfo {
                             type_info: ty.to_string(),
-                            quantity: Some(qty.clone()),
+                            quantity: Some(*qty),
                             doc_comment: Some(doc.to_string()),
                             range,
                         },
@@ -592,6 +598,7 @@ impl CompilerBridge {
             let trimmed = line.trim();
 
             // Function definition
+            #[allow(clippy::collapsible_if, clippy::manual_strip)]
             if trimmed.starts_with("fn ") {
                 if let Some(name_end) = trimmed[3..].find('(') {
                     let name = trimmed[3..3 + name_end].trim();
@@ -605,6 +612,7 @@ impl CompilerBridge {
             }
 
             // Struct definition
+            #[allow(clippy::collapsible_if, clippy::manual_strip)]
             if trimmed.starts_with("struct ") {
                 if let Some(name_end) = trimmed[7..].find('{').or_else(|| trimmed[7..].find(' ')) {
                     let name = trimmed[7..7 + name_end].trim();
@@ -618,6 +626,7 @@ impl CompilerBridge {
             }
 
             // Let binding
+            #[allow(clippy::collapsible_if, clippy::manual_strip)]
             if trimmed.starts_with("let ") {
                 if let Some(eq_pos) = trimmed[4..].find('=') {
                     let name = trimmed[4..4 + eq_pos].trim();

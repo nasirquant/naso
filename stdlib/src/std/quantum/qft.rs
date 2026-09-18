@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use crate::std::prelude::*;
 
 /// Apply Quantum Fourier Transform to a register of qubits.
@@ -10,7 +12,8 @@ use crate::std::prelude::*;
 /// # Returns
 /// * The same register with QFT applied (linearity preserved)
 #[inline(always)]
-pub fn qft<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
+#[allow(clippy::needless_range_loop)]
+pub fn qft(register: &mut [Qubit]) -> &mut [Qubit] {
     let n = register.len();
     for i in 0..n {
         // Apply Hadamard to qubit i
@@ -39,7 +42,7 @@ pub fn qft<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
 /// # Returns
 /// * The same register with inverse QFT applied (linearity preserved)
 #[inline(always)]
-pub fn inverse_qft<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
+pub fn inverse_qft(register: &mut [Qubit]) -> &mut [Qubit] {
     // For simplicity, we'll implement this as the reverse of QFT
     // A proper implementation would use adjoint gates
     let n = register.len();

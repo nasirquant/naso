@@ -1,3 +1,6 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::empty_line_after_doc_comments)]
+
 /// Quantum Statevector Simulator
 ///
 /// In-process quantum statevector simulator for executing QIR circuits.
@@ -8,7 +11,7 @@
 /// - Integration with QIR module execution via runtime dispatcher
 /// - Support for [0], [1], [*] quantity semantics
 use num_complex::Complex64;
-use rand::Rng;
+use rand::RngCore;
 use rand::SeedableRng;
 use thiserror::Error;
 
@@ -99,8 +102,6 @@ pub struct SimulatorStats {
     pub peak_memory_bytes: usize,
 }
 
-use rand::RngCore;
-
 impl StatevectorSimulator {
     /// Create a new simulator with given number of qubits
     pub fn new(num_qubits: usize, config: SimulatorConfig) -> Result<Self, SimulatorError> {
@@ -153,7 +154,7 @@ impl StatevectorSimulator {
     }
 
     #[cfg(not(feature = "llvm"))]
-    pub fn from_qir_module(_module: &(), config: SimulatorConfig) -> Result<Self, SimulatorError> {
+    pub fn from_qir_module(_module: &(), _config: SimulatorConfig) -> Result<Self, SimulatorError> {
         Err(SimulatorError::InvalidGate(
             "QIR module requires LLVM feature".into(),
         ))
@@ -517,7 +518,6 @@ impl StatevectorSimulator {
     ) -> Result<(), SimulatorError> {
         // For simplicity, apply as multi-controlled single-qubit gate
         // In production, this would use more efficient decomposition
-        let n_controls = controls.len();
         let dim = 1usize << self.num_qubits;
 
         // Build control mask
@@ -661,7 +661,6 @@ impl SingleQubitGate {
     /// Get the 2x2 unitary matrix for this gate
     pub fn matrix(&self) -> [[Complex64; 2]; 2] {
         use std::f64::consts::PI;
-        let i = Complex64::new(0.0, 1.0);
 
         match self {
             SingleQubitGate::X => [
@@ -822,7 +821,6 @@ pub enum TwoQubitGate {
 impl TwoQubitGate {
     /// Get the 4x4 unitary matrix for this gate
     pub fn matrix(&self) -> [[Complex64; 4]; 4] {
-        use std::f64::consts::PI;
         let i = Complex64::new(0.0, 1.0);
         let zero = Complex64::new(0.0, 0.0);
         let one = Complex64::new(1.0, 0.0);

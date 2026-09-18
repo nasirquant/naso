@@ -4,9 +4,7 @@
 //! quantum operations, and quantitative annotations.
 
 use crate::ast::{Ident, Literal, Mutability, NodeId, Quantity, Span};
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use std::fmt;
 
 /// Expression with metadata
@@ -326,7 +324,7 @@ impl fmt::Display for ExprKind {
             ExprKind::Var(v) => write!(f, "{}", v),
             ExprKind::Binary(op, l, r) => write!(f, "({:?} {} {:?})", l, op, r),
             ExprKind::Unary(op, e) => write!(f, "({}{:?})", op, e),
-            ExprKind::Call(fun, args) => write!(f, "{:?}(...)", fun),
+            ExprKind::Call(fun, _args) => write!(f, "{:?}(...)", fun),
             ExprKind::Block(_) => write!(f, "{{ ... }}"),
             ExprKind::If(c, t, e) => {
                 write!(f, "if {:?} then {:?} else {:?}", c, t, e)

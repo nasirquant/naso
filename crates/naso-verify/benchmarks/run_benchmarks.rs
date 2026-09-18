@@ -7,15 +7,13 @@
 use naso_compiler::parser::parse_program;
 use naso_verify::{
     cache::VerificationCache,
-    cli::{VerifyCliConfig, VerifyMode},
     config::{Logic, SolverConfig},
-    output::{VerificationSummary, format_human, format_json, format_sarif},
-    prover::{run_all_provers, run_linearity_prover, run_uncomputation_prover},
+    prover::{run_linearity_prover, run_uncomputation_prover},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,6 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     for (file_name, bench_file) in &outcomes.benchmarks {
+        #[allow(clippy::collapsible_if)]
         if let Some(filter) = category_filter {
             if !file_name.starts_with(&format!("{}/", filter)) {
                 continue;
@@ -136,9 +135,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let start = Instant::now();
-            let mut cache = VerificationCache::new(None)?;
+            let _cache = VerificationCache::new(None)?;
 
-            let solver_config = SolverConfig {
+            let _solver_config = SolverConfig {
                 logic: Logic::QF_UFLIA,
                 timeout: Duration::from_secs(30),
                 ..Default::default()

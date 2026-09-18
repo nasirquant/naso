@@ -1,9 +1,8 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
-    use super::*;
-    use crate::ast::*;
     use crate::parser::parse_program;
-    use crate::typecheck::{TypeChecker, TypeError, check_program};
+    use crate::typecheck::{TypeError, check_program};
 
     fn check_source(source: &str) -> Result<(), Vec<TypeError>> {
         let mut program = parse_program(source).expect("Failed to parse");
@@ -232,8 +231,8 @@ mod tests {
                 }
             }
         "#;
-        let mut program = parse_program(source).expect("Failed to parse");
-        println!("PARSED AST: {:#?}", program);
+        let _program = parse_program(source).expect("Failed to parse");
+        println!("PARSED AST: {:#?}", _program);
         let result = check_source(source);
         if let Err(ref errors) = result {
             for e in errors {
@@ -345,13 +344,11 @@ mod tests {
 /// Unit tests for quantity unification and lattice operations (TASK-205)
 #[cfg(test)]
 mod qty_tests {
-    use super::*;
     use crate::ast::Quantity;
-    use crate::ast::Span;
     use crate::typecheck::unify::{qty_consume, qty_join, qty_meet, qty_subtype, unify_quantity};
 
-    fn span() -> Span {
-        Span::default()
+    fn span() -> crate::ast::Span {
+        crate::ast::Span::default()
     }
 
     #[test]

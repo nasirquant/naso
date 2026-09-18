@@ -138,6 +138,7 @@ pub enum ReductionOp {
 }
 
 /// Polyhedral lowering context
+#[derive(Default)]
 pub struct LoweringContext {
     pub schedules: Vec<Schedule>,
     pub next_schedule_id: usize,
@@ -203,51 +204,51 @@ impl LoweringContext {
         &self,
         lhs_shape: &ConcreteShape,
         rhs_shape: &ConcreteShape,
-        out_shape: &ConcreteShape,
+        _out_shape: &ConcreteShape,
     ) -> Schedule {
         let m = lhs_shape.dims()[0];
         let k = lhs_shape.dims()[1];
         let n = rhs_shape.dims()[1];
 
         // Domain: 0 <= i < m, 0 <= j < n, 0 <= k < k
-        let mut constraints = Vec::new();
-
-        // i >= 0
-        constraints.push(AffineConstraint {
-            coeffs: vec![1, 0, 0],
-            symbol_coeffs: vec![],
-            constant: 0,
-        });
-        // i < m
-        constraints.push(AffineConstraint {
-            coeffs: vec![-1, 0, 0],
-            symbol_coeffs: vec![],
-            constant: m as i64 - 1,
-        });
-        // j >= 0
-        constraints.push(AffineConstraint {
-            coeffs: vec![0, 1, 0],
-            symbol_coeffs: vec![],
-            constant: 0,
-        });
-        // j < n
-        constraints.push(AffineConstraint {
-            coeffs: vec![0, -1, 0],
-            symbol_coeffs: vec![],
-            constant: n as i64 - 1,
-        });
-        // k >= 0
-        constraints.push(AffineConstraint {
-            coeffs: vec![0, 0, 1],
-            symbol_coeffs: vec![],
-            constant: 0,
-        });
-        // k < k
-        constraints.push(AffineConstraint {
-            coeffs: vec![0, 0, -1],
-            symbol_coeffs: vec![],
-            constant: k as i64 - 1,
-        });
+        let constraints = vec![
+            // i >= 0
+            AffineConstraint {
+                coeffs: vec![1, 0, 0],
+                symbol_coeffs: vec![],
+                constant: 0,
+            },
+            // i < m
+            AffineConstraint {
+                coeffs: vec![-1, 0, 0],
+                symbol_coeffs: vec![],
+                constant: m as i64 - 1,
+            },
+            // j >= 0
+            AffineConstraint {
+                coeffs: vec![0, 1, 0],
+                symbol_coeffs: vec![],
+                constant: 0,
+            },
+            // j < n
+            AffineConstraint {
+                coeffs: vec![0, -1, 0],
+                symbol_coeffs: vec![],
+                constant: n as i64 - 1,
+            },
+            // k >= 0
+            AffineConstraint {
+                coeffs: vec![0, 0, 1],
+                symbol_coeffs: vec![],
+                constant: 0,
+            },
+            // k < k
+            AffineConstraint {
+                coeffs: vec![0, 0, -1],
+                symbol_coeffs: vec![],
+                constant: k as i64 - 1,
+            },
+        ];
 
         let domain = AffineDomain {
             constraints,
@@ -278,7 +279,7 @@ impl LoweringContext {
     }
 
     /// Lower element-wise operation
-    fn lower_elementwise(&self, op: ElementWiseOp, shape: &ConcreteShape) -> Schedule {
+    fn lower_elementwise(&self, _op: ElementWiseOp, shape: &ConcreteShape) -> Schedule {
         let rank = shape.rank();
         let mut constraints = Vec::new();
 
@@ -341,9 +342,9 @@ impl LoweringContext {
     fn lower_contraction(
         &self,
         lhs_shape: &ConcreteShape,
-        rhs_shape: &ConcreteShape,
+        _rhs_shape: &ConcreteShape,
         lhs_dim: usize,
-        rhs_dim: usize,
+        _rhs_dim: usize,
         out_shape: &ConcreteShape,
     ) -> Schedule {
         let rank = out_shape.rank();
@@ -420,8 +421,8 @@ impl LoweringContext {
     /// Lower outer product
     fn lower_outer(
         &self,
-        lhs_shape: &ConcreteShape,
-        rhs_shape: &ConcreteShape,
+        _lhs_shape: &ConcreteShape,
+        _rhs_shape: &ConcreteShape,
         out_shape: &ConcreteShape,
     ) -> Schedule {
         let rank = out_shape.rank();
@@ -515,7 +516,7 @@ impl LoweringContext {
     }
 
     /// Lower broadcast
-    fn lower_broadcast(&self, shape: &ConcreteShape, target_shape: &ConcreteShape) -> Schedule {
+    fn lower_broadcast(&self, _shape: &ConcreteShape, target_shape: &ConcreteShape) -> Schedule {
         let rank = target_shape.rank();
         let mut constraints = Vec::new();
 
@@ -563,7 +564,7 @@ impl LoweringContext {
     /// Lower reduction
     fn lower_reduction(
         &self,
-        op: ReductionOp,
+        _op: ReductionOp,
         shape: &ConcreteShape,
         dim: Option<usize>,
     ) -> Schedule {
@@ -663,7 +664,7 @@ pub mod pir_lowering {
     pub fn lower_to_pir(schedule: &Schedule) -> String {
         let mut pir = String::new();
         pir.push_str("// Polyhedral IR\n");
-        pir.push_str(&format!("domain {{\n"));
+        pir.push_str("domain {\n");
 
         for constraint in &schedule.domain.constraints {
             pir.push_str(&format!("  {};\n", format_constraint(constraint)));

@@ -3,6 +3,9 @@
 //! Tracks variables with their types, quantities, and mutabilities.
 //! Manages usage counting for linear variables, inout borrows, and consume moves.
 
+#![allow(clippy::result_large_err)]
+#![allow(clippy::collapsible_if)]
+
 use crate::ast::*;
 use crate::typecheck::error::TypeError;
 use indexmap::IndexMap;

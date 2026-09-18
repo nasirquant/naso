@@ -19,21 +19,16 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 /// Output format for verification results.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
     /// Human-readable colored output
+    #[default]
     Human,
     /// JSON for CI/CD integration
     Json,
     /// SARIF 2.1.0 for GitHub code scanning
     Sarif,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Human
-    }
 }
 
 #[cfg(feature = "z3")]
@@ -73,7 +68,15 @@ impl VerificationSummary {
         }
         self.diagnostics.extend(diagnostics);
     }
+}
 
+impl Default for VerificationSummary {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl VerificationSummary {
     pub fn success_rate(&self) -> f64 {
         if self.total_functions == 0 {
             0.0
@@ -85,7 +88,7 @@ impl VerificationSummary {
 
 #[cfg(feature = "z3")]
 /// Format verification results for human-readable output.
-pub fn format_human(summary: &VerificationSummary, config: &SolverConfig) -> String {
+pub fn format_human(summary: &VerificationSummary, _config: &SolverConfig) -> String {
     use colored::Colorize;
 
     let mut out = String::new();
@@ -112,9 +115,9 @@ pub fn format_human(summary: &VerificationSummary, config: &SolverConfig) -> Str
     ));
 
     if !summary.diagnostics.is_empty() {
-        out.push_str("\n");
-        out.push_str(&"Diagnostics:".bold().underline().to_string());
-        out.push_str("\n");
+        out.push('\n');
+        out.push_str(&"Diagnostics:\n".bold().underline().to_string());
+        out.push('\n');
 
         for diag in &summary.diagnostics {
             let severity_color = match diag.severity {
@@ -328,21 +331,21 @@ pub fn format_sarif(summary: &VerificationSummary) -> Result<String, serde_json:
 
 #[cfg(feature = "z3")]
 /// Format a single verification result for output.
-pub fn format_result(result: &VerifyResult, config: &SolverConfig) -> String {
+pub fn format_result(result: &VerifyResult, _config: &SolverConfig) -> String {
     use colored::Colorize;
 
     match result {
         VerifyResult::Sat(model) => {
             let mut out = String::new();
             out.push_str(&"UNSAT (property violated)".red().bold().to_string());
-            out.push_str("\n");
+            out.push('\n');
             out.push_str(&format!("  Model: {:?}\n", model));
             out
         }
         VerifyResult::Unsat(core) => {
             let mut out = String::new();
             out.push_str(&"SAT (property holds)".green().bold().to_string());
-            out.push_str("\n");
+            out.push('\n');
             if let Some(core) = core {
                 out.push_str(&format!("  Unsat core: {}\n", core.format()));
             }

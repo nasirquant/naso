@@ -4,6 +4,8 @@
 //! [`crate::ast::Expr`] nodes, including calls, field/index access, control
 //! flow, blocks, and quantum operations (`measure`, `entangle`).
 
+#![allow(clippy::while_let_loop)]
+
 use crate::ast::*;
 use crate::lexer::TokenKind as TK;
 use crate::parser::{Parser, next_id};

@@ -2,12 +2,14 @@
 //!
 //! Comprehensive well-formedness checks for PIR modules.
 
-use super::access_relation::{AccessRelation, AccessRelations, AccessType};
+#![allow(clippy::collapsible_if)]
+
+use super::access_relation::AccessRelations;
 use super::affine_domain::AffineDomain;
 use super::affine_map::AffineMap;
-use super::pir_types::{PirExpr, PirModule, PirStatement, QuantityMap, ValidationError};
-use super::schedule_tree::{ScheduleNode, ScheduleTree, ScheduleValidationError, StmtId};
-use crate::ast::{Mutability, Quantity};
+use super::pir_types::{PirExpr, PirModule, ValidationError};
+use super::schedule_tree::{ScheduleNode, ScheduleTree};
+use crate::ast::Quantity;
 use serde::{Deserialize, Serialize};
 
 /// Validate a PIR module comprehensively

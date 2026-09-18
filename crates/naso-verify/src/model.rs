@@ -3,6 +3,8 @@
 //! This module provides model extraction and unsat core handling for the
 //! Z3 solver backend. All Z3-dependent types are gated behind the `z3` feature.
 
+#![allow(unused_imports)]
+
 use naso_compiler::ast::Span;
 #[cfg(feature = "z3")]
 use serde::{Deserialize, Serialize};
@@ -297,7 +299,7 @@ mod z3_models {
     }
 
     impl FuncInterpretation {
-        fn from_z3(model: &z3::Model, decl: &z3::FuncDecl) -> Result<Self, String> {
+        fn from_z3(_model: &z3::Model, _decl: &z3::FuncDecl) -> Result<Self, String> {
             Ok(Self {
                 entries: Vec::new(),
                 else_branch: None,
@@ -347,7 +349,7 @@ mod z3_models {
         /// Create from Z3's unsat core.
         pub fn from_z3(
             z3_core: Vec<z3::ast::Bool>,
-            assertion_ids: &HashMap<String, usize>,
+            _assertion_ids: &HashMap<String, usize>,
         ) -> Result<Self, String> {
             let mut assertions = Vec::new();
 

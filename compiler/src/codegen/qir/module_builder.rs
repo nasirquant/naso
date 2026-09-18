@@ -1,6 +1,3 @@
-use crate::ast::{Quantity, Span};
-#[cfg(feature = "llvm")]
-
 /// QIR Module Builder
 ///
 /// Builds QIR-compatible LLVM IR modules with quantum intrinsics.

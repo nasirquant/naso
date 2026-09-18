@@ -41,6 +41,7 @@ pub fn grover_oracle<'a>(register: &'a mut [Qubit], marked_state: &'a [bool]) ->
 
 /// Apply Pauli-X gate (bit flip) to a qubit.
 #[inline(always)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn pauli_x(qubit: Qubit) -> Qubit {
     extern "C" {
         fn __quantum__qis__x__body(qubit: Qubit);
@@ -59,7 +60,7 @@ pub fn pauli_x(qubit: Qubit) -> Qubit {
 /// For a production implementation, this would use ancilla qubits and
 /// decompose into elementary gates.
 #[inline(always)]
-fn apply_mczt_gate<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
+fn apply_mczt_gate(register: &mut [Qubit]) -> &mut [Qubit] {
     if register.is_empty() {
         return register;
     }
@@ -74,6 +75,7 @@ fn apply_mczt_gate<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
 
 /// Apply Pauli-Z gate (phase flip) to a qubit.
 #[inline(always)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn pauli_z(qubit: Qubit) -> Qubit {
     extern "C" {
         fn __quantum__qis__z__body(qubit: Qubit);
@@ -92,24 +94,24 @@ pub fn pauli_z(qubit: Qubit) -> Qubit {
 /// # Returns
 /// * The same register with the diffusion operator applied (linearity preserved)
 #[inline(always)]
-pub fn grover_diffusion<'a>(register: &'a mut [Qubit]) -> &'a mut [Qubit] {
+pub fn grover_diffusion(register: &mut [Qubit]) -> &mut [Qubit] {
     // Apply Hadamard to all qubits
-    for i in 0..register.len() {
-        register[i] = hadamard(register[i]);
+    for qubit in register.iter_mut() {
+        *qubit = hadamard(*qubit);
     }
 
     // Apply oracle that marks |00...0> state (apply X gates, then MCZT, then X gates)
-    for i in 0..register.len() {
-        register[i] = pauli_x(register[i]);
+    for qubit in register.iter_mut() {
+        *qubit = pauli_x(*qubit);
     }
     apply_mczt_gate(register);
-    for i in 0..register.len() {
-        register[i] = pauli_x(register[i]);
+    for qubit in register.iter_mut() {
+        *qubit = pauli_x(*qubit);
     }
 
     // Apply Hadamard to all qubits again
-    for i in 0..register.len() {
-        register[i] = hadamard(register[i]);
+    for qubit in register.iter_mut() {
+        *qubit = hadamard(*qubit);
     }
 
     register

@@ -47,6 +47,7 @@ pub fn convert_all_errors(
 }
 
 /// Generate quick fixes for a list of diagnostics
+#[allow(dead_code)]
 pub fn generate_quick_fixes(
     compiler_bridge: &CompilerBridge,
     diagnostics: &[Diagnostic],

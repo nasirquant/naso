@@ -1,7 +1,7 @@
 /// Runtime Dispatcher
 ///
 /// Coordinates execution across different targets: simulator, JIT, hardware backends.
-use crate::runtime::statevector::{SimulatorConfig, SimulatorError, StatevectorSimulator};
+use crate::runtime::statevector::{SimulatorConfig, StatevectorSimulator};
 use crate::runtime::{CompiledProgram, ExecutionResult, RuntimeConfig, RuntimeError};
 
 /// Execution target for the runtime
@@ -23,6 +23,7 @@ pub struct RuntimeDispatcher {
     simulator: Option<StatevectorSimulator>,
 }
 
+#[allow(dead_code)]
 impl RuntimeDispatcher {
     /// Create a new dispatcher with configuration
     pub fn new(config: RuntimeConfig) -> Self {

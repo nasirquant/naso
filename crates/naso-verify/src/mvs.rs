@@ -81,7 +81,7 @@ impl Region {
     }
 
     /// Check if this region overlaps with another.
-    pub fn overlaps(&self, other: &Region) -> bool {
+    pub fn overlaps(&self, _other: &Region) -> bool {
         // Conservative: if we can't prove disjoint, assume overlap
         // In SMT, this would be a constraint: (overlap r1 r2) = (r1.base < r2.base + r2.size) && (r2.base < r1.base + r1.size)
         // For now, return true (assume overlap) unless we have concrete disjointness info
@@ -131,7 +131,7 @@ impl MvsTracker {
     /// Exit current function scope.
     pub fn exit_function(&mut self) -> Option<Frame> {
         let name = self.current_function.take()?;
-        self.function_frames.remove(&name)
+        self.function_frames.shift_remove(&name)
     }
 
     /// Register an inout parameter.
@@ -140,6 +140,7 @@ impl MvsTracker {
         self.inout_params.insert(param.name.clone(), param);
 
         // Add to function frame
+        #[allow(clippy::collapsible_if)]
         if let Some(func) = &self.current_function {
             if let Some(func_frame) = self.function_frames.get_mut(func) {
                 for (name, region) in frame.regions {
@@ -201,7 +202,7 @@ impl MvsTracker {
             script.declare_const(&format!("inout_{}", name), array_sort);
 
             // Declare frame regions
-            for (rname, region) in &param.frame.regions {
+            for (rname, _region) in &param.frame.regions {
                 script.declare_const(&format!("frame_{}_{}", name, rname), Sort::Int); // base
                 script.declare_const(&format!("frame_{}_{}_size", name, rname), Sort::Int); // size
             }
@@ -270,57 +271,57 @@ pub fn encode_mvs_function(
 /// Encode MVS constraints for an expression.
 pub fn encode_mvs_expr(
     expr: &naso_compiler::ast::Expr,
-    tracker: &mut MvsTracker,
+    _tracker: &mut MvsTracker,
 ) -> Result<Vec<Term>, VerifyError> {
     let mut constraints = Vec::new();
 
     match &expr.kind {
         ExprKind::Call(func, args) => {
             // Check if calling a function with inout params
-            if let ExprKind::Var(fname) = &func.kind {
+            if let ExprKind::Var(_fname) = &func.kind {
                 // Would need to look up callee's frame and check disjointness
             }
             for arg in args {
-                constraints.extend(encode_mvs_expr(arg, tracker)?);
+                constraints.extend(encode_mvs_expr(arg, _tracker)?);
             }
         }
         ExprKind::Let(binding) => {
-            constraints.extend(encode_mvs_expr(&binding.value, tracker)?);
+            constraints.extend(encode_mvs_expr(&binding.value, _tracker)?);
         }
         ExprKind::LetInOut(binding) => {
-            constraints.extend(encode_mvs_expr(&binding.value, tracker)?);
+            constraints.extend(encode_mvs_expr(&binding.value, _tracker)?);
         }
         ExprKind::LetConsume(binding) => {
-            constraints.extend(encode_mvs_expr(&binding.value, tracker)?);
+            constraints.extend(encode_mvs_expr(&binding.value, _tracker)?);
         }
         ExprKind::Block(block) => {
             if let Some(body_expr) = &block.expr {
-                constraints.extend(encode_mvs_expr(body_expr.as_ref(), tracker)?);
+                constraints.extend(encode_mvs_expr(body_expr.as_ref(), _tracker)?);
             }
             for stmt in &block.stmts {
                 if let naso_compiler::ast::StmtKind::Expr(stmt_expr) = &stmt.kind {
-                    constraints.extend(encode_mvs_expr(stmt_expr, tracker)?);
+                    constraints.extend(encode_mvs_expr(stmt_expr, _tracker)?);
                 }
             }
         }
         ExprKind::If(cond, then_e, else_e) => {
-            constraints.extend(encode_mvs_expr(cond, tracker)?);
-            constraints.extend(encode_mvs_expr(then_e, tracker)?);
+            constraints.extend(encode_mvs_expr(cond, _tracker)?);
+            constraints.extend(encode_mvs_expr(then_e, _tracker)?);
             if let Some(else_e) = else_e {
-                constraints.extend(encode_mvs_expr(else_e, tracker)?);
+                constraints.extend(encode_mvs_expr(else_e, _tracker)?);
             }
         }
         ExprKind::Binary(_, lhs, rhs) => {
-            constraints.extend(encode_mvs_expr(lhs, tracker)?);
-            constraints.extend(encode_mvs_expr(rhs, tracker)?);
+            constraints.extend(encode_mvs_expr(lhs, _tracker)?);
+            constraints.extend(encode_mvs_expr(rhs, _tracker)?);
         }
         ExprKind::Unary(_, operand) => {
-            constraints.extend(encode_mvs_expr(operand, tracker)?);
+            constraints.extend(encode_mvs_expr(operand, _tracker)?);
         }
         ExprKind::MethodCall(receiver, _, args) => {
-            constraints.extend(encode_mvs_expr(receiver, tracker)?);
+            constraints.extend(encode_mvs_expr(receiver, _tracker)?);
             for arg in args {
-                constraints.extend(encode_mvs_expr(arg, tracker)?);
+                constraints.extend(encode_mvs_expr(arg, _tracker)?);
             }
         }
         ExprKind::QuantumOp(_) => {}
@@ -332,6 +333,7 @@ pub fn encode_mvs_expr(
 
 #[cfg(feature = "z3")]
 /// Helper to get current function name (placeholder).
+#[allow(dead_code)]
 fn func_name() -> String {
     "current".to_string()
 }

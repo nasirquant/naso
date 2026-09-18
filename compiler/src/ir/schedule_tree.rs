@@ -454,7 +454,7 @@ mod tests {
             ],
         );
 
-        let mut m = super::super::affine_map::Matrix::identity(1);
+        let m = super::super::affine_map::Matrix::identity(1);
         let map1 = super::super::affine_map::AffineMap::total(domain1.clone(), m.clone());
         let map2 = super::super::affine_map::AffineMap::total(domain2.clone(), m);
 

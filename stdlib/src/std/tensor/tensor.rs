@@ -27,6 +27,7 @@ enum TensorStorage<T> {
 }
 
 impl<T> TensorStorage<T> {
+    #[allow(dead_code)]
     fn as_ptr(&self) -> *const T {
         match self {
             TensorStorage::Zero(_) => std::ptr::null(),
@@ -35,6 +36,7 @@ impl<T> TensorStorage<T> {
         }
     }
 
+    #[allow(dead_code)]
     fn as_mut_ptr(&mut self) -> *mut T {
         match self {
             TensorStorage::Zero(_) => std::ptr::null_mut(),
@@ -45,6 +47,7 @@ impl<T> TensorStorage<T> {
         }
     }
 
+    #[allow(dead_code)]
     fn len(&self) -> usize {
         match self {
             TensorStorage::Zero(_) => 0,
@@ -53,6 +56,7 @@ impl<T> TensorStorage<T> {
         }
     }
 
+    #[allow(dead_code)]
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -254,7 +258,7 @@ impl<D: Dims, T, L: Layout + Default> Tensor<QStar, D, T, L> {
     /// Try to get mutable access (fails if shared)
     pub fn try_get_mut_slice(&mut self) -> Option<&mut [T]> {
         match &mut self.data {
-            TensorStorage::Heap(buf) => std::sync::Arc::get_mut(buf).map(|b| b.as_mut()),
+            TensorStorage::Heap(buf) => std::sync::Arc::get_mut(buf),
             _ => None,
         }
     }
@@ -375,6 +379,7 @@ impl Default for ColMajor {
 pub struct TensorView<'a, T, L: Layout + Default = RowMajor> {
     data: &'a [T],
     shape: ConcreteShape,
+    #[allow(dead_code)]
     layout: L,
 }
 
@@ -409,6 +414,7 @@ impl<'a, T, L: Layout + Default> Deref for TensorView<'a, T, L> {
 pub struct TensorViewMut<'a, T, L: Layout + Default = RowMajor> {
     data: &'a mut [T],
     shape: ConcreteShape,
+    #[allow(dead_code)]
     layout: L,
 }
 

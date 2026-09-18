@@ -1,10 +1,8 @@
 use std::env;
 use std::fs;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use naso_compiler::lexer::Lexer;
-use naso_compiler::lowering::lower_program;
 use naso_compiler::parser::parse_program;
 use naso_compiler::typecheck::check_program;
 

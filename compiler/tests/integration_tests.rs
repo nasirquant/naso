@@ -1,3 +1,6 @@
+#![allow(unused_variables)]
+#![allow(clippy::approx_constant)]
+
 use naso_compiler::ast::*;
 use naso_compiler::lexer::{Lexer, TokenKind as TK};
 use naso_compiler::parser::parse_program;

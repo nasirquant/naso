@@ -138,10 +138,6 @@ fn lower_type_kind_to_aggregate(
         TypeKind::Nat => Ok(LlvmAggregateType::Int(IntWidth::I64)),
         TypeKind::Qubit => Ok(LlvmAggregateType::Struct(vec![QuantityAwareType::Qubit])),
         TypeKind::QRegister(dims) => {
-            let elem_types: CodegenResult<Vec<_>> = dims
-                .iter()
-                .map(|d| lower_pir_type(d, quantities).map(|qt| qt))
-                .collect();
             // For qregister, we represent as struct of qubits
             Ok(LlvmAggregateType::Struct(vec![QuantityAwareType::Linear(
                 LlvmAggregateType::Array(Box::new(QuantityAwareType::Qubit), dims.len() as u64),
@@ -169,26 +165,14 @@ fn lower_type_kind_to_aggregate(
                 .collect();
             Ok(LlvmAggregateType::Tuple(elem_types?))
         }
-        TypeKind::Named(name, args) => {
+        TypeKind::Named(_name, _args) => {
             // For named types, create a struct with fields
             // This would need type definition lookup in practice
             Ok(LlvmAggregateType::Struct(vec![]))
         }
-        TypeKind::Function(params, ret) => {
+        TypeKind::Function(_params, _ret) => {
             // Function types become pointer to function
-            let param_types: CodegenResult<Vec<_>> = params
-                .iter()
-                .map(|p| lower_pir_type(p, quantities))
-                .collect();
-            // ret is Box<Type>, deref to get &Type
-            let _ret_type = lower_pir_type(&*ret, quantities)?;
-            // Represent as opaque pointer for now
-            Ok(LlvmAggregateType::Struct(vec![
-                QuantityAwareType::Unrestricted(LlvmPointerType {
-                    pointee: Box::new(QuantityAwareType::Erased),
-                    address_space: 0,
-                }),
-            ]))
+            Ok(LlvmAggregateType::Struct(vec![]))
         }
         TypeKind::Projection(inner) => {
             // Reference type becomes pointer

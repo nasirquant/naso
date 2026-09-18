@@ -1,5 +1,7 @@
 //! Quantity constraints and solving for the Naso type checker
 
+#![allow(clippy::result_large_err)]
+
 use crate::ast::*;
 use crate::typecheck::error::TypeError;
 use crate::typecheck::*;
@@ -48,8 +50,8 @@ impl ConstraintSet {
 /// Solve all quantity constraints
 pub fn solve(
     constraints: &mut ConstraintSet,
-    env: &mut type_env::TypeEnv,
-    meta_vars: &mut IndexMap<MetaVar, Option<Type>>,
+    _env: &mut type_env::TypeEnv,
+    _meta_vars: &mut IndexMap<MetaVar, Option<Type>>,
 ) -> Result<(), TypeError> {
     // For now, just check that all constraints are satisfiable
     // A full solver would do more sophisticated constraint solving

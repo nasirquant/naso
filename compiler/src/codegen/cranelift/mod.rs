@@ -1,6 +1,5 @@
 // @generated
 #[cfg(feature = "cranelift")]
-
 /// Cranelift Backend
 ///
 /// Provides fast JIT compilation via Cranelift for development/debugging.

@@ -11,11 +11,11 @@ pub mod statevector;
 pub use dispatcher::{ExecutionTarget, RuntimeDispatcher};
 pub use statevector::{MeasurementResult, SimulatorConfig, StatevectorSimulator};
 
-use std::sync::Arc;
-
 /// Main runtime entry point
+#[allow(clippy::new_without_default)]
 pub struct Runtime {
     dispatcher: RuntimeDispatcher,
+    #[allow(dead_code)]
     config: RuntimeConfig,
 }
 
@@ -79,6 +79,12 @@ impl Runtime {
     /// Get the dispatcher for advanced usage
     pub fn dispatcher(&self) -> &RuntimeDispatcher {
         &self.dispatcher
+    }
+}
+
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

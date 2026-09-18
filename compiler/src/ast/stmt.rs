@@ -3,10 +3,8 @@
 //! Top-level statements and declarations.
 
 use crate::ast::expr::Expr;
-use crate::ast::pattern::Pattern;
 use crate::ast::ty::Type as AstType;
-use crate::ast::{Attribute, GenericParam, Ident, Mutability, NodeId, Quantity, Span, Type};
-use indexmap::IndexMap;
+use crate::ast::{Ident, Mutability, NodeId, Quantity, Span};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -85,7 +83,7 @@ impl fmt::Display for StmtKind {
             StmtKind::LetConsume(l) => write!(f, "let consume {:?} = {:?};", l.name, l.value),
             StmtKind::Expr(e) => write!(f, "{:?};", e),
             StmtKind::Item(i) => write!(f, "{:?}", i),
-            StmtKind::Reversible(r) => write!(f, "reversible {{ ... }}"),
+            StmtKind::Reversible(_r) => write!(f, "reversible {{ ... }}"),
             StmtKind::Return(opt) => {
                 if let Some(e) = opt {
                     write!(f, "return {:?};", e)

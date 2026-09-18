@@ -2,14 +2,13 @@
 //!
 //! Human-readable text format for debugging and golden fixtures.
 
-use super::access_relation::{AccessRelation, AccessRelations, AccessType};
+#![allow(clippy::useless_format)]
+
+use super::access_relation::AccessRelations;
 use super::affine_domain::AffineDomain;
 use super::affine_map::{AffineMap, Matrix};
-use super::pir_types::{
-    BinaryOp, ExternFunction, ExternParam, PirExpr, PirModule, PirStatement, UnaryOp,
-};
-use super::schedule_tree::{ScheduleNode, ScheduleTree, StmtId};
-use crate::ast::{Mutability, Quantity};
+use super::pir_types::{BinaryOp, PirExpr, PirModule, UnaryOp};
+use super::schedule_tree::ScheduleTree;
 
 /// Convert PIR module to human-readable string
 pub fn pir_to_string(module: &PirModule) -> String {
@@ -68,8 +67,7 @@ pub fn format_pir_expr(expr: &PirExpr) -> String {
     pir_expr_to_string(expr, 0)
 }
 
-fn pir_expr_to_string(expr: &PirExpr, indent: usize) -> String {
-    let prefix = "  ".repeat(indent);
+fn pir_expr_to_string(expr: &PirExpr, _indent: usize) -> String {
     match expr {
         PirExpr::IntLit(v) => format!("{}", v),
         PirExpr::FloatLit(v) => format!("{}", v),

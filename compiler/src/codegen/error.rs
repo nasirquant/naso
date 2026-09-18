@@ -244,6 +244,12 @@ impl DiagnosticEmitter {
     }
 }
 
+impl Default for DiagnosticEmitter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Source map for span-to-source mapping
 #[derive(Debug, Clone)]
 pub struct SourceMap {
@@ -290,6 +296,12 @@ impl SourceMap {
     }
 }
 
+impl Default for SourceMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SourceFile {
     pub path: PathBuf,
@@ -309,7 +321,6 @@ pub struct SourceLocation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::Span;
 
     #[test]
     fn test_codegen_error_display() {

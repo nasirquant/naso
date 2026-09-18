@@ -4,6 +4,8 @@
 //! verification conditions. It orchestrates the quantity, MVS, quantum, and
 //! polyhedral encoders.
 
+#![allow(unused_imports)]
+
 use crate::error::{LoweringError, LoweringError::*, VerifyError};
 use crate::quantity::{QuantityKind, QuantityTracker, encode_quantity_expr};
 use crate::quantum::{QuantumTracker, encode_quantum_expr};
@@ -82,7 +84,7 @@ impl LoweringContext {
     }
 
     /// Get the SMT-LIB2 script as a string.
-    pub fn to_smtlib_string(mut self) -> Result<String, VerifyError> {
+    pub fn to_smtlib_string(self) -> Result<String, VerifyError> {
         let script = self.finalize()?;
         Ok(script.to_string())
     }
@@ -188,6 +190,7 @@ fn lower_function(func: &Function, ctx: &mut LoweringContext) -> Result<(), Veri
 
 #[cfg(feature = "z3")]
 /// Lower an expression.
+#[allow(dead_code)]
 fn lower_expr(expr: &Expr, ctx: &mut LoweringContext) -> Result<(), VerifyError> {
     // For top-level expressions, we mainly track quantities
     let _ = encode_quantity_expr(expr, &mut ctx.quantity)?;

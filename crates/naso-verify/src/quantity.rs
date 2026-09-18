@@ -218,7 +218,7 @@ impl QuantityTracker {
             script.declare_const(name, Sort::Int);
         }
 
-        for (name, _) in &self.bounded_vars {
+        for name in self.bounded_vars.keys() {
             script.declare_const(name, Sort::Int);
         }
     }

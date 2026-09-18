@@ -3,11 +3,11 @@
 //! Implements type and quantity unification with metavariable solving
 //! Quantity lattice: Zero <: One <: Bounded(N) <: Many
 
-use crate::ast::ty::*;
+#![allow(clippy::result_large_err)]
+
 use crate::ast::*;
 use crate::typecheck::error::TypeError;
 use crate::typecheck::*;
-use indexmap::IndexMap;
 
 /// Quantity lattice: Zero <: One <: Bounded(N) <: Many
 ///
@@ -20,7 +20,6 @@ use indexmap::IndexMap;
 /// | Many    | Many | Many | Many | Many |
 ///
 /// Errors: Zero only unifies with Zero.
-
 /// Unify two types, accumulating constraints in the checker
 pub fn unify_types(checker: &mut TypeChecker, ty1: &Type, ty2: &Type) -> Result<Type, TypeError> {
     // Handle metavariables first
@@ -118,7 +117,7 @@ fn unify_kinds(
         }
 
         // Dependent types - Pi
-        (TypeKind::Pi(name1, domain1, codomain1), TypeKind::Pi(name2, domain2, codomain2)) => {
+        (TypeKind::Pi(name1, domain1, codomain1), TypeKind::Pi(_name2, domain2, codomain2)) => {
             let unified_domain = unify_types(checker, domain1, domain2)?;
             let unified_codomain = unify_types(checker, codomain1, codomain2)?;
             Ok(TypeKind::Pi(
@@ -129,7 +128,7 @@ fn unify_kinds(
         }
 
         // Dependent types - Sigma
-        (TypeKind::Sigma(name1, fst1, snd1), TypeKind::Sigma(name2, fst2, snd2)) => {
+        (TypeKind::Sigma(name1, fst1, snd1), TypeKind::Sigma(_name2, fst2, snd2)) => {
             let unified_fst = unify_types(checker, fst1, fst2)?;
             let unified_snd = unify_types(checker, snd1, snd2)?;
             Ok(TypeKind::Sigma(
@@ -140,7 +139,7 @@ fn unify_kinds(
         }
 
         // Type-level lambda
-        (TypeKind::Lambda(param1, body1), TypeKind::Lambda(param2, body2)) => {
+        (TypeKind::Lambda(param1, body1), TypeKind::Lambda(_param2, body2)) => {
             let unified_body = unify_types(checker, body1, body2)?;
             Ok(TypeKind::Lambda(param1.clone(), Box::new(unified_body)))
         }
@@ -276,7 +275,7 @@ pub fn qty_join(q1: Quantity, q2: Quantity) -> Quantity {
         (One, Bounded(n)) | (Bounded(n), One) if n >= 1 => Bounded(n.max(1)),
         (Bounded(0), _) | (_, Bounded(0)) => Zero,
         (Bounded(n1), Bounded(n2)) => Bounded(n1.max(n2)),
-        (Bounded(n), Many) | (Many, Bounded(n)) => Many,
+        (Bounded(_), Many) | (Many, Bounded(_)) => Many,
         (Many, Many) => Many,
         (a, b) => {
             // Fallback: take the maximum in the lattice order

@@ -7,10 +7,11 @@ use std::collections::HashMap;
 use tower_lsp::lsp_types::*;
 
 /// Generate quick fixes for a given diagnostic
+#[allow(dead_code)]
 pub fn quick_fix_for_diagnostic(
-    compiler_bridge: &CompilerBridge,
+    _compiler_bridge: &CompilerBridge,
     diagnostic: &Diagnostic,
-    document_content: &str,
+    _document_content: &str,
     document_uri: &Url,
 ) -> Vec<CodeActionOrCommand> {
     let mut fixes = Vec::new();
@@ -36,7 +37,7 @@ pub fn quick_fix_for_diagnostic(
                     edit: Some(WorkspaceEdit {
                         changes: Some(HashMap::from_iter(vec![(
                             uri.clone(),
-                            vec![TextEdit::new(range.clone(), String::new())],
+                            vec![TextEdit::new(range, String::new())],
                         )])),
                         ..Default::default()
                     }),
@@ -54,7 +55,7 @@ pub fn quick_fix_for_diagnostic(
                     edit: Some(WorkspaceEdit {
                         changes: Some(HashMap::from_iter(vec![(
                             uri.clone(),
-                            vec![TextEdit::new(range.clone(), "linear_free(_);".to_string())],
+                            vec![TextEdit::new(range, "linear_free(_);".to_string())],
                         )])),
                         ..Default::default()
                     }),
@@ -72,7 +73,7 @@ pub fn quick_fix_for_diagnostic(
                     edit: Some(WorkspaceEdit {
                         changes: Some(HashMap::from_iter(vec![(
                             uri.clone(),
-                            vec![TextEdit::new(range.clone(), String::new())],
+                            vec![TextEdit::new(range, String::new())],
                         )])),
                         ..Default::default()
                     }),
@@ -108,11 +109,13 @@ pub fn quick_fix_for_diagnostic(
 }
 
 /// Helper to get the primary range from a diagnostic (first related or the main range)
+#[allow(dead_code)]
+#[allow(clippy::unnecessary_lazy_evaluations)]
 fn get_primary_range(diagnostic: &Diagnostic) -> Option<Range> {
     diagnostic
         .related_information
         .as_ref()
         .and_then(|related| related.first())
-        .map(|info| info.location.range.clone())
-        .or_else(|| Some(diagnostic.range.clone()))
+        .map(|info| info.location.range)
+        .or_else(|| Some(diagnostic.range))
 }

@@ -30,6 +30,7 @@ pub enum VerifyMode {
 }
 
 impl VerifyMode {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
             "all" => Ok(VerifyMode::All),
@@ -71,8 +72,8 @@ pub struct VerifyCliConfig {
     /// List available diagnostic codes and exit
     pub list_codes: bool,
 }
-#[cfg(feature = "z3")]
 
+#[cfg(feature = "z3")]
 impl Default for VerifyCliConfig {
     fn default() -> Self {
         Self {
@@ -91,7 +92,6 @@ impl Default for VerifyCliConfig {
     }
 }
 #[cfg(feature = "z3")]
-
 /// Parse command line arguments for `naso verify`.
 #[cfg(feature = "z3")]
 pub fn parse_verify_args(args: &[String]) -> Result<VerifyCliConfig, String> {
@@ -233,7 +233,6 @@ pub fn parse_verify_args(args: &[String]) -> Result<VerifyCliConfig, String> {
     Ok(config)
 }
 #[cfg(feature = "z3")]
-
 /// Print usage information.
 #[cfg(feature = "z3")]
 pub fn print_verify_usage() {

@@ -3,8 +3,11 @@
 //! Property-based tests for codegen using proptest to verify invariants
 //! hold across randomly generated inputs.
 
+#[cfg(feature = "llvm")]
 use naso_compiler::codegen::validate::{BitcodeValidator, ValidationReport, ValidationSeverity};
-use naso_compiler::ir::pir_types::{PirAccess, PirDomain, PirModule, PirStatement};
+#[cfg(feature = "llvm")]
+use naso_compiler::ir::pir_types::{PirModule, PirStatement};
+#[cfg(feature = "llvm")]
 use std::collections::HashMap;
 
 #[cfg(feature = "llvm")]
@@ -488,6 +491,7 @@ mod qir_property_tests {
 }
 
 /// Tests that run without LLVM feature
+#[cfg(feature = "llvm")]
 mod no_llvm_property_tests {
     use super::*;
 

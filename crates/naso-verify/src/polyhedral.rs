@@ -178,7 +178,7 @@ impl PolyhedralTracker {
         }
 
         // Build domain from current loop indices
-        let mut domain = IterationDomain::new(self.loop_indices.clone());
+        let domain = IterationDomain::new(self.loop_indices.clone());
         // In real implementation, domain constraints come from loop bounds
         // For now, assume 0 <= i < N for each index
 
@@ -266,6 +266,7 @@ pub fn encode_polyhedral_expr(
             let mut iter_domain = IterationDomain::new(vec![loop_expr.var.name.clone()]);
 
             // Extract bounds from loop iterator - check if it's a range-like call
+            #[allow(clippy::collapsible_if)]
             if let ExprKind::Call(func, args) = &loop_expr.iter.kind {
                 if let ExprKind::Var(fname) = &func.kind {
                     if fname.name == "range" && args.len() >= 2 {
@@ -273,12 +274,12 @@ pub fn encode_polyhedral_expr(
                         if let ExprKind::Literal(naso_compiler::ast::Literal::Int(s)) =
                             &args[0].kind
                         {
-                            iter_domain.add_constraint(vec![1], -(*s as i64)); // i - s >= 0
+                            iter_domain.add_constraint(vec![1], -*s); // i - s >= 0
                         }
                         if let ExprKind::Literal(naso_compiler::ast::Literal::Int(e)) =
                             &args[1].kind
                         {
-                            iter_domain.add_constraint(vec![-1], (*e as i64) - 1); // -i + e - 1 >= 0
+                            iter_domain.add_constraint(vec![-1], *e - 1); // -i + e - 1 >= 0
                         }
                     }
                 }
@@ -298,7 +299,7 @@ pub fn encode_polyhedral_expr(
 
             tracker.exit_forall();
         }
-        ExprKind::Call(func, args) => {
+        ExprKind::Call(_func, args) => {
             for arg in args {
                 constraints.extend(encode_polyhedral_expr(arg, tracker)?);
             }

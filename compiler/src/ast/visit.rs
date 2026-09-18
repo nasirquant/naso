@@ -4,6 +4,8 @@
 //! implementations walk each node's children; overrides can be used to
 //! implement passes (e.g. type checking, reversible uncomputation).
 
+#![allow(clippy::collapsible_if)]
+
 use crate::ast::{
     Block, ConstDef, Expr, Function, Item, Module, Param, Program, Stmt, Type, TypeDef,
 };

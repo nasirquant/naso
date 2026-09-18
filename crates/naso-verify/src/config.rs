@@ -1,13 +1,16 @@
 //! Configuration types for the SMT solver.
 
+#![allow(non_camel_case_types)]
+
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// Supported SMT logics for Z3.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Logic {
     /// Quantifier-free uninterpreted functions + linear integer arithmetic
+    #[default]
     QF_UFLIA,
     /// Quantifier-free bitvectors
     QF_BV,
@@ -17,12 +20,6 @@ pub enum Logic {
     AUFLIA,
     /// Non-linear arithmetic
     QF_NRA,
-}
-
-impl Default for Logic {
-    fn default() -> Self {
-        Logic::QF_UFLIA
-    }
 }
 
 impl Logic {
@@ -38,6 +35,7 @@ impl Logic {
     }
 
     /// Parse logic from string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s.to_uppercase().as_str() {
             "QF_UFLIA" => Ok(Logic::QF_UFLIA),

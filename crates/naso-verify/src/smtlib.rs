@@ -85,7 +85,7 @@ impl Default for Script {
 impl fmt::Display for Script {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for cmd in &self.commands {
-            write!(f, "{}\n", cmd)?;
+            writeln!(f, "{}", cmd)?;
         }
         Ok(())
     }

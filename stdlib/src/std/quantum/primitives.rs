@@ -4,6 +4,7 @@ use crate::std::prelude::*;
 ///
 /// Returns a linear qubit ([1]) that must be consumed exactly once.
 #[inline(always)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn qalloc() -> Qubit {
     // This will lower to the appropriate QIR intrinsic
     extern "C" {
@@ -16,6 +17,7 @@ pub fn qalloc() -> Qubit {
 ///
 /// Consumes the qubit exactly once.
 #[inline(always)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn qfree(qubit: Qubit) {
     // This will lower to the appropriate QIR intrinsic
     extern "C" {
@@ -28,6 +30,7 @@ pub fn qfree(qubit: Qubit) {
 ///
 /// The qubit is consumed and a new qubit is returned (linearity preserved).
 #[inline(always)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn hadamard(qubit: Qubit) -> Qubit {
     // This will lower to the appropriate QIR intrinsic
     extern "C" {
@@ -43,6 +46,7 @@ pub fn hadamard(qubit: Qubit) -> Qubit {
 ///
 /// Both qubits are consumed and returned (linearity preserved).
 #[inline(always)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn cnot(control: Qubit, target: Qubit) -> (Qubit, Qubit) {
     // This will lower to the appropriate QIR intrinsic
     extern "C" {
@@ -58,6 +62,7 @@ pub fn cnot(control: Qubit, target: Qubit) -> (Qubit, Qubit) {
 ///
 /// Consumes the qubit and returns a classical bit (0 or 1).
 #[inline(always)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn measure(qubit: Qubit) -> bool {
     // This will lower to the appropriate QIR intrinsic
     extern "C" {

@@ -2,7 +2,11 @@
 //!
 //! Implements the bidirectional typing rules: infer mode (synthesis)
 
-use crate::ast::ty::{MetaVar, TypeKind, TypeVar};
+#![allow(clippy::result_large_err)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::single_match)]
+
+use crate::ast::ty::{TypeKind, TypeVar};
 use crate::ast::*;
 use crate::typecheck::check::{check_block, check_stmt};
 use crate::typecheck::error::TypeError;
@@ -49,7 +53,7 @@ pub fn infer_expr(checker: &mut TypeChecker, expr: &Expr) -> Result<Type, TypeEr
         ExprKind::Assign(lhs, rhs) => infer_assign(checker, lhs, rhs, expr.span),
         ExprKind::Projection(base) => infer_projection(checker, base, expr.span),
         ExprKind::QuantumOp(qop) => infer_quantum_op(checker, qop, expr.span),
-        ExprKind::Ascribe(inner, ty) => Ok(ty.clone()),
+        ExprKind::Ascribe(_, ty) => Ok(ty.clone()),
         ExprKind::Break(opt_expr) => infer_break(checker, opt_expr.as_deref(), expr.span),
         ExprKind::Continue => infer_continue(expr.span),
         ExprKind::Error => Ok(Type::new(TypeKind::Error, Quantity::Many, expr.span)),
@@ -207,7 +211,7 @@ fn infer_call(
 
             Ok(*ret.clone())
         }
-        TypeKind::Pi(name, domain, codomain) => {
+        TypeKind::Pi(_, domain, codomain) => {
             // Dependent function application: Π(x:τ₁). τ₂
             // arg must check against domain, result is codomain[arg/x]
             if args.len() != 1 {
@@ -236,11 +240,11 @@ fn infer_call(
 fn infer_method_call(
     checker: &mut TypeChecker,
     receiver: &Expr,
-    method: &Ident,
-    args: &[Expr],
+    _method: &Ident,
+    _args: &[Expr],
     span: Span,
 ) -> Result<Type, TypeError> {
-    let receiver_ty = infer_expr(checker, receiver)?;
+    let _receiver_ty = infer_expr(checker, receiver)?;
 
     // Look up method on receiver type
     // For now, stub - would need type class / trait system
@@ -382,6 +386,7 @@ fn infer_tuple(checker: &mut TypeChecker, elems: &[Expr], span: Span) -> Result<
     Ok(Type::new(TypeKind::Tuple(elem_types), Quantity::Many, span))
 }
 
+#[allow(dead_code)]
 /// Infer sigma (dependent pair) type
 fn infer_sigma(
     checker: &mut TypeChecker,
@@ -503,7 +508,7 @@ fn infer_match(
             .bind_var(name, info.ty, info.quantity, info.mutability);
     }
 
-    let mut result_ty = if let Some(guard_expr) = &first_arm.guard {
+    let result_ty = if let Some(guard_expr) = &first_arm.guard {
         infer_expr(checker, guard_expr)?
     } else {
         infer_expr(checker, &first_arm.body)?
@@ -538,7 +543,7 @@ fn infer_match(
 fn infer_let(
     checker: &mut TypeChecker,
     binding: &LetBinding,
-    span: Span,
+    _span: Span,
 ) -> Result<Type, TypeError> {
     let value_ty = infer_expr(checker, &binding.value)?;
 
@@ -729,8 +734,8 @@ fn infer_forall(
 
     for (var, lower, upper) in &forall_loop.bindings {
         // Check that bounds are integers
-        let lower_ty = infer_expr(checker, lower)?;
-        let upper_ty = infer_expr(checker, upper)?;
+        let _lower_ty = infer_expr(checker, lower)?;
+        let _upper_ty = infer_expr(checker, upper)?;
 
         // For simplicity, assume bounds are integer types
         // Bind the loop variable as integer type
@@ -832,7 +837,7 @@ fn infer_quantum_op(
             checker.env.move_var(&target_ty.to_ident(), span)?;
             Ok(Type::new(TypeKind::Bool, Quantity::One, span))
         }
-        QuantumOp::ApplyGate(gate, args) => {
+        QuantumOp::ApplyGate(_gate, args) => {
             // Quantum gates are in-place operations that borrow qubits
             // (like inout), they don't consume them
             for arg in args {

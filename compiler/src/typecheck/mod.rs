@@ -7,6 +7,9 @@
 //! - Reversible computation with uncomputation verification
 //! - Quantum linearity: Qubit/QRegister are always [1]
 
+#![allow(clippy::result_large_err)]
+#![allow(clippy::collapsible_if)]
+
 pub mod check;
 pub mod constraints;
 pub mod error;

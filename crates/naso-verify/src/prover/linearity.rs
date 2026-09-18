@@ -61,7 +61,7 @@ fn prove_function_linearity(func: &Function) -> Result<Vec<VerifyDiagnostic>, Ve
         constraints.extend(encode_quantity_expr(body_expr.as_ref(), &mut tracker)?);
     }
     for stmt in &func.body.stmts {
-        if let naso_compiler::ast::StmtKind::Expr(expr) = &stmt.kind {
+        if let naso_compiler::ast::StmtKind::Expr(_expr) = &stmt.kind {
             let _ = crate::quantity::encode_quantity_stmt(stmt, &mut tracker)?;
         }
     }

@@ -3,6 +3,8 @@
 //! This module provides hash-based caching of verification results to avoid
 //! re-running the solver on unchanged code.
 
+#![allow(unused_imports)]
+
 #[cfg(feature = "z3")]
 use crate::config::SolverConfig;
 #[cfg(feature = "z3")]
@@ -129,7 +131,7 @@ impl VerificationCache {
         });
 
         // Create cache directory if it doesn't exist
-        std::fs::create_dir_all(&cache_dir).map_err(|e| {
+        std::fs::create_dir_all(&cache_dir).map_err(|_e| {
             VerifyError::Cache(CacheError::DirNotAccessible {
                 path: cache_dir.display().to_string(),
             })
@@ -171,7 +173,7 @@ impl VerificationCache {
 
     /// Hash a source file.
     pub fn hash_file(path: &Path) -> Result<String, VerifyError> {
-        let content = std::fs::read(path).map_err(|e| VerifyError::Io(e))?;
+        let content = std::fs::read(path).map_err(VerifyError::Io)?;
         let hash = blake3::hash(&content);
         Ok(hash.to_hex().to_string())
     }
@@ -239,7 +241,7 @@ impl VerificationCache {
         let index_path = self.cache_dir.join("index.json");
         let data = serde_json::to_vec_pretty(&self.entries)
             .map_err(|e| VerifyError::Cache(CacheError::SerializationFailed(e.to_string())))?;
-        std::fs::write(index_path, data).map_err(|e| VerifyError::Io(e))?;
+        std::fs::write(index_path, data).map_err(VerifyError::Io)?;
         Ok(())
     }
 
@@ -247,7 +249,7 @@ impl VerificationCache {
     fn load_index(&mut self) -> Result<(), VerifyError> {
         let index_path = self.cache_dir.join("index.json");
         if index_path.exists() {
-            let data = std::fs::read(&index_path).map_err(|e| VerifyError::Io(e))?;
+            let data = std::fs::read(&index_path).map_err(VerifyError::Io)?;
             self.entries = serde_json::from_slice(&data).map_err(|e| {
                 VerifyError::Cache(CacheError::DeserializationFailed(e.to_string()))
             })?;

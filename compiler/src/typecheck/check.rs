@@ -7,6 +7,10 @@
 //! - [N] bounded variables: consumed at most N times
 //! - [*] unrestricted: any number of uses
 
+#![allow(clippy::result_large_err)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::collapsible_match)]
+
 use crate::ast::expr::{LetBinding, LetConsumeBinding, LetInOutBinding};
 use crate::ast::*;
 use crate::typecheck::constraints::{is_erasable, qty_subtype};
@@ -34,7 +38,7 @@ pub fn check_expr(
 
 /// Check quantity consumption rules
 fn check_quantity_consumption(
-    checker: &mut TypeChecker,
+    _checker: &mut TypeChecker,
     expr: &Expr,
     inferred: &Type,
     expected: &Type,
@@ -261,15 +265,13 @@ fn check_pure_statement(checker: &mut TypeChecker, stmt: &Stmt) -> Result<(), Ty
 /// Check that an expression is pure
 fn check_pure_expr(checker: &mut TypeChecker, expr: &Expr) -> Result<(), TypeError> {
     match &expr.kind {
-        ExprKind::QuantumOp(qop) => match qop {
-            QuantumOp::Measure(_) | QuantumOp::Hamiltonian(_, _) => {
-                Err(TypeError::ImpureInReversible {
-                    operation: "quantum measurement/hamiltonian".to_string(),
-                    span: expr.span,
-                })
-            }
-            _ => Ok(()),
-        },
+        ExprKind::QuantumOp(QuantumOp::Measure(_) | QuantumOp::Hamiltonian(_, _)) => {
+            Err(TypeError::ImpureInReversible {
+                operation: "quantum measurement/hamiltonian".to_string(),
+                span: expr.span,
+            })
+        }
+        ExprKind::QuantumOp(_) => Ok(()),
         ExprKind::Call(callee, _) => {
             // Check if callee is impure
             let callee_ty = infer_expr(checker, callee)?;
@@ -441,7 +443,7 @@ pub fn check_pattern(
             }
             Ok(bindings)
         }
-        PatternKind::Range(start, end) => {
+        PatternKind::Range(_, _) => {
             // Range pattern - check both bounds
             let start_ty = Type::new(TypeKind::Int, Quantity::Many, pattern.span);
             let end_ty = Type::new(TypeKind::Int, Quantity::Many, pattern.span);

@@ -3,13 +3,19 @@
 //! Loads golden fixture PIR files and validates them through the IR validator.
 //! Also includes property-based tests for inversion correctness.
 
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(unused_mut)]
+#![allow(dead_code)]
+#![allow(clippy::if_same_then_else)]
+
 use naso_compiler::ast::{Mutability, Quantity};
 use naso_compiler::ir::{
     access_relation::{AccessRelation, AccessRelations, AccessType},
-    affine_domain::{AffineConstraint, AffineDomain},
+    affine_domain::AffineDomain,
     affine_map::{AffineMap, Matrix},
     pir_types::{BinaryOp, PirExpr, PirModule, PirStatement, QuantityMap, ValidationError},
-    pretty_print::{format_golden_fixture, pir_from_json},
+    pretty_print::format_golden_fixture,
     schedule_tree::{ScheduleNode, ScheduleTree, StmtId},
     validate::{validate_pir, validate_schedule_detailed},
 };
@@ -23,7 +29,7 @@ fn load_and_validate_fixture(name: &str) -> Result<PirModule, Vec<ValidationErro
         .join("fixtures")
         .join(format!("{}.pir", name));
 
-    let content = fs::read_to_string(&path)
+    let _content = fs::read_to_string(&path)
         .unwrap_or_else(|_| panic!("Failed to read fixture: {}", path.display()));
 
     // For now, we'll construct the PIR programmatically based on the fixture
@@ -427,13 +433,9 @@ fn construct_teleport_fixture() -> Result<PirModule, Vec<ValidationError>> {
 
     let mut accesses = AccessRelations::new();
     for q in 0..3 {
-        let mut m = Matrix::new(0, 0); // 0-dim access for qubit
+        let m = Matrix::new(0, 0); // 0-dim access for qubit
         let access = AffineMap::total(domain.clone(), m);
-        let typ = if q == 2 {
-            AccessType::ReadWrite
-        } else {
-            AccessType::ReadWrite
-        };
+        let typ = AccessType::ReadWrite;
         accesses.add(
             AccessRelation::new(StmtId(q as usize), domain.clone(), access, typ)
                 .with_array_name("q"),

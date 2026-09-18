@@ -182,6 +182,7 @@ impl ControlFlowGraph {
                 );
                 let then_exit = self.build_from_expr(then_e, then_id)?;
 
+                #[allow(clippy::collapsible_if)]
                 if let Some(node) = self.nodes.get_mut(&branch_id) {
                     if let CfgNodeKind::Branch { then_block, .. } = &mut node.kind {
                         *then_block = then_id;
@@ -208,6 +209,7 @@ impl ControlFlowGraph {
                     self.add_edge(else_exit, merge_id);
                 }
 
+                #[allow(clippy::collapsible_if)]
                 if let Some(node) = self.nodes.get_mut(&branch_id) {
                     if let CfgNodeKind::Branch { else_block, .. } = &mut node.kind {
                         *else_block = if else_exit == branch_id {
@@ -266,6 +268,7 @@ impl ControlFlowGraph {
                 self.add_edge(body_exit, back_id);
                 self.add_edge(back_id, header_id);
 
+                #[allow(clippy::collapsible_if)]
                 if let Some(node) = self.nodes.get_mut(&header_id) {
                     if let CfgNodeKind::LoopHeader { body, .. } = &mut node.kind {
                         *body = body_id;
@@ -277,21 +280,7 @@ impl ControlFlowGraph {
 
                 Ok(exit_id)
             }
-            ExprKind::Call(_, _)
-            | ExprKind::Var(_)
-            | ExprKind::Literal(_)
-            | ExprKind::Unary(_, _)
-            | ExprKind::Binary(_, _, _)
-            | ExprKind::Field(_, _)
-            | ExprKind::Index(_, _)
-            | ExprKind::Projection(_)
-            | ExprKind::Block(_)
-            | ExprKind::Let(_)
-            | ExprKind::LetInOut(_)
-            | ExprKind::LetConsume(_)
-            | ExprKind::MethodCall(_, _, _)
-            | ExprKind::QuantumOp(_)
-            | _ => {
+            _ => {
                 let stmt_node = self.new_node(
                     CfgNodeKind::Stmt(Stmt::new(
                         StmtKind::Expr(expr.clone()),
@@ -431,7 +420,7 @@ impl LinearityDataflow {
         let changed = self
             .live_out
             .insert(node_id, live.clone())
-            .map_or(true, |old| old != live);
+            .is_none_or(|old| old != live);
         Ok(changed)
     }
 }

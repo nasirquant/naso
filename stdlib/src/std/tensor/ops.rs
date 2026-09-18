@@ -1,5 +1,7 @@
 //! Tensor operations: matmul, elementwise arithmetic, transpose, contraction, outer products
 
+#![allow(unused_variables)]
+
 use super::*;
 use crate::core::prelude::*;
 use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
@@ -307,7 +309,7 @@ where
 }
 
 /// Float operations trait for sigmoid
-trait FloatOps: Clone {
+pub trait FloatOps: Clone {
     fn one() -> Self;
     fn exp(self) -> Self;
 }

@@ -39,6 +39,7 @@ pub async fn handle_hover(
     }
 
     // Fallback: check if there's a word at position and provide generic info
+    #[allow(clippy::collapsible_if)]
     if let Some(document) = server.document_store.get(&uri) {
         if let Some(word) = extract_word_at(&document.content, position) {
             if let Some(generic_hover) = get_generic_hover(&word) {

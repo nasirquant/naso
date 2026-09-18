@@ -4,6 +4,8 @@
 //! module wraps them in a [`Lexer`] that produces a flat [`Vec<Token>`] and
 //! tracks line/column information for diagnostics.
 
+#![allow(clippy::approx_constant)]
+
 pub mod token;
 
 use logos::Logos;

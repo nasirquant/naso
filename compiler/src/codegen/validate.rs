@@ -504,6 +504,12 @@ pub struct QirValidationReport {
     pub errors: Vec<QirValidationError>,
 }
 
+impl Default for ValidationReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QirValidationReport {
     pub fn new() -> Self {
         Self {
@@ -524,6 +530,12 @@ impl QirValidationReport {
             self.warnings.len(),
             self.errors.len()
         )
+    }
+}
+
+impl Default for QirValidationReport {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -688,6 +700,12 @@ impl StructuralVerifier {
         }
 
         Ok(())
+    }
+}
+
+impl Default for StructuralReport {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

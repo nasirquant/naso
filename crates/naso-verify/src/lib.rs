@@ -6,7 +6,8 @@
 //! - Automated provers for quantum uncomputation safety and [1]-quantity leak detection
 //! - CLI integration via `naso verify` command
 
-#[macro_use]
+#![allow(unused_imports)]
+
 extern crate serde;
 
 pub mod cache;
