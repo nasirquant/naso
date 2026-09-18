@@ -6,6 +6,7 @@ use crate::ast::ty::{MetaVar, TypeKind, TypeVar};
 use crate::ast::*;
 use crate::typecheck::check::{check_block, check_stmt};
 use crate::typecheck::error::TypeError;
+use crate::typecheck::type_env::Place;
 use crate::typecheck::*;
 
 /// Infer the type of an expression (synthesis mode)
@@ -832,9 +833,18 @@ fn infer_quantum_op(
             Ok(Type::new(TypeKind::Bool, Quantity::One, span))
         }
         QuantumOp::ApplyGate(gate, args) => {
-            // Check gate arguments
+            // Quantum gates are in-place operations that borrow qubits
+            // (like inout), they don't consume them
             for arg in args {
-                infer_expr(checker, arg)?;
+                let arg_ty = infer_expr(checker, arg)?;
+                // Validate that argument is a Qubit with quantity 1
+                unify::unify_types(checker, &arg_ty, &Type::qubit(span))?;
+                // Borrow the qubit for the gate operation (in-place, like inout)
+                if let ExprKind::Var(ident) = &arg.kind {
+                    checker
+                        .env
+                        .borrow_inout(ident.clone(), Place::Var(ident.clone()), span)?;
+                }
             }
             Ok(Type::unit(span))
         }

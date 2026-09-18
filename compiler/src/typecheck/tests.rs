@@ -272,6 +272,74 @@ mod tests {
         let result = check_source(source);
         assert!(result.is_err());
     }
+
+    /// Regression test for quantum gate borrowing (Issue: linear variable used twice)
+    /// Tests that quantum gates (hadamard, cnot) borrow qubits instead of consuming them
+    #[test]
+    fn test_quantum_gate_borrowing() {
+        // Bell pair creation - hadamard and cnot should borrow qubits, not consume them
+        let source = r#"
+            fn bell_pair() -> (Qubit, Qubit) {
+                let [1] q0 = qalloc();
+                let [1] q1 = qalloc();
+                hadamard(q0);
+                cnot(q0, q1);
+                (q0, q1)
+            }
+        "#;
+        assert!(
+            check_source(source).is_ok(),
+            "Bell pair with quantum gates should type check"
+        );
+    }
+
+    /// Negative test: actual repeated ownership consumption should still fail
+    #[test]
+    fn test_repeated_ownership_consumption_fails() {
+        // This should fail: measure consumes the qubit, then using it again should error
+        let source = r#"
+            fn test() {
+                let [1] q = qalloc();
+                measure(q); // consumes q
+                measure(q); // ERROR: use of moved value
+            }
+        "#;
+        let result = check_source(source);
+        assert!(result.is_err(), "Repeated measure should fail");
+        let errors = result.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, TypeError::UseOfMovedValue { .. }))
+        );
+    }
+
+    /// Test that measure still consumes the qubit
+    #[test]
+    fn test_measure_consumes_qubit() {
+        let source = r#"
+            fn test() {
+                let [1] q = qalloc();
+                let r = measure(q); // consumes q
+                // q should be moved, cannot use again
+            }
+        "#;
+        assert!(check_source(source).is_ok());
+    }
+
+    /// Test that entangle consumes qubits
+    #[test]
+    fn test_entangle_consumes_qubits() {
+        let source = r#"
+            fn test() {
+                let [1] q0 = qalloc();
+                let [1] q1 = qalloc();
+                let qr = entangle(q0, q1); // consumes both qubits
+                // q0, q1 moved, cannot use again
+            }
+        "#;
+        assert!(check_source(source).is_ok());
+    }
 }
 
 /// Unit tests for quantity unification and lattice operations (TASK-205)
