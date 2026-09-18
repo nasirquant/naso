@@ -3,11 +3,10 @@
 //! Emits LLVM loop structures from polyhedral schedule bands.
 //! Handles sequential loops, parallel bands, and induction variables.
 
-use crate::codegen::error::{CodegenError, CodegenResult};
+use crate::codegen::error::CodegenResult;
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::affine_map::AffineMap;
 use inkwell::IntPredicate;
-use inkwell::types::BasicTypeEnum;
 use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue};
 
 /// Loop emitter for sequential and parallel bands

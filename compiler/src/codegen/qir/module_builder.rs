@@ -10,7 +10,7 @@ use inkwell::AddressSpace;
 use inkwell::builder::Builder as LlvmBuilder;
 use inkwell::context::Context as LlvmContext;
 use inkwell::module::Module as LlvmModule;
-use inkwell::types::{BasicTypeEnum, FunctionType, IntType, PointerType, StructType, VoidType};
+use inkwell::types::{FunctionType, IntType, PointerType, StructType, VoidType};
 use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue, GlobalValue, PointerValue};
 use std::collections::HashMap;
 

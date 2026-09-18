@@ -23,7 +23,6 @@ use crate::ir::{
     pir_types::{AccessRelations, PirModule, PirStatement, QuantityMap},
     schedule_tree::{ScheduleNode, ScheduleTree, StmtId},
 };
-use inkwell::types::BasicTypeEnum;
 use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue, PointerValue};
 use std::collections::HashMap;
 

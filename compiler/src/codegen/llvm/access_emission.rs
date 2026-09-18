@@ -4,7 +4,7 @@
 //! Handles alias.scope metadata for [1]-quantity linearity verification.
 
 use crate::ast::Quantity;
-use crate::codegen::error::{CodegenError, CodegenResult};
+use crate::codegen::error::CodegenResult;
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::{
     access_relation::{AccessRelation, AccessType},

@@ -3,11 +3,10 @@
 //! Emits parallel loop constructs with LLVM metadata for OpenMP
 //! and automatic parallelization.
 
-use crate::codegen::error::{CodegenError, CodegenResult};
+use crate::codegen::error::CodegenResult;
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::affine_map::AffineMap;
 use inkwell::IntPredicate;
-use inkwell::types::BasicTypeEnum;
 use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue};
 
 /// Parallel emitter for parallel bands

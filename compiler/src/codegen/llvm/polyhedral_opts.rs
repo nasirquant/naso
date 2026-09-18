@@ -3,7 +3,7 @@
 //! Implements loop tiling, fusion, interchange, and other polyhedral
 //! optimizations driven by schedule tree structure.
 
-use crate::codegen::error::{CodegenError, CodegenResult};
+use crate::codegen::error::CodegenResult;
 use crate::ir::schedule_tree::ScheduleNode;
 
 /// Polyhedral optimizer for loop transformations

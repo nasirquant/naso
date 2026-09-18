@@ -1,5 +1,5 @@
 #[cfg(feature = "llvm")]
-use crate::codegen::error::{CodegenError, CodegenResult};
+use crate::codegen::error::CodegenResult;
 #[cfg(feature = "llvm")]
 use inkwell::context::Context as LlvmContext;
 #[cfg(feature = "llvm")]
