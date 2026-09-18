@@ -659,6 +659,48 @@ mod tests {
     }
 
     #[test]
+    fn parses_qalloc() {
+        let prog = parse_program("fn f() { let q = qalloc(); }").expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.body.stmts.len(), 1);
+        match &func.body.stmts[0].kind {
+            StmtKind::Let(l) => match &l.value.kind {
+                ExprKind::QuantumOp(QuantumOp::Alloc(_)) => {}
+                other => panic!("expected QuantumOp::Alloc, got {:?}", other),
+            },
+            other => panic!("expected let stmt, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_bell_pair_tuple_return() {
+        let prog = parse_program(
+            "fn bell_pair() -> (Qubit, Qubit) { let q0 = qalloc(); let q1 = qalloc(); (q0, q1) }",
+        )
+        .expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        // Check return type is tuple
+        match &func.ret_ty.as_ref().unwrap().kind {
+            TypeKind::Tuple(elems) => {
+                assert_eq!(elems.len(), 2);
+                match (&elems[0].kind, &elems[1].kind) {
+                    (TypeKind::Qubit, TypeKind::Qubit) => {}
+                    other => panic!("expected (Qubit, Qubit), got {:?}", other),
+                }
+            }
+            other => panic!("expected tuple type, got {:?}", other),
+        }
+        // Check body has two qalloc calls and a tuple return
+        assert_eq!(func.body.stmts.len(), 3);
+    }
+
+    #[test]
     fn is_control_flow_stmt_recognizes_blocks() {
         let then = Expr::new(
             ExprKind::Block(Box::new(Block::new(Vec::new(), None, Span::default()))),
