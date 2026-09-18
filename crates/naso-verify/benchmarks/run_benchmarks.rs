@@ -20,8 +20,6 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BenchmarkCase {
-    file: String,
-    function: String,
     expected: String, // "sat" or "unsat"
     category: String,
     provers: Vec<String>,
@@ -90,8 +88,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    println!("🧪 Naso Formal Verification Benchmark Suite");
-    println!("============================================");
+    // Only print banner in human mode (stderr)
+    if format == "human" {
+        eprintln!("🧪 Naso Formal Verification Benchmark Suite");
+        eprintln!("============================================");
+    }
 
     // Load expected outcomes
     let outcomes_path = PathBuf::from("crates/naso-verify/benchmarks/expected_outcomes.json");
@@ -130,7 +131,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Run provers based on expected provers for each function
         for (func_name, case) in &bench_file.functions {
-            println!("\n🔍 Verifying: {}::{}", file_name, func_name);
+            if format == "human" {
+                eprintln!("\n🔍 Verifying: {}::{}", file_name, func_name);
+            }
 
             let start = Instant::now();
             let mut cache = VerificationCache::new(None)?;
@@ -227,11 +230,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Print summary
+    // Print summary - human to stderr, JSON to stdout
     print_summary(&summary, &results, format);
 
-    // Check performance baselines
-    check_performance_baselines(&results, &outcomes.performance_baselines);
+    // Check performance baselines (human mode only)
+    if format == "human" {
+        check_performance_baselines(&results, &outcomes.performance_baselines);
+    }
 
     // Exit with error code if any failures
     if summary.failed > 0 {
@@ -281,39 +286,39 @@ fn print_summary(summary: &BenchmarkSummary, results: &[BenchmarkResult], format
             println!("SARIF output not yet implemented for benchmark summary");
         }
         _ => {
-            println!("\n═══ Benchmark Summary ═══");
-            println!("Total:      {}", summary.total);
-            println!("Passed:     ✓ {}", summary.passed);
-            println!("Failed:     ✗ {}", summary.failed);
-            println!("False +:    {}", summary.false_positives);
-            println!("False -:    {}", summary.false_negatives);
-            println!("Total time: {}ms", summary.total_time_ms);
+            eprintln!("\n═══ Benchmark Summary ═══");
+            eprintln!("Total:      {}", summary.total);
+            eprintln!("Passed:     ✓ {}", summary.passed);
+            eprintln!("Failed:     ✗ {}", summary.failed);
+            eprintln!("False +:    {}", summary.false_positives);
+            eprintln!("False -:    {}", summary.false_negatives);
+            eprintln!("Total time: {}ms", summary.total_time_ms);
 
-            println!("\n═══ By Category ═══");
+            eprintln!("\n═══ By Category ═══");
             for (cat, cat_result) in &summary.category_results {
                 let rate = if cat_result.total > 0 {
                     cat_result.passed as f64 / cat_result.total as f64 * 100.0
                 } else {
                     0.0
                 };
-                println!(
+                eprintln!(
                     "  {:<15} {:>3}/{:<3} ({:.1}%) {}ms",
                     cat, cat_result.passed, cat_result.total, rate, cat_result.total_time_ms
                 );
             }
 
-            println!("\n═══ Failures ═══");
+            eprintln!("\n═══ Failures ═══");
             for r in results {
                 if !r.passed {
-                    println!(
+                    eprintln!(
                         "  ✗ {}::{} (expected {}, got {})",
                         r.file, r.function, r.expected, r.actual
                     );
                     if !r.diagnostic_codes.is_empty() {
-                        println!("     Codes: {:?}", r.diagnostic_codes);
+                        eprintln!("     Codes: {:?}", r.diagnostic_codes);
                     }
                     if let Some(e) = &r.error {
-                        println!("     Error: {}", e);
+                        eprintln!("     Error: {}", e);
                     }
                 }
             }
@@ -325,7 +330,7 @@ fn check_performance_baselines(
     results: &[BenchmarkResult],
     baselines: &HashMap<String, PerformanceBaseline>,
 ) {
-    println!("\n═══ Performance Baselines ═══");
+    eprintln!("\n═══ Performance Baselines ═══");
     for (file, baseline) in baselines {
         let file_results: Vec<_> = results.iter().filter(|r| r.file == *file).collect();
         if file_results.is_empty() {
@@ -338,7 +343,7 @@ fn check_performance_baselines(
         let time_ok = total_time <= baseline.max_time_ms;
         let mem_ok = max_memory <= baseline.max_memory_mb;
 
-        println!(
+        eprintln!(
             "  {:<30} time: {}ms/{}ms {}  mem: {}MB/{}MB {}",
             file,
             total_time,
