@@ -8,14 +8,15 @@ repository = "https://github.com/naso-lang/naso"
 
 [features]
 default = ["z3"]
-z3 = ["dep:z3"]
+z3 = ["dep:z3", "dep:z3-sys"]
 
 [dependencies]
 # Core Naso compiler types
 naso-compiler = { path = "../../compiler" }
 
 # SMT Solver
-z3 = { version = "0.21", features = ["gh-release"], optional = true }
+z3 = { version = "0.21", optional = true }
+z3-sys = { version = "0.13", optional = true }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -32,6 +33,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 clap = { workspace = true }
 colored = { workspace = true }
+dirs = "6.0"
 
 # Parallel processing
 rayon = "1.10"

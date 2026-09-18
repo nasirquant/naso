@@ -7,7 +7,7 @@
 use crate::error::{LoweringError, LoweringError::*, VerifyError};
 use crate::quantity::{QuantityKind, QuantityTracker, encode_quantity_expr};
 use crate::quantum::{QuantumTracker, encode_quantum_expr};
-use naso_compiler::ast::{Expr, Function, Program};
+use naso_compiler::ast::{Expr, Function, Program, Mutability};
 
 #[cfg(feature = "z3")]
 use crate::mvs::{MvsTracker, encode_mvs_function};
@@ -143,7 +143,7 @@ fn lower_function(func: &Function, ctx: &mut LoweringContext) -> Result<(), Veri
         }
 
         // Register inout parameters
-        if param.mutability == crate::ast::Mutability::InOut {
+        if param.mutability == Mutability::InOut {
             // MVS encoding handled in encode_mvs_function
         }
     }

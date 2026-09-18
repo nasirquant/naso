@@ -133,8 +133,8 @@ pub fn format_human(summary: &VerificationSummary, config: &SolverConfig) -> Str
 
             out.push_str(&format!(
                 "     at <unknown>:{}:{}\n",
-                diag.span.line().to_string().cyan(),
-                diag.span.column().to_string().cyan()
+                diag.span.line.to_string().cyan(),
+                diag.span.column.to_string().cyan()
             ));
 
             if !diag.related.is_empty() {
@@ -142,8 +142,8 @@ pub fn format_human(summary: &VerificationSummary, config: &SolverConfig) -> Str
                 for related in &diag.related {
                     out.push_str(&format!(
                         "    at <unknown>:{}:{} - {}\n",
-                        related.span.line().to_string().cyan(),
-                        related.span.column().to_string().cyan(),
+                        related.span.line.to_string().cyan(),
+                        related.span.column.to_string().cyan(),
                         related.message
                     ));
                 }
@@ -299,10 +299,10 @@ pub fn format_sarif(summary: &VerificationSummary) -> Result<String, serde_json:
                         uri: "<unknown>".to_string(),
                     },
                     region: SarifRegion {
-                        start_line: diag.span.line() as usize,
-                        start_column: diag.span.column() as usize,
-                        end_line: diag.span.line() as usize,
-                        end_column: diag.span.column() as usize,
+                        start_line: diag.span.line as usize,
+                        start_column: diag.span.column as usize,
+                        end_line: diag.span.line as usize,
+                        end_column: diag.span.column as usize,
                     },
                 },
             }],

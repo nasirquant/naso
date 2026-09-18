@@ -18,6 +18,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 #[cfg(feature = "z3")]
 use std::time::{Duration, Instant};
+#[cfg(feature = "z3")]
+use z3::ast::Ast;
+#[cfg(feature = "z3")]
+use z3_sys::Z3_parse_smtlib2_string;
 
 /// Verification result from the solver.
 #[cfg(feature = "z3")]
@@ -71,7 +75,7 @@ impl VerifyResult {
 pub struct Solver {
     config: SolverConfig,
     context: Option<z3::Context>,
-    solver: Option<z3::Solver<'static>>,
+    solver: Option<z3::Solver>,
     incremental_level: u32,
     assertion_ids: HashMap<String, usize>, // Named assertions for unsat core
     next_assertion_id: usize,
@@ -102,20 +106,20 @@ impl Solver {
         cfg.set_param_value("logic", config.logic.as_str());
 
         // Set timeout
-        cfg.set_param_value("timeout", config.timeout.as_millis().to_string());
+        cfg.set_param_value("timeout", &config.timeout.as_millis().to_string());
 
         // Set memory limit (advisory)
-        cfg.set_param_value("memory_limit", config.memory_mb.to_string());
+        cfg.set_param_value("memory_limit", &config.memory_mb.to_string());
 
         // Set random seed for reproducibility
         if let Some(seed) = config.seed {
-            cfg.set_param_value("random_seed", seed.to_string());
+            cfg.set_param_value("random_seed", &seed.to_string());
         }
 
         // Set number of threads
         if config.threads > 0 {
             cfg.set_param_value("parallel.enable", "true");
-            cfg.set_param_value("parallel.threads_max", config.threads.to_string());
+            cfg.set_param_value("parallel.threads_max", &config.threads.to_string());
         }
 
         // Enable model generation
@@ -139,27 +143,23 @@ impl Solver {
         );
 
         // Create context
-        z3::Context::new(&cfg)
-            .map_err(|e| VerifyError::Solver(SolverError::ContextFailed(e.to_string())))
+        z3::Context::new(&cfg).map_err(|e| VerifyError::Solver(SolverError::ContextFailed(e.to_string())))
     }
 
     /// Create Z3 solver from context.
     fn create_solver(
-        ctx: &z3::Context,
-        config: &SolverConfig,
-    ) -> Result<z3::Solver<'static>, VerifyError> {
+        _ctx: &z3::Context,
+        _config: &SolverConfig,
+    ) -> Result<z3::Solver, VerifyError> {
         // Use a fresh solver for each check if not incremental
-        let solver = z3::Solver::new(ctx);
-
-        // Set logic on solver
-        ctx.set_logic(config.logic.as_str())
-            .map_err(|e| VerifyError::Solver(SolverError::Z3Error(e.to_string())))?;
+        // Logic is set via SMT-LIB2 (set-logic) in the script, not via API
+        let solver = z3::Solver::new();
 
         Ok(solver)
     }
 
     /// Assert a formula (by name for unsat core tracking).
-    pub fn assert_named(&mut self, name: &str, formula: &z3::Ast<'_>) -> Result<(), VerifyError> {
+    pub fn assert_named(&mut self, name: &str, formula: &dyn Ast) -> Result<(), VerifyError> {
         let solver = self.solver.as_mut().ok_or_else(|| {
             VerifyError::Solver(SolverError::ContextFailed(
                 "Solver not initialized".to_string(),
@@ -175,7 +175,7 @@ impl Solver {
     }
 
     /// Assert a formula without name.
-    pub fn assert(&mut self, formula: &z3::Ast<'_>) -> Result<(), VerifyError> {
+    pub fn assert(&mut self, formula: &dyn Ast) -> Result<(), VerifyError> {
         let solver = self.solver.as_mut().ok_or_else(|| {
             VerifyError::Solver(SolverError::ContextFailed(
                 "Solver not initialized".to_string(),
@@ -220,7 +220,7 @@ impl Solver {
     }
 
     /// Check satisfiability with optional assumptions.
-    pub fn check_sat(&mut self, assumptions: &[&z3::Ast<'_>]) -> Result<VerifyResult, VerifyError> {
+    pub fn check_sat(&mut self, assumptions: &[&dyn Ast]) -> Result<VerifyResult, VerifyError> {
         let solver = self.solver.as_mut().ok_or_else(|| {
             VerifyError::Solver(SolverError::ContextFailed(
                 "Solver not initialized".to_string(),
@@ -257,15 +257,20 @@ impl Solver {
             }
             z3::SatResult::Unsat => {
                 let unsat_core = if self.config.produce_unsat_cores {
-                    Some(
-                        UnsatCore::from_z3(
-                            solver.get_unsat_core().map(|v| v.into_iter().collect()),
-                            &self.assertion_ids,
+                    let core = solver.get_unsat_core();
+                    if core.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            UnsatCore::from_z3(
+                                core.into_iter().map(|b| b.into()).collect(),
+                                &self.assertion_ids,
+                            )
+                            .map_err(|e| {
+                                VerifyError::Solver(SolverError::UnsatCoreExtractionFailed(e))
+                            })?,
                         )
-                        .map_err(|e| {
-                            VerifyError::Solver(SolverError::UnsatCoreExtractionFailed(e))
-                        })?,
-                    )
+                    }
                 } else {
                     None
                 };
@@ -287,7 +292,7 @@ impl Solver {
     }
 
     /// Get the Z3 solver.
-    pub fn solver(&self) -> Option<&z3::Solver<'_>> {
+    pub fn solver(&self) -> Option<&z3::Solver> {
         self.solver.as_ref()
     }
 
@@ -314,22 +319,50 @@ impl Solver {
 pub fn verify(smt_script: &str, config: SolverConfig) -> Result<VerifyResult, VerifyError> {
     let mut solver = Solver::new(config)?;
 
-    // Parse SMT-LIB2 script
+    // Parse SMT-LIB2 script using low-level API (not exposed in z3 0.21 high-level API)
     let ctx = solver.context().ok_or_else(|| {
         VerifyError::Solver(SolverError::ContextFailed(
             "Context not available".to_string(),
         ))
     })?;
 
-    // Use Z3's SMT-LIB2 parser
-    let ast_vec = ctx
-        .parse_smtlib2_string(smt_script, &[], &[], &[], &[])
+    // Use Z3's SMT-LIB2 parser via z3_sys
+    let c_str = std::ffi::CString::new(smt_script)
         .map_err(|e| VerifyError::Solver(SolverError::ParseError(e.to_string())))?;
+    let z3_ctx = ctx.get_z3_context();
+    let ast_vector_ptr = unsafe {
+        Z3_parse_smtlib2_string(
+            z3_ctx,
+            c_str.as_ptr(),
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+        )
+    };
+
+    let ast_vector = ast_vector_ptr.ok_or_else(|| {
+        VerifyError::Solver(SolverError::ParseError(
+            "Failed to parse SMT-LIB2 string".to_string(),
+        ))
+    })?;
+
+    // Get the number of ASTs in the vector
+    let size = unsafe { z3_sys::Z3_ast_vector_size(z3_ctx, ast_vector) } as usize;
 
     // Assert all parsed formulas
-    for ast in ast_vec {
-        solver.assert(&ast)?;
+    for i in 0..size {
+        let ast_ptr = unsafe { z3_sys::Z3_ast_vector_get(z3_ctx, ast_vector, i as u32) };
+        if let Some(ast_ptr) = ast_ptr {
+            let ast = z3::ast::Dynamic::wrap(ctx.clone(), ast_ptr);
+            solver.assert(&ast)?;
+        }
     }
+
+    // Decrease ref count for the ast_vector
+    unsafe { z3_sys::Z3_ast_vector_dec_ref(z3_ctx, ast_vector) };
 
     // Check satisfiability
     solver.check_sat(&[])

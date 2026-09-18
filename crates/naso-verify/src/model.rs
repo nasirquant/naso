@@ -137,12 +137,12 @@ mod z3_models {
             let mut model = Self::default();
 
             if let Some(m) = z3_model {
-                for decl in m.get_func_decls() {
-                    let name = decl.get_name().to_string();
-                    let sort = decl.get_range();
+                for decl in &m {
+                    let name = decl.name();
+                    let _sort_kind = decl.range();
 
-                    if decl.get_arity() == 0 {
-                        if let Some(value) = m.get_const_interp(&decl) {
+                    if decl.arity() == 0 {
+                        if let Some(value) = m.get_const_interp(decl) {
                             model.assignments.insert(name, ModelValue::from_z3(&value)?);
                         }
                     } else {
@@ -307,8 +307,8 @@ mod z3_models {
                 out.push_str(&format!(
                     "  {} at <unknown>:{}:{} = {}\n",
                     loc.variable,
-                    loc.span.line(),
-                    loc.span.column(),
+                    loc.span.line,
+                    loc.span.column,
                     loc.value
                 ));
             }
@@ -328,15 +328,13 @@ mod z3_models {
     impl UnsatCore {
         /// Create from Z3's unsat core.
         pub fn from_z3(
-            z3_core: Option<Vec<z3::ast::Ast<'_>>>,
+            z3_core: Vec<z3::ast::Bool>,
             assertion_ids: &HashMap<String, usize>,
         ) -> Result<Self, String> {
             let mut assertions = Vec::new();
 
-            if let Some(core) = z3_core {
-                for ast in core {
-                    assertions.push(ast.to_string());
-                }
+            for ast in z3_core {
+                assertions.push(ast.to_string());
             }
 
             let explanation = if assertions.is_empty() {
