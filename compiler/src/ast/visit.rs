@@ -369,6 +369,17 @@ pub mod walk {
                 }
                 walk_block(visitor, &loop_.body)
             }
+            ExprKind::Forall(loop_) => {
+                for (_, lower, upper) in &loop_.bindings {
+                    if visitor.visit_expr(lower)? == VisitOutcome::Stop {
+                        return Ok(VisitOutcome::Stop);
+                    }
+                    if visitor.visit_expr(upper)? == VisitOutcome::Stop {
+                        return Ok(VisitOutcome::Stop);
+                    }
+                }
+                walk_block(visitor, &loop_.body)
+            }
             ExprKind::While(cond, body) => {
                 if visitor.visit_expr(cond)? == VisitOutcome::Stop {
                     return Ok(VisitOutcome::Stop);

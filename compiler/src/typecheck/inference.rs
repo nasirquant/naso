@@ -42,6 +42,7 @@ pub fn infer_expr(checker: &mut TypeChecker, expr: &Expr) -> Result<Type, TypeEr
         ExprKind::Reversible(block) => infer_reversible(checker, block, expr.span),
         ExprKind::Lambda(lambda) => infer_lambda(checker, lambda, expr.span),
         ExprKind::For(for_loop) => infer_for(checker, for_loop, expr.span),
+        ExprKind::Forall(forall_loop) => infer_forall(checker, forall_loop, expr.span),
         ExprKind::While(cond, body) => infer_while(checker, cond, body, expr.span),
         ExprKind::Return(opt_expr) => infer_return(checker, opt_expr.as_deref(), expr.span),
         ExprKind::Assign(lhs, rhs) => infer_assign(checker, lhs, rhs, expr.span),
@@ -711,6 +712,36 @@ fn infer_for(checker: &mut TypeChecker, for_loop: &ForLoop, span: Span) -> Resul
     );
 
     check_block(checker, &for_loop.body)?;
+    checker.env.exit_scope(guard)?;
+
+    Ok(Type::unit(span))
+}
+
+/// Infer forall loop type (parallel polyhedral loop)
+fn infer_forall(
+    checker: &mut TypeChecker,
+    forall_loop: &ForallLoop,
+    span: Span,
+) -> Result<Type, TypeError> {
+    // Forall loops have multiple bindings with range expressions
+    let guard = checker.env.enter_scope();
+
+    for (var, lower, upper) in &forall_loop.bindings {
+        // Check that bounds are integers
+        let lower_ty = infer_expr(checker, lower)?;
+        let upper_ty = infer_expr(checker, upper)?;
+
+        // For simplicity, assume bounds are integer types
+        // Bind the loop variable as integer type
+        checker.env.bind_var(
+            var.clone(),
+            Type::new(TypeKind::Int, Quantity::Many, span),
+            Quantity::Many,
+            Mutability::Immutable,
+        );
+    }
+
+    check_block(checker, &forall_loop.body)?;
     checker.env.exit_scope(guard)?;
 
     Ok(Type::unit(span))

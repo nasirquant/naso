@@ -190,6 +190,7 @@ impl<'a> Parser<'a> {
             Some(TK::If) => self.parse_if(),
             Some(TK::Match) => self.parse_match(),
             Some(TK::For) => self.parse_for(),
+            Some(TK::Forall) => self.parse_forall(),
             Some(TK::While) => self.parse_while(),
             Some(TK::Return) => self.parse_return(),
             Some(TK::Reversible) => self.parse_reversible_expr(),
@@ -412,6 +413,44 @@ impl<'a> Parser<'a> {
             ExprKind::For(Box::new(ForLoop {
                 var,
                 iter,
+                body,
+                span,
+            })),
+            span,
+            next_id(),
+        )
+    }
+
+    fn parse_forall(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::Forall);
+
+        // Parse one or more comma-separated bindings
+        let mut bindings = Vec::new();
+        loop {
+            let var = self.parse_ident();
+            self.expect(TK::In);
+            let lower = self.parse_expr();
+            self.expect(TK::DotDot);
+            let upper = self.parse_expr();
+            bindings.push((var, lower, upper));
+
+            if !self.at(TK::Comma) {
+                break;
+            }
+            self.bump(); // consume comma
+        }
+
+        let body = self.parse_block_expr();
+        let body = match body.kind {
+            ExprKind::Block(b) => *b,
+            _ => unreachable!("forall loop body is always a block"),
+        };
+
+        let span = self.span_from(start);
+        Expr::new(
+            ExprKind::Forall(Box::new(ForallLoop {
+                bindings,
                 body,
                 span,
             })),
@@ -769,6 +808,102 @@ mod tests {
         }
         // Check body has two qalloc calls and a tuple return
         assert_eq!(func.body.stmts.len(), 3);
+    }
+
+    #[test]
+    fn parses_forall_simple() {
+        let prog =
+            parse_program("fn f() { forall i in 0..10 { let x = i; } }").expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.body.stmts.len(), 1);
+        match &func.body.stmts[0].kind {
+            StmtKind::Expr(e) => match &e.kind {
+                ExprKind::Forall(forall_loop) => {
+                    assert_eq!(forall_loop.bindings.len(), 1);
+                    assert_eq!(forall_loop.bindings[0].0.name, "i");
+                }
+                other => panic!("expected Forall, got {:?}", other),
+            },
+            other => panic!("expected expr stmt, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_forall_multiple_bindings() {
+        let prog = parse_program("fn f() { forall i in 0..10, j in 0..20 { let x = i + j; } }")
+            .expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.body.stmts.len(), 1);
+        match &func.body.stmts[0].kind {
+            StmtKind::Expr(e) => match &e.kind {
+                ExprKind::Forall(forall_loop) => {
+                    assert_eq!(forall_loop.bindings.len(), 2);
+                    assert_eq!(forall_loop.bindings[0].0.name, "i");
+                    assert_eq!(forall_loop.bindings[1].0.name, "j");
+                }
+                other => panic!("expected Forall, got {:?}", other),
+            },
+            other => panic!("expected expr stmt, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_nested_forall() {
+        let prog =
+            parse_program("fn f() { forall i in 0..10 { forall j in 0..5 { let x = i * j; } } }")
+                .expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.body.stmts.len(), 1);
+        match &func.body.stmts[0].kind {
+            StmtKind::Expr(e) => match &e.kind {
+                ExprKind::Forall(outer) => {
+                    assert_eq!(outer.bindings.len(), 1);
+                    // Check nested forall in body
+                    match &outer.body.stmts[0].kind {
+                        StmtKind::Expr(inner_e) => match &inner_e.kind {
+                            ExprKind::Forall(inner) => {
+                                assert_eq!(inner.bindings.len(), 1);
+                                assert_eq!(inner.bindings[0].0.name, "j");
+                            }
+                            other => panic!("expected nested Forall, got {:?}", other),
+                        },
+                        other => panic!("expected expr stmt in outer body, got {:?}", other),
+                    }
+                }
+                other => panic!("expected Forall, got {:?}", other),
+            },
+            other => panic!("expected expr stmt, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_forall_with_expr_bounds() {
+        let prog = parse_program("fn f(n: Int) { forall i in 0..n { let x = i + 1; } }")
+            .expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.body.stmts.len(), 1);
+        match &func.body.stmts[0].kind {
+            StmtKind::Expr(e) => match &e.kind {
+                ExprKind::Forall(forall_loop) => {
+                    assert_eq!(forall_loop.bindings.len(), 1);
+                    // Upper bound is variable n
+                }
+                other => panic!("expected Forall, got {:?}", other),
+            },
+            other => panic!("expected expr stmt, got {:?}", other),
+        }
     }
 
     #[test]

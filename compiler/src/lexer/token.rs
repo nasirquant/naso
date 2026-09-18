@@ -101,6 +101,10 @@ pub enum TokenKind {
     For,
     #[regex("[wW][hH][iI][lL][eE]", priority = 3)]
     While,
+    #[regex("[fF][oO][rR][aA][lL][lL]", priority = 3)]
+    Forall,
+    #[regex("[iI][nN]", priority = 3)]
+    In,
     #[regex("[sS][tT][rR][uU][cC][tT]", priority = 3)]
     Struct,
     #[regex("[eE][nN][uU][mM]", priority = 3)]
@@ -246,6 +250,8 @@ impl TokenKind {
             TokenKind::Match => "'match'",
             TokenKind::For => "'for'",
             TokenKind::While => "'while'",
+            TokenKind::Forall => "'forall'",
+            TokenKind::In => "'in'",
             TokenKind::Struct => "'struct'",
             TokenKind::Enum => "'enum'",
             TokenKind::Type => "'type'",

@@ -86,6 +86,8 @@ pub enum ExprKind {
     Lambda(Box<LambdaExpr>),
     /// For loop
     For(Box<ForLoop>),
+    /// Forall loop (parallel polyhedral loop)
+    Forall(Box<ForallLoop>),
     /// While loop
     While(Box<Expr>, Box<Expr>),
     /// Return expression
@@ -193,6 +195,15 @@ pub enum CaptureMode {
 pub struct ForLoop {
     pub var: Ident,
     pub iter: Expr,
+    pub body: crate::ast::Block,
+    pub span: Span,
+}
+
+/// Forall loop (parallel polyhedral loop)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ForallLoop {
+    /// Multiple loop bindings: (var, lower, upper)
+    pub bindings: Vec<(Ident, Expr, Expr)>,
     pub body: crate::ast::Block,
     pub span: Span,
 }
