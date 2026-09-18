@@ -4,19 +4,18 @@
 /// Cranelift JIT Compilation
 ///
 /// Stub implementation for fast JIT compilation and execution.
-
 use crate::codegen::context::CodegenContext;
 use crate::codegen::error::{CodegenError, CodegenResult};
 use crate::ir::pir_types::PirModule;
-use cranelift::prelude::*;
-use cranelift::module::{Module, FuncId, Linkage, default_libcall_names};
+use cranelift::codegen::isa::CallConv;
+use cranelift::prelude::{
+    AbiParam, FunctionBuilder, FunctionBuilderContext, InstBuilder, Signature, types,
+};
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{Module as ModuleTrait, Backend};
-use std::sync::Arc;
+use cranelift_module::{FuncId, Linkage, Module, default_libcall_names};
 
 /// Cranelift JIT Compiler
 pub struct CraneliftJit {
-    builder: JITBuilder,
     module: JITModule,
     ctx: cranelift::codegen::Context,
 }
@@ -24,21 +23,15 @@ pub struct CraneliftJit {
 impl CraneliftJit {
     /// Create a new Cranelift JIT compiler
     pub fn new() -> CodegenResult<Self> {
-        let mut builder = JITBuilder::new()
-            .map_err(|e| CodegenError::CraneliftError(format!("Failed to create JIT builder: {}", e)))?;
-        
-        builder.symbol("naso_dummy", dummy_function as *const u8);
-        
-        let module = JITModule::new(builder)
-            .map_err(|e| CodegenError::CraneliftError(format!("Failed to create JIT module: {}", e)))?;
-        
+        // Use the native ISA builder to create a JIT builder with default settings
+        let builder = JITBuilder::new(default_libcall_names()).map_err(|e| {
+            CodegenError::CraneliftError(format!("Failed to create JIT builder: {}", e))
+        })?;
+
+        let module = JITModule::new(builder);
         let ctx = module.make_context();
-        
-        Ok(Self {
-            builder: module.builder().clone(),
-            module,
-            ctx,
-        })
+
+        Ok(Self { module, ctx })
     }
 
     /// Compile a simple function returning 42
@@ -46,46 +39,51 @@ impl CraneliftJit {
         self.ctx.func.signature = Signature {
             params: vec![],
             returns: vec![AbiParam::new(types::I32)],
-            call_conv: cranelift::prelude::CallConv::SystemV,
+            call_conv: CallConv::SystemV,
         };
 
         let mut func_ctx = FunctionBuilderContext::new();
         let mut bcx = FunctionBuilder::new(&mut self.ctx.func, &mut func_ctx);
-        
+
         let block = bcx.create_block();
         bcx.switch_to_block(block);
         bcx.seal_block(block);
-        
-        bcx.ins().return_(&[bcx.ins().iconst(types::I32, 42)]);
-        
+
+        let iconst = bcx.ins().iconst(types::I32, 42);
+        bcx.ins().return_(&[iconst]);
+
         bcx.finalize();
-        
-        let func_id = self.module.declare_function(
-            "trivial_fn",
-            Linkage::Export,
-            &self.ctx.func.signature,
-        ).map_err(|e| CodegenError::CraneliftError(format!("Failed to declare function: {}", e)))?;
-        
-        self.module.define_function(func_id, &mut self.ctx)
-            .map_err(|e| CodegenError::CraneliftError(format!("Failed to define function: {}", e)))?;
-        
+
+        let func_id = self
+            .module
+            .declare_function("trivial_fn", Linkage::Export, &self.ctx.func.signature)
+            .map_err(|e| {
+                CodegenError::CraneliftError(format!("Failed to declare function: {}", e))
+            })?;
+
+        self.module
+            .define_function(func_id, &mut self.ctx)
+            .map_err(|e| {
+                CodegenError::CraneliftError(format!("Failed to define function: {}", e))
+            })?;
+
         self.module.clear_context(&mut self.ctx);
-        
+
         Ok(func_id)
     }
 
     /// Execute a compiled function
     pub fn execute_function(&mut self, func_id: FuncId) -> CodegenResult<i32> {
-        self.module.finalize_definitions()
+        self.module
+            .finalize_definitions()
             .map_err(|e| CodegenError::CraneliftError(format!("Failed to finalize: {}", e)))?;
-        
-        let code_ptr = self.module.get_finalized_function(func_id)
-            .map_err(|e| CodegenError::CraneliftError(format!("Failed to get function pointer: {}", e)))?;
-        
+
+        let code_ptr = self.module.get_finalized_function(func_id);
+
         // Cast to function pointer and call
         let func: extern "C" fn() -> i32 = unsafe { std::mem::transmute(code_ptr) };
         let result = func();
-        
+
         Ok(result)
     }
 

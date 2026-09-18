@@ -125,7 +125,11 @@ impl TypeChecker {
     }
 
     /// Check a pattern against a scrutinee type
-    pub fn check_pattern(&mut self, pattern: &Pattern, scrutinee_ty: &Type) -> Result<type_env::PatternBindings, error::TypeError> {
+    pub fn check_pattern(
+        &mut self,
+        pattern: &Pattern,
+        scrutinee_ty: &Type,
+    ) -> Result<type_env::PatternBindings, error::TypeError> {
         check::check_pattern(self, pattern, scrutinee_ty)
     }
 
@@ -136,7 +140,11 @@ impl TypeChecker {
 
     /// Solve all accumulated constraints
     pub fn solve_constraints(&mut self) -> Result<(), error::TypeError> {
-        constraints::solve(&mut self.qty_constraints, &mut self.env, &mut self.meta_vars)
+        constraints::solve(
+            &mut self.qty_constraints,
+            &mut self.env,
+            &mut self.meta_vars,
+        )
     }
 
     /// Register a metavariable with optional solution
@@ -182,7 +190,7 @@ pub struct CheckResult {
 /// Type check a full program
 pub fn check_program(program: &mut Program) -> CheckResult {
     let mut checker = TypeChecker::new();
-    
+
     // First pass: register all top-level types and functions
     for item in &program.items {
         match item {

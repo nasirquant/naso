@@ -16,7 +16,11 @@ unsafe extern "C" {
         signature: *const i8,
     ) -> c_int;
     pub fn jit_context_compile(ctx: *mut JitContext, ir: *const i8) -> c_int;
-    pub fn jit_context_run(ctx: *mut JitContext, name: *const i8, args: *mut *mut c_void) -> *mut c_void;
+    pub fn jit_context_run(
+        ctx: *mut JitContext,
+        name: *const i8,
+        args: *mut *mut c_void,
+    ) -> *mut c_void;
 }
 
 #[cfg(test)]

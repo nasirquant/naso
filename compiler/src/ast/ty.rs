@@ -19,7 +19,11 @@ pub struct Type {
 
 impl Type {
     pub fn new(kind: TypeKind, quantity: Quantity, span: Span) -> Self {
-        Self { kind, quantity, span }
+        Self {
+            kind,
+            quantity,
+            span,
+        }
     }
 
     pub fn unit(span: Span) -> Self {
@@ -217,8 +221,22 @@ impl fmt::Display for TypeKind {
             TypeKind::Char => write!(f, "Char"),
             TypeKind::Nat => write!(f, "Nat"),
             TypeKind::Qubit => write!(f, "Qubit"),
-            TypeKind::QRegister(dims) => write!(f, "QRegister[{}]", dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(", ")),
-            TypeKind::Tensor(dims) => write!(f, "Tensor[{}]", dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(", ")),
+            TypeKind::QRegister(dims) => write!(
+                f,
+                "QRegister[{}]",
+                dims.iter()
+                    .map(|d| d.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            TypeKind::Tensor(dims) => write!(
+                f,
+                "Tensor[{}]",
+                dims.iter()
+                    .map(|d| d.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             TypeKind::Array(elem, size) => {
                 if let Some(n) = size {
                     write!(f, "[{}; {}]", elem, n)
@@ -226,25 +244,45 @@ impl fmt::Display for TypeKind {
                     write!(f, "[{}]", elem)
                 }
             }
-            TypeKind::Tuple(elems) => write!(f, "({})", elems.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ")),
+            TypeKind::Tuple(elems) => write!(
+                f,
+                "({})",
+                elems
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             TypeKind::Named(name, args) => {
                 if args.is_empty() {
                     write!(f, "{}", name)
                 } else {
-                    write!(f, "{}<{}>", name, args.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(", "))
+                    write!(
+                        f,
+                        "{}<{}>",
+                        name,
+                        args.iter()
+                            .map(|a| a.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
                 }
             }
             TypeKind::Function(params, ret) => {
                 write!(f, "fn(")?;
                 for (i, p) in params.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", p)?;
                 }
                 write!(f, ") -> {}", ret)
             }
             TypeKind::Projection(inner) => write!(f, "&mut {}", inner),
             TypeKind::Reversible(inner) => write!(f, "reversible {}", inner),
-            TypeKind::Pi(name, domain, codomain) => write!(f, "Π({}: {}). {}", name, domain, codomain),
+            TypeKind::Pi(name, domain, codomain) => {
+                write!(f, "Π({}: {}). {}", name, domain, codomain)
+            }
             TypeKind::Sigma(name, fst, snd) => write!(f, "Σ({}: {}). {}", name, fst, snd),
             TypeKind::Lambda(param, body) => write!(f, "λ{}. {}", param, body),
             TypeKind::App(fun, arg) => write!(f, "{} {}", fun, arg),

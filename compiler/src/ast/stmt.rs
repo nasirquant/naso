@@ -2,10 +2,10 @@
 //!
 //! Top-level statements and declarations.
 
-use crate::ast::{Attribute, GenericParam, Ident, Mutability, NodeId, Quantity, Span, Type};
 use crate::ast::expr::Expr;
 use crate::ast::pattern::Pattern;
 use crate::ast::ty::Type as AstType;
+use crate::ast::{Attribute, GenericParam, Ident, Mutability, NodeId, Quantity, Span, Type};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;

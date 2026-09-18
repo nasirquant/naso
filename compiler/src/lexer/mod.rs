@@ -57,10 +57,7 @@ impl Lexer {
                 }
                 Err(_) => {
                     if error.is_none() {
-                        let ch = source[lex.span().clone()]
-                            .chars()
-                            .next()
-                            .unwrap_or(' ');
+                        let ch = source[lex.span().clone()].chars().next().unwrap_or(' ');
                         error = Some(LexError {
                             offset: lex.span().start,
                             message: format!("unexpected character {:?}", ch),
@@ -131,16 +128,12 @@ mod tests {
         );
     }
 
-#[test]
+    #[test]
     fn lexes_qalloc() {
         let kinds = Lexer::tokenize("qalloc()");
         assert_eq!(
             kinds,
-            vec![
-                TokenKind::QAlloc,
-                TokenKind::LParen,
-                TokenKind::RParen,
-            ]
+            vec![TokenKind::QAlloc, TokenKind::LParen, TokenKind::RParen,]
         );
     }
 

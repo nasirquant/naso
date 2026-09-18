@@ -67,5 +67,5 @@ pub fn solve(
 
 /// Re-export canonical quantity operations from unify.rs
 pub use crate::typecheck::unify::{
-    qty_subtype, qty_join, qty_meet, qty_consume, is_erasable, is_linear, is_unrestricted,
+    is_erasable, is_linear, is_unrestricted, qty_consume, qty_join, qty_meet, qty_subtype,
 };

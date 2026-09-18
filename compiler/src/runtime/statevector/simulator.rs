@@ -7,7 +7,6 @@
 /// - Measurement sampling with probability calculation
 /// - Integration with QIR module execution via runtime dispatcher
 /// - Support for [0], [1], [*] quantity semantics
-
 use num_complex::Complex64;
 use rand::Rng;
 use rand::SeedableRng;
@@ -106,7 +105,10 @@ impl StatevectorSimulator {
     /// Create a new simulator with given number of qubits
     pub fn new(num_qubits: usize, config: SimulatorConfig) -> Result<Self, SimulatorError> {
         if num_qubits > config.max_qubits {
-            return Err(SimulatorError::InsufficientQubits(num_qubits, config.max_qubits));
+            return Err(SimulatorError::InsufficientQubits(
+                num_qubits,
+                config.max_qubits,
+            ));
         }
 
         let dim = 1usize << num_qubits;
@@ -132,7 +134,10 @@ impl StatevectorSimulator {
 
     /// Create simulator from QIR module (extracts qubit count)
     #[cfg(feature = "llvm")]
-    pub fn from_qir_module(module: &crate::codegen::qir::QIRModule, config: SimulatorConfig) -> Result<Self, SimulatorError> {
+    pub fn from_qir_module(
+        module: &crate::codegen::qir::QIRModule,
+        config: SimulatorConfig,
+    ) -> Result<Self, SimulatorError> {
         // Extract qubit count from QIR module
         let num_qubits = module.qubit_count().min(config.max_qubits);
         let mut sim = Self::new(num_qubits, config)?;
@@ -149,7 +154,9 @@ impl StatevectorSimulator {
 
     #[cfg(not(feature = "llvm"))]
     pub fn from_qir_module(_module: &(), config: SimulatorConfig) -> Result<Self, SimulatorError> {
-        Err(SimulatorError::InvalidGate("QIR module requires LLVM feature".into()))
+        Err(SimulatorError::InvalidGate(
+            "QIR module requires LLVM feature".into(),
+        ))
     }
 
     /// Get current statevector (for debugging/validation)
@@ -163,7 +170,11 @@ impl StatevectorSimulator {
     }
 
     /// Set quantity for a qubit
-    pub fn set_qubit_quantity(&mut self, qubit: usize, quantity: Quantity) -> Result<(), SimulatorError> {
+    pub fn set_qubit_quantity(
+        &mut self,
+        qubit: usize,
+        quantity: Quantity,
+    ) -> Result<(), SimulatorError> {
         if qubit >= self.num_qubits {
             return Err(SimulatorError::QubitOutOfBounds(qubit, self.num_qubits));
         }
@@ -180,7 +191,11 @@ impl StatevectorSimulator {
     }
 
     /// Apply a single-qubit gate
-    pub fn apply_single_qubit_gate(&mut self, gate: &SingleQubitGate, target: usize) -> Result<(), SimulatorError> {
+    pub fn apply_single_qubit_gate(
+        &mut self,
+        gate: &SingleQubitGate,
+        target: usize,
+    ) -> Result<(), SimulatorError> {
         if target >= self.num_qubits {
             return Err(SimulatorError::QubitOutOfBounds(target, self.num_qubits));
         }
@@ -200,12 +215,22 @@ impl StatevectorSimulator {
     }
 
     /// Apply a two-qubit gate
-    pub fn apply_two_qubit_gate(&mut self, gate: &TwoQubitGate, control: usize, target: usize) -> Result<(), SimulatorError> {
+    pub fn apply_two_qubit_gate(
+        &mut self,
+        gate: &TwoQubitGate,
+        control: usize,
+        target: usize,
+    ) -> Result<(), SimulatorError> {
         if control >= self.num_qubits || target >= self.num_qubits {
-            return Err(SimulatorError::QubitOutOfBounds(control.max(target), self.num_qubits));
+            return Err(SimulatorError::QubitOutOfBounds(
+                control.max(target),
+                self.num_qubits,
+            ));
         }
         if control == target {
-            return Err(SimulatorError::InvalidGate("Control and target qubits must be different".into()));
+            return Err(SimulatorError::InvalidGate(
+                "Control and target qubits must be different".into(),
+            ));
         }
 
         // Check quantity constraints
@@ -226,7 +251,12 @@ impl StatevectorSimulator {
     }
 
     /// Apply a controlled gate (control qubits, target gate)
-    pub fn apply_controlled_gate(&mut self, controls: &[usize], gate: &SingleQubitGate, target: usize) -> Result<(), SimulatorError> {
+    pub fn apply_controlled_gate(
+        &mut self,
+        controls: &[usize],
+        gate: &SingleQubitGate,
+        target: usize,
+    ) -> Result<(), SimulatorError> {
         for &c in controls {
             if c >= self.num_qubits {
                 return Err(SimulatorError::QubitOutOfBounds(c, self.num_qubits));
@@ -236,7 +266,9 @@ impl StatevectorSimulator {
             return Err(SimulatorError::QubitOutOfBounds(target, self.num_qubits));
         }
         if controls.contains(&target) {
-            return Err(SimulatorError::InvalidGate("Target qubit cannot be a control".into()));
+            return Err(SimulatorError::InvalidGate(
+                "Target qubit cannot be a control".into(),
+            ));
         }
 
         let matrix = gate.matrix();
@@ -257,14 +289,14 @@ impl StatevectorSimulator {
         let quantity = self.qubit_quantities[qubit].clone();
 
         // [0] qubits cannot be measured (they're erased)
-                if quantity == Quantity::Zero {
-                    return Err(SimulatorError::ErasedQubitMeasured(qubit));
-                }
+        if quantity == Quantity::Zero {
+            return Err(SimulatorError::ErasedQubitMeasured(qubit));
+        }
 
-                // [1] qubits must not be consumed already
-                if quantity == Quantity::One && self.qubit_consumed[qubit] {
-                    return Err(SimulatorError::LinearQubitDoubleConsumed(qubit));
-                }
+        // [1] qubits must not be consumed already
+        if quantity == Quantity::One && self.qubit_consumed[qubit] {
+            return Err(SimulatorError::LinearQubitDoubleConsumed(qubit));
+        }
 
         // Calculate probabilities
         let prob_0 = self.probability_of_zero(qubit);
@@ -294,7 +326,10 @@ impl StatevectorSimulator {
     }
 
     /// Measure multiple qubits
-    pub fn measure_all(&mut self, qubits: &[usize]) -> Result<Vec<MeasurementResult>, SimulatorError> {
+    pub fn measure_all(
+        &mut self,
+        qubits: &[usize],
+    ) -> Result<Vec<MeasurementResult>, SimulatorError> {
         let mut results = Vec::with_capacity(qubits.len());
         for &q in qubits {
             results.push(self.measure(q)?);
@@ -312,7 +347,12 @@ impl StatevectorSimulator {
         for op in operations.iter().rev() {
             match op.adjoint() {
                 Some(adj_op) => self.apply_operation(&adj_op)?,
-                None => return Err(SimulatorError::InvalidGate(format!("Operation {:?} has no adjoint", op))),
+                None => {
+                    return Err(SimulatorError::InvalidGate(format!(
+                        "Operation {:?} has no adjoint",
+                        op
+                    )));
+                }
             }
         }
 
@@ -326,20 +366,25 @@ impl StatevectorSimulator {
             QuantumOperation::SingleQubit { gate, target } => {
                 self.apply_single_qubit_gate(gate, *target)
             }
-            QuantumOperation::TwoQubit { gate, control, target } => {
-                self.apply_two_qubit_gate(gate, *control, *target)
-            }
-            QuantumOperation::Controlled { controls, gate, target } => {
-                self.apply_controlled_gate(controls, gate, *target)
-            }
-            QuantumOperation::Measure { qubit } => {
-                self.measure(*qubit).map(|_| ())
-            }
+            QuantumOperation::TwoQubit {
+                gate,
+                control,
+                target,
+            } => self.apply_two_qubit_gate(gate, *control, *target),
+            QuantumOperation::Controlled {
+                controls,
+                gate,
+                target,
+            } => self.apply_controlled_gate(controls, gate, *target),
+            QuantumOperation::Measure { qubit } => self.measure(*qubit).map(|_| ()),
         }
     }
 
     /// Execute a sequence of quantum operations
-    pub fn execute_circuit(&mut self, operations: &[QuantumOperation]) -> Result<Vec<MeasurementResult>, SimulatorError> {
+    pub fn execute_circuit(
+        &mut self,
+        operations: &[QuantumOperation],
+    ) -> Result<Vec<MeasurementResult>, SimulatorError> {
         let mut measurements = Vec::new();
 
         for op in operations {
@@ -371,7 +416,11 @@ impl StatevectorSimulator {
 
     // Internal methods
 
-    fn apply_single_qubit_matrix(&mut self, matrix: &[[Complex64; 2]; 2], target: usize) -> Result<(), SimulatorError> {
+    fn apply_single_qubit_matrix(
+        &mut self,
+        matrix: &[[Complex64; 2]; 2],
+        target: usize,
+    ) -> Result<(), SimulatorError> {
         let dim = 1usize << self.num_qubits;
         let stride = 1usize << target;
         let block = 1usize << (target + 1);
@@ -400,8 +449,17 @@ impl StatevectorSimulator {
         Ok(())
     }
 
-    fn apply_two_qubit_matrix(&mut self, matrix: &[[Complex64; 4]; 4], control: usize, target: usize) -> Result<(), SimulatorError> {
-        let (c, t) = if control < target { (control, target) } else { (target, control) };
+    fn apply_two_qubit_matrix(
+        &mut self,
+        matrix: &[[Complex64; 4]; 4],
+        control: usize,
+        target: usize,
+    ) -> Result<(), SimulatorError> {
+        let (c, t) = if control < target {
+            (control, target)
+        } else {
+            (target, control)
+        };
         let dim = 1usize << self.num_qubits;
         let stride_c = 1usize << c;
         let stride_t = 1usize << t;
@@ -423,10 +481,22 @@ impl StatevectorSimulator {
                     let a10 = self.statevector[idx10];
                     let a11 = self.statevector[idx11];
 
-                    new_state[idx00] = matrix[0][0] * a00 + matrix[0][1] * a01 + matrix[0][2] * a10 + matrix[0][3] * a11;
-                    new_state[idx01] = matrix[1][0] * a00 + matrix[1][1] * a01 + matrix[1][2] * a10 + matrix[1][3] * a11;
-                    new_state[idx10] = matrix[2][0] * a00 + matrix[2][1] * a01 + matrix[2][2] * a10 + matrix[2][3] * a11;
-                    new_state[idx11] = matrix[3][0] * a00 + matrix[3][1] * a01 + matrix[3][2] * a10 + matrix[3][3] * a11;
+                    new_state[idx00] = matrix[0][0] * a00
+                        + matrix[0][1] * a01
+                        + matrix[0][2] * a10
+                        + matrix[0][3] * a11;
+                    new_state[idx01] = matrix[1][0] * a00
+                        + matrix[1][1] * a01
+                        + matrix[1][2] * a10
+                        + matrix[1][3] * a11;
+                    new_state[idx10] = matrix[2][0] * a00
+                        + matrix[2][1] * a01
+                        + matrix[2][2] * a10
+                        + matrix[2][3] * a11;
+                    new_state[idx11] = matrix[3][0] * a00
+                        + matrix[3][1] * a01
+                        + matrix[3][2] * a10
+                        + matrix[3][3] * a11;
                 }
             }
         }
@@ -439,7 +509,12 @@ impl StatevectorSimulator {
         Ok(())
     }
 
-    fn apply_controlled_matrix(&mut self, controls: &[usize], matrix: &[[Complex64; 2]; 2], target: usize) -> Result<(), SimulatorError> {
+    fn apply_controlled_matrix(
+        &mut self,
+        controls: &[usize],
+        matrix: &[[Complex64; 2]; 2],
+        target: usize,
+    ) -> Result<(), SimulatorError> {
         // For simplicity, apply as multi-controlled single-qubit gate
         // In production, this would use more efficient decomposition
         let n_controls = controls.len();
@@ -507,7 +582,9 @@ impl StatevectorSimulator {
         };
 
         if prob < 1e-15 {
-            return Err(SimulatorError::InvalidGate("Measurement probability is zero".into()));
+            return Err(SimulatorError::InvalidGate(
+                "Measurement probability is zero".into(),
+            ));
         }
 
         let norm_factor = 1.0 / prob.sqrt();
@@ -533,9 +610,10 @@ impl StatevectorSimulator {
     fn validate_statevector(&self, state: &[Complex64]) -> Result<(), SimulatorError> {
         let norm_sqr: f64 = state.iter().map(|c| c.norm_sqr()).sum();
         if (norm_sqr - 1.0).abs() > 1e-10 {
-            return Err(SimulatorError::NonUnitaryOperation(
-                format!("Statevector norm squared = {}, expected 1.0", norm_sqr)
-            ));
+            return Err(SimulatorError::NonUnitaryOperation(format!(
+                "Statevector norm squared = {}, expected 1.0",
+                norm_sqr
+            )));
         }
         Ok(())
     }
@@ -586,61 +664,114 @@ impl SingleQubitGate {
         let i = Complex64::new(0.0, 1.0);
 
         match self {
-            SingleQubitGate::X => [[Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)],
-                                    [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)]],
-            SingleQubitGate::Y => [[Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)],
-                                    [Complex64::new(0.0, 1.0), Complex64::new(0.0, 0.0)]],
-            SingleQubitGate::Z => [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                                    [Complex64::new(0.0, 0.0), Complex64::new(-1.0, 0.0)]],
+            SingleQubitGate::X => [
+                [Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)],
+                [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+            ],
+            SingleQubitGate::Y => [
+                [Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)],
+                [Complex64::new(0.0, 1.0), Complex64::new(0.0, 0.0)],
+            ],
+            SingleQubitGate::Z => [
+                [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                [Complex64::new(0.0, 0.0), Complex64::new(-1.0, 0.0)],
+            ],
             SingleQubitGate::H => {
                 let inv_sqrt2 = 1.0 / 2.0_f64.sqrt();
-                [[Complex64::new(inv_sqrt2, 0.0), Complex64::new(inv_sqrt2, 0.0)],
-                 [Complex64::new(inv_sqrt2, 0.0), Complex64::new(-inv_sqrt2, 0.0)]]
+                [
+                    [
+                        Complex64::new(inv_sqrt2, 0.0),
+                        Complex64::new(inv_sqrt2, 0.0),
+                    ],
+                    [
+                        Complex64::new(inv_sqrt2, 0.0),
+                        Complex64::new(-inv_sqrt2, 0.0),
+                    ],
+                ]
             }
-            SingleQubitGate::S => [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                                    [Complex64::new(0.0, 0.0), Complex64::new(0.0, 1.0)]],
-            SingleQubitGate::Sdg => [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                                      [Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)]],
+            SingleQubitGate::S => [
+                [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                [Complex64::new(0.0, 0.0), Complex64::new(0.0, 1.0)],
+            ],
+            SingleQubitGate::Sdg => [
+                [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                [Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)],
+            ],
             SingleQubitGate::T => {
                 let angle = PI / 4.0;
-                [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                 [Complex64::new(0.0, 0.0), Complex64::new(angle.cos(), angle.sin())]]
+                [
+                    [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                    [
+                        Complex64::new(0.0, 0.0),
+                        Complex64::new(angle.cos(), angle.sin()),
+                    ],
+                ]
             }
             SingleQubitGate::Tdg => {
                 let angle = -PI / 4.0;
-                [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                 [Complex64::new(0.0, 0.0), Complex64::new(angle.cos(), angle.sin())]]
+                [
+                    [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                    [
+                        Complex64::new(0.0, 0.0),
+                        Complex64::new(angle.cos(), angle.sin()),
+                    ],
+                ]
             }
             SingleQubitGate::Phase(theta) => {
                 let half = theta / 2.0;
-                [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                 [Complex64::new(0.0, 0.0), Complex64::new(half.cos(), half.sin())]]
+                [
+                    [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                    [
+                        Complex64::new(0.0, 0.0),
+                        Complex64::new(half.cos(), half.sin()),
+                    ],
+                ]
             }
             SingleQubitGate::Rx(theta) => {
                 let half = theta / 2.0;
                 let cos = half.cos();
                 let sin = half.sin();
-                [[Complex64::new(cos, 0.0), Complex64::new(0.0, -sin)],
-                 [Complex64::new(0.0, -sin), Complex64::new(cos, 0.0)]]
+                [
+                    [Complex64::new(cos, 0.0), Complex64::new(0.0, -sin)],
+                    [Complex64::new(0.0, -sin), Complex64::new(cos, 0.0)],
+                ]
             }
             SingleQubitGate::Ry(theta) => {
                 let half = theta / 2.0;
                 let cos = half.cos();
                 let sin = half.sin();
-                [[Complex64::new(cos, 0.0), Complex64::new(-sin, 0.0)],
-                 [Complex64::new(sin, 0.0), Complex64::new(cos, 0.0)]]
+                [
+                    [Complex64::new(cos, 0.0), Complex64::new(-sin, 0.0)],
+                    [Complex64::new(sin, 0.0), Complex64::new(cos, 0.0)],
+                ]
             }
             SingleQubitGate::Rz(theta) => {
                 let half = theta / 2.0;
-                [[Complex64::new(half.cos(), half.sin()), Complex64::new(0.0, 0.0)],
-                 [Complex64::new(0.0, 0.0), Complex64::new(half.cos(), -half.sin())]]
+                [
+                    [
+                        Complex64::new(half.cos(), half.sin()),
+                        Complex64::new(0.0, 0.0),
+                    ],
+                    [
+                        Complex64::new(0.0, 0.0),
+                        Complex64::new(half.cos(), -half.sin()),
+                    ],
+                ]
             }
             SingleQubitGate::U3(theta, phi, lambda) => {
                 let half = theta / 2.0;
                 let cos = half.cos();
                 let sin = half.sin();
-                [[Complex64::new(cos, 0.0), Complex64::new(-sin * phi.cos(), -sin * phi.sin())],
-                 [Complex64::new(sin * lambda.cos(), sin * lambda.sin()), Complex64::new(cos * (phi + lambda).cos(), cos * (phi + lambda).sin())]]
+                [
+                    [
+                        Complex64::new(cos, 0.0),
+                        Complex64::new(-sin * phi.cos(), -sin * phi.sin()),
+                    ],
+                    [
+                        Complex64::new(sin * lambda.cos(), sin * lambda.sin()),
+                        Complex64::new(cos * (phi + lambda).cos(), cos * (phi + lambda).sin()),
+                    ],
+                ]
             }
         }
     }
@@ -744,8 +875,18 @@ impl TwoQubitGate {
                 [
                     [one, zero, zero, zero],
                     [zero, one, zero, zero],
-                    [zero, zero, Complex64::new(cos, 0.0), Complex64::new(0.0, -sin)],
-                    [zero, zero, Complex64::new(0.0, -sin), Complex64::new(cos, 0.0)],
+                    [
+                        zero,
+                        zero,
+                        Complex64::new(cos, 0.0),
+                        Complex64::new(0.0, -sin),
+                    ],
+                    [
+                        zero,
+                        zero,
+                        Complex64::new(0.0, -sin),
+                        Complex64::new(cos, 0.0),
+                    ],
                 ]
             }
             TwoQubitGate::CRy(theta) => {
@@ -755,8 +896,18 @@ impl TwoQubitGate {
                 [
                     [one, zero, zero, zero],
                     [zero, one, zero, zero],
-                    [zero, zero, Complex64::new(cos, 0.0), Complex64::new(-sin, 0.0)],
-                    [zero, zero, Complex64::new(sin, 0.0), Complex64::new(cos, 0.0)],
+                    [
+                        zero,
+                        zero,
+                        Complex64::new(cos, 0.0),
+                        Complex64::new(-sin, 0.0),
+                    ],
+                    [
+                        zero,
+                        zero,
+                        Complex64::new(sin, 0.0),
+                        Complex64::new(cos, 0.0),
+                    ],
                 ]
             }
             TwoQubitGate::CRz(theta) => {
@@ -792,25 +943,51 @@ impl TwoQubitGate {
 /// Quantum operations for circuit execution
 #[derive(Debug, Clone)]
 pub enum QuantumOperation {
-    SingleQubit { gate: SingleQubitGate, target: usize },
-    TwoQubit { gate: TwoQubitGate, control: usize, target: usize },
-    Controlled { controls: Vec<usize>, gate: SingleQubitGate, target: usize },
-    Measure { qubit: usize },
+    SingleQubit {
+        gate: SingleQubitGate,
+        target: usize,
+    },
+    TwoQubit {
+        gate: TwoQubitGate,
+        control: usize,
+        target: usize,
+    },
+    Controlled {
+        controls: Vec<usize>,
+        gate: SingleQubitGate,
+        target: usize,
+    },
+    Measure {
+        qubit: usize,
+    },
 }
 
 impl QuantumOperation {
     /// Get the adjoint (inverse) of this operation
     pub fn adjoint(&self) -> Option<QuantumOperation> {
         match self {
-            QuantumOperation::SingleQubit { gate, target } => {
-                Some(QuantumOperation::SingleQubit { gate: gate.adjoint(), target: *target })
-            }
-            QuantumOperation::TwoQubit { gate, control, target } => {
-                Some(QuantumOperation::TwoQubit { gate: gate.adjoint(), control: *control, target: *target })
-            }
-            QuantumOperation::Controlled { controls, gate, target } => {
-                Some(QuantumOperation::Controlled { controls: controls.clone(), gate: gate.adjoint(), target: *target })
-            }
+            QuantumOperation::SingleQubit { gate, target } => Some(QuantumOperation::SingleQubit {
+                gate: gate.adjoint(),
+                target: *target,
+            }),
+            QuantumOperation::TwoQubit {
+                gate,
+                control,
+                target,
+            } => Some(QuantumOperation::TwoQubit {
+                gate: gate.adjoint(),
+                control: *control,
+                target: *target,
+            }),
+            QuantumOperation::Controlled {
+                controls,
+                gate,
+                target,
+            } => Some(QuantumOperation::Controlled {
+                controls: controls.clone(),
+                gate: gate.adjoint(),
+                target: *target,
+            }),
             QuantumOperation::Measure { .. } => None, // Measurement has no adjoint
         }
     }

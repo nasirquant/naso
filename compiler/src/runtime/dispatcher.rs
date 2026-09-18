@@ -1,9 +1,8 @@
 /// Runtime Dispatcher
 ///
 /// Coordinates execution across different targets: simulator, JIT, hardware backends.
-
-use crate::runtime::statevector::{StatevectorSimulator, SimulatorConfig, SimulatorError};
-use crate::runtime::{RuntimeConfig, RuntimeError, ExecutionResult, CompiledProgram};
+use crate::runtime::statevector::{SimulatorConfig, SimulatorError, StatevectorSimulator};
+use crate::runtime::{CompiledProgram, ExecutionResult, RuntimeConfig, RuntimeError};
 
 /// Execution target for the runtime
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -35,7 +34,10 @@ impl RuntimeDispatcher {
 
     /// Execute a QIR module
     #[cfg(feature = "llvm")]
-    pub fn execute(&mut self, module: &crate::codegen::qir::QIRModule) -> Result<ExecutionResult, RuntimeError> {
+    pub fn execute(
+        &mut self,
+        module: &crate::codegen::qir::QIRModule,
+    ) -> Result<ExecutionResult, RuntimeError> {
         match self.config.default_target {
             ExecutionTarget::Simulator => self.execute_simulator(module),
             ExecutionTarget::JIT => self.execute_jit(module),
@@ -46,27 +48,42 @@ impl RuntimeDispatcher {
 
     #[cfg(not(feature = "llvm"))]
     pub fn execute(&mut self, _module: &()) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("QIR execution requires LLVM feature".into()))
+        Err(RuntimeError::ExecutionFailed(
+            "QIR execution requires LLVM feature".into(),
+        ))
     }
 
     /// Execute a compiled program
     #[cfg(feature = "llvm")]
-    pub fn execute_program(&mut self, program: &CompiledProgram) -> Result<ExecutionResult, RuntimeError> {
+    pub fn execute_program(
+        &mut self,
+        program: &CompiledProgram,
+    ) -> Result<ExecutionResult, RuntimeError> {
         if let Some(ref qir) = program.qir_module {
             self.execute(qir)
         } else {
-            Err(RuntimeError::InvalidProgram("No QIR module in compiled program".into()))
+            Err(RuntimeError::InvalidProgram(
+                "No QIR module in compiled program".into(),
+            ))
         }
     }
 
     #[cfg(not(feature = "llvm"))]
-    pub fn execute_program(&mut self, _program: &CompiledProgram) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("QIR execution requires LLVM feature".into()))
+    pub fn execute_program(
+        &mut self,
+        _program: &CompiledProgram,
+    ) -> Result<ExecutionResult, RuntimeError> {
+        Err(RuntimeError::ExecutionFailed(
+            "QIR execution requires LLVM feature".into(),
+        ))
     }
 
     /// Execute on statevector simulator
     #[cfg(feature = "llvm")]
-    fn execute_simulator(&mut self, module: &crate::codegen::qir::QIRModule) -> Result<ExecutionResult, RuntimeError> {
+    fn execute_simulator(
+        &mut self,
+        module: &crate::codegen::qir::QIRModule,
+    ) -> Result<ExecutionResult, RuntimeError> {
         let sim_config = SimulatorConfig {
             max_qubits: self.config.max_qubits,
             seed: None,
@@ -81,7 +98,8 @@ impl RuntimeDispatcher {
         let operations = self.extract_operations(module)?;
 
         // Execute circuit
-        let measurements = simulator.execute_circuit(&operations)
+        let measurements = simulator
+            .execute_circuit(&operations)
             .map_err(|e| RuntimeError::ExecutionFailed(e.to_string()))?;
 
         let stats = simulator.stats();
@@ -100,45 +118,71 @@ impl RuntimeDispatcher {
 
     #[cfg(not(feature = "llvm"))]
     fn execute_simulator(&mut self, _module: &()) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("QIR execution requires LLVM feature".into()))
+        Err(RuntimeError::ExecutionFailed(
+            "QIR execution requires LLVM feature".into(),
+        ))
     }
 
     /// Execute via hybrid JIT (placeholder)
     #[cfg(feature = "llvm")]
-    fn execute_jit(&self, _module: &crate::codegen::qir::QIRModule) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("JIT execution not yet implemented".into()))
+    fn execute_jit(
+        &self,
+        _module: &crate::codegen::qir::QIRModule,
+    ) -> Result<ExecutionResult, RuntimeError> {
+        Err(RuntimeError::ExecutionFailed(
+            "JIT execution not yet implemented".into(),
+        ))
     }
 
     #[cfg(not(feature = "llvm"))]
     fn execute_jit(&self, _module: &()) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("JIT execution requires LLVM feature".into()))
+        Err(RuntimeError::ExecutionFailed(
+            "JIT execution requires LLVM feature".into(),
+        ))
     }
 
     /// Execute on hardware backend (placeholder)
     #[cfg(feature = "llvm")]
-    fn execute_hardware(&self, _module: &crate::codegen::qir::QIRModule) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::HardwareBackendError("Hardware execution not yet implemented".into()))
+    fn execute_hardware(
+        &self,
+        _module: &crate::codegen::qir::QIRModule,
+    ) -> Result<ExecutionResult, RuntimeError> {
+        Err(RuntimeError::HardwareBackendError(
+            "Hardware execution not yet implemented".into(),
+        ))
     }
 
     #[cfg(not(feature = "llvm"))]
     fn execute_hardware(&self, _module: &()) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::HardwareBackendError("Hardware execution requires LLVM feature".into()))
+        Err(RuntimeError::HardwareBackendError(
+            "Hardware execution requires LLVM feature".into(),
+        ))
     }
 
     /// Export to OpenQASM (placeholder)
     #[cfg(feature = "llvm")]
-    fn execute_openqasm(&self, _module: &crate::codegen::qir::QIRModule) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("OpenQASM export not yet implemented".into()))
+    fn execute_openqasm(
+        &self,
+        _module: &crate::codegen::qir::QIRModule,
+    ) -> Result<ExecutionResult, RuntimeError> {
+        Err(RuntimeError::ExecutionFailed(
+            "OpenQASM export not yet implemented".into(),
+        ))
     }
 
     #[cfg(not(feature = "llvm"))]
     fn execute_openqasm(&self, _module: &()) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("OpenQASM export requires LLVM feature".into()))
+        Err(RuntimeError::ExecutionFailed(
+            "OpenQASM export requires LLVM feature".into(),
+        ))
     }
 
     /// Extract quantum operations from QIR module
     #[cfg(feature = "llvm")]
-    fn extract_operations(&self, module: &crate::codegen::qir::QIRModule) -> Result<Vec<crate::runtime::statevector::QuantumOperation>, RuntimeError> {
+    fn extract_operations(
+        &self,
+        module: &crate::codegen::qir::QIRModule,
+    ) -> Result<Vec<crate::runtime::statevector::QuantumOperation>, RuntimeError> {
         // In a real implementation, this would parse the QIR module
         // and extract the quantum operations
         // For now, return empty vec
@@ -146,8 +190,13 @@ impl RuntimeDispatcher {
     }
 
     #[cfg(not(feature = "llvm"))]
-    fn extract_operations(&self, _module: &()) -> Result<Vec<crate::runtime::statevector::QuantumOperation>, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("QIR module requires LLVM feature".into()))
+    fn extract_operations(
+        &self,
+        _module: &(),
+    ) -> Result<Vec<crate::runtime::statevector::QuantumOperation>, RuntimeError> {
+        Err(RuntimeError::ExecutionFailed(
+            "QIR module requires LLVM feature".into(),
+        ))
     }
 
     /// Get or create simulator instance
@@ -159,8 +208,10 @@ impl RuntimeDispatcher {
                 auto_uncompute: self.config.auto_uncompute,
                 validate_unitarity: false,
             };
-            self.simulator = Some(StatevectorSimulator::new(0, sim_config)
-                .map_err(|e| RuntimeError::ExecutionFailed(e.to_string()))?);
+            self.simulator = Some(
+                StatevectorSimulator::new(0, sim_config)
+                    .map_err(|e| RuntimeError::ExecutionFailed(e.to_string()))?,
+            );
         }
         Ok(self.simulator.as_mut().unwrap())
     }

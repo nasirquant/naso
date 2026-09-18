@@ -2,11 +2,11 @@
 //!
 //! Implements the bidirectional typing rules: infer mode (synthesis)
 
+use crate::ast::ty::{MetaVar, TypeKind, TypeVar};
 use crate::ast::*;
-use crate::typecheck::check::{check_stmt, check_block};
+use crate::typecheck::check::{check_block, check_stmt};
 use crate::typecheck::error::TypeError;
 use crate::typecheck::*;
-use crate::ast::ty::{TypeKind, TypeVar, MetaVar};
 
 /// Infer the type of an expression (synthesis mode)
 pub fn infer_expr(checker: &mut TypeChecker, expr: &Expr) -> Result<Type, TypeError> {
@@ -28,9 +28,13 @@ pub fn infer_expr(checker: &mut TypeChecker, expr: &Expr) -> Result<Type, TypeEr
         ExprKind::Tuple(elems) => infer_tuple(checker, elems, expr.span),
         ExprKind::Array(elems) => infer_array(checker, elems, expr.span),
         ExprKind::Block(block) => infer_block(checker, block, expr.span),
-        ExprKind::If(cond, then_branch, else_branch) => {
-            infer_if(checker, cond, then_branch, else_branch.as_deref(), expr.span)
-        }
+        ExprKind::If(cond, then_branch, else_branch) => infer_if(
+            checker,
+            cond,
+            then_branch,
+            else_branch.as_deref(),
+            expr.span,
+        ),
         ExprKind::Match(scrutinee, arms) => infer_match(checker, scrutinee, arms, expr.span),
         ExprKind::Let(binding) => infer_let(checker, binding, expr.span),
         ExprKind::LetInOut(binding) => infer_let_inout(checker, binding, expr.span),
@@ -92,7 +96,7 @@ fn infer_binary(
 ) -> Result<Type, TypeError> {
     let lhs_ty = infer_expr(checker, lhs)?;
     let rhs_ty = infer_expr(checker, rhs)?;
-    
+
     // For arithmetic/comparison ops, both operands should have same numeric type
     // Result is Bool for comparisons, same type for arithmetic
     let result_ty = match op {
@@ -107,7 +111,11 @@ fn infer_binary(
         }
         BinOp::And | BinOp::Or => {
             unify::unify_types(checker, &lhs_ty, &rhs_ty)?;
-            unify::unify_types(checker, &lhs_ty, &Type::new(TypeKind::Bool, Quantity::Many, span))?;
+            unify::unify_types(
+                checker,
+                &lhs_ty,
+                &Type::new(TypeKind::Bool, Quantity::Many, span),
+            )?;
             Type::new(TypeKind::Bool, Quantity::Many, span)
         }
         BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::Shl | BinOp::Shr => {
@@ -132,11 +140,15 @@ fn infer_unary(
     span: Span,
 ) -> Result<Type, TypeError> {
     let operand_ty = infer_expr(checker, operand)?;
-    
+
     let result_ty = match op {
         UnOp::Neg => operand_ty,
         UnOp::Not => {
-            unify::unify_types(checker, &operand_ty, &Type::new(TypeKind::Bool, Quantity::Many, span))?;
+            unify::unify_types(
+                checker,
+                &operand_ty,
+                &Type::new(TypeKind::Bool, Quantity::Many, span),
+            )?;
             Type::new(TypeKind::Bool, Quantity::Many, span)
         }
         UnOp::BitNot => operand_ty,
@@ -227,7 +239,7 @@ fn infer_method_call(
     span: Span,
 ) -> Result<Type, TypeError> {
     let receiver_ty = infer_expr(checker, receiver)?;
-    
+
     // Look up method on receiver type
     // For now, stub - would need type class / trait system
     Ok(Type::new(TypeKind::Unit, Quantity::Many, span))
@@ -241,7 +253,7 @@ fn infer_field(
     span: Span,
 ) -> Result<Type, TypeError> {
     let base_ty = infer_expr(checker, base)?;
-    
+
     // Look up field in struct type
     match &base_ty.kind {
         TypeKind::Named(name, _) => {
@@ -257,7 +269,7 @@ fn infer_field(
         }
         _ => {}
     }
-    
+
     Err(TypeError::FieldNotFound {
         field: field.clone(),
         ty: base_ty,
@@ -274,15 +286,12 @@ fn infer_index(
 ) -> Result<Type, TypeError> {
     let base_ty = infer_expr(checker, base)?;
     let _index_ty = infer_expr(checker, index)?;
-    
+
     // For arrays/tensors, return element type
     match &base_ty.kind {
         TypeKind::Array(elem, _) => Ok(*elem.clone()),
         TypeKind::Tensor(dims) if !dims.is_empty() => Ok(dims[0].clone()),
-        _ => Err(TypeError::NotIndexable {
-            ty: base_ty,
-            span,
-        }),
+        _ => Err(TypeError::NotIndexable { ty: base_ty, span }),
     }
 }
 
@@ -363,11 +372,7 @@ fn infer_variant(
 }
 
 /// Infer tuple type
-fn infer_tuple(
-    checker: &mut TypeChecker,
-    elems: &[Expr],
-    span: Span,
-) -> Result<Type, TypeError> {
+fn infer_tuple(checker: &mut TypeChecker, elems: &[Expr], span: Span) -> Result<Type, TypeError> {
     let mut elem_types = Vec::new();
     for elem in elems {
         elem_types.push(infer_expr(checker, elem)?);
@@ -398,46 +403,46 @@ fn infer_sigma(
 }
 
 /// Infer array type
-fn infer_array(
-    checker: &mut TypeChecker,
-    elems: &[Expr],
-    span: Span,
-) -> Result<Type, TypeError> {
+fn infer_array(checker: &mut TypeChecker, elems: &[Expr], span: Span) -> Result<Type, TypeError> {
     if elems.is_empty() {
         // Empty array - element type unknown, create metavar
         let elem_mv = fresh_meta_var();
         checker.register_meta(elem_mv, None);
         let elem_ty = Type::new(TypeKind::Var(TypeVar(elem_mv.0)), Quantity::Many, span);
-        return Ok(Type::new(TypeKind::Array(Box::new(elem_ty), None), Quantity::Many, span));
+        return Ok(Type::new(
+            TypeKind::Array(Box::new(elem_ty), None),
+            Quantity::Many,
+            span,
+        ));
     }
-    
+
     let first_ty = infer_expr(checker, &elems[0])?;
     for elem in &elems[1..] {
         let elem_ty = infer_expr(checker, elem)?;
         unify::unify_types(checker, &first_ty, &elem_ty)?;
     }
-    
-    Ok(Type::new(TypeKind::Array(Box::new(first_ty), None), Quantity::Many, span))
+
+    Ok(Type::new(
+        TypeKind::Array(Box::new(first_ty), None),
+        Quantity::Many,
+        span,
+    ))
 }
 
 /// Infer block expression type
-fn infer_block(
-    checker: &mut TypeChecker,
-    block: &Block,
-    span: Span,
-) -> Result<Type, TypeError> {
+fn infer_block(checker: &mut TypeChecker, block: &Block, span: Span) -> Result<Type, TypeError> {
     let guard = checker.env.enter_scope();
-    
+
     for stmt in &block.stmts {
         check_stmt(checker, stmt)?;
     }
-    
+
     let result_ty = if let Some(expr) = &block.expr {
         infer_expr(checker, expr)?
     } else {
         Type::unit(span)
     };
-    
+
     checker.env.exit_scope(guard)?;
     Ok(result_ty)
 }
@@ -452,10 +457,14 @@ fn infer_if(
 ) -> Result<Type, TypeError> {
     // Condition must be Bool
     let cond_ty = infer_expr(checker, cond)?;
-    unify::unify_types(checker, &cond_ty, &Type::new(TypeKind::Bool, Quantity::Many, span))?;
-    
+    unify::unify_types(
+        checker,
+        &cond_ty,
+        &Type::new(TypeKind::Bool, Quantity::Many, span),
+    )?;
+
     let then_ty = infer_expr(checker, then_branch)?;
-    
+
     if let Some(else_expr) = else_branch {
         let else_ty = infer_expr(checker, else_expr)?;
         unify::unify_types(checker, &then_ty, &else_ty)?;
@@ -475,47 +484,51 @@ fn infer_match(
     span: Span,
 ) -> Result<Type, TypeError> {
     let scrutinee_ty = infer_expr(checker, scrutinee)?;
-    
+
     if arms.is_empty() {
         return Ok(Type::unit(span));
     }
-    
+
     // Check first arm to get expected result type
     let first_arm = &arms[0];
     let bindings = checker.check_pattern(&first_arm.pattern, &scrutinee_ty)?;
-    
+
     // Bind pattern variables
     let guard = checker.env.enter_scope();
     for (name, info) in bindings.vars {
-        checker.env.bind_var(name, info.ty, info.quantity, info.mutability);
+        checker
+            .env
+            .bind_var(name, info.ty, info.quantity, info.mutability);
     }
-    
+
     let mut result_ty = if let Some(guard_expr) = &first_arm.guard {
         infer_expr(checker, guard_expr)?
     } else {
         infer_expr(checker, &first_arm.body)?
     };
-    
+
     checker.env.exit_scope(guard)?;
-    
+
     // Check remaining arms
     for arm in &arms[1..] {
         let bindings = checker.check_pattern(&arm.pattern, &scrutinee_ty)?;
         let guard = checker.env.enter_scope();
         for (name, info) in bindings.vars {
-            checker.env.bind_var(name, info.ty, info.quantity, info.mutability);
+            checker
+                .env
+                .bind_var(name, info.ty, info.quantity, info.mutability);
         }
-        
+
         let arm_ty = if let Some(guard_expr) = &arm.guard {
             infer_expr(checker, guard_expr)?
         } else {
             infer_expr(checker, &arm.body)?
         };
-        
+
         unify::unify_types(checker, &result_ty, &arm_ty)?;
         checker.env.exit_scope(guard)?;
     }
-    
+
     Ok(result_ty)
 }
 
@@ -526,12 +539,12 @@ fn infer_let(
     span: Span,
 ) -> Result<Type, TypeError> {
     let value_ty = infer_expr(checker, &binding.value)?;
-    
+
     // If explicit type annotation, check against it
     if let Some(ann_ty) = &binding.ty {
         unify::unify_types(checker, &value_ty, ann_ty)?;
     }
-    
+
     // Bind the variable
     checker.env.bind_var(
         binding.name.clone(),
@@ -539,7 +552,7 @@ fn infer_let(
         binding.quantity,
         binding.mutability,
     );
-    
+
     Ok(value_ty)
 }
 
@@ -550,7 +563,7 @@ fn infer_let_inout(
     span: Span,
 ) -> Result<Type, TypeError> {
     let value_ty = infer_expr(checker, &binding.value)?;
-    
+
     // Value must be a place expression with quantity 1
     // For now, just check quantity
     if value_ty.quantity != Quantity::One {
@@ -559,7 +572,7 @@ fn infer_let_inout(
             span,
         });
     }
-    
+
     // Bind as inout
     checker.env.bind_var(
         binding.name.clone(),
@@ -567,7 +580,7 @@ fn infer_let_inout(
         Quantity::One,
         Mutability::InOut,
     );
-    
+
     Ok(value_ty)
 }
 
@@ -607,20 +620,20 @@ fn infer_reversible(
 ) -> Result<Type, TypeError> {
     let prev_reversible = checker.in_reversible;
     checker.in_reversible = true;
-    
+
     let guard = checker.env.enter_scope();
-    
+
     // Check body statements
     for stmt in &block.body.stmts {
         check_stmt(checker, stmt)?;
     }
-    
+
     // Verify all variables in scope have inverses registered
     // (stub for now)
-    
+
     checker.env.exit_scope(guard)?;
     checker.in_reversible = prev_reversible;
-    
+
     Ok(Type::unit(span))
 }
 
@@ -652,7 +665,7 @@ fn infer_lambda(
 
     // Build function type
     let param_types: Vec<Type> = lambda.params.iter().map(|p| p.ty.clone()).collect();
-    
+
     // Check if this is a dependent lambda (Pi type)
     // If any parameter has a type that depends on a previous parameter, use Pi type
     let fn_ty = if lambda.params.iter().any(|p| {
@@ -684,13 +697,9 @@ fn infer_lambda(
 }
 
 /// Infer for loop type
-fn infer_for(
-    checker: &mut TypeChecker,
-    for_loop: &ForLoop,
-    span: Span,
-) -> Result<Type, TypeError> {
+fn infer_for(checker: &mut TypeChecker, for_loop: &ForLoop, span: Span) -> Result<Type, TypeError> {
     let iter_ty = infer_expr(checker, &for_loop.iter)?;
-    
+
     // Iterator type should be iterable
     // For now, just bind the loop variable
     let guard = checker.env.enter_scope();
@@ -700,10 +709,10 @@ fn infer_for(
         Quantity::Many,
         Mutability::Immutable,
     );
-    
+
     check_block(checker, &for_loop.body)?;
     checker.env.exit_scope(guard)?;
-    
+
     Ok(Type::unit(span))
 }
 
@@ -715,8 +724,12 @@ fn infer_while(
     span: Span,
 ) -> Result<Type, TypeError> {
     let cond_ty = infer_expr(checker, cond)?;
-    unify::unify_types(checker, &cond_ty, &Type::new(TypeKind::Bool, Quantity::Many, span))?;
-    
+    unify::unify_types(
+        checker,
+        &cond_ty,
+        &Type::new(TypeKind::Bool, Quantity::Many, span),
+    )?;
+
     infer_expr(checker, body)?;
     Ok(Type::unit(span))
 }
@@ -750,7 +763,7 @@ fn infer_assign(
 ) -> Result<Type, TypeError> {
     let lhs_ty = infer_expr(checker, lhs)?;
     let rhs_ty = infer_expr(checker, rhs)?;
-    
+
     // LHS must be a place expression
     // For now, just unify types
     unify::unify_types(checker, &lhs_ty, &rhs_ty)?;
@@ -758,13 +771,9 @@ fn infer_assign(
 }
 
 /// Infer projection type
-fn infer_projection(
-    checker: &mut TypeChecker,
-    base: &Expr,
-    span: Span,
-) -> Result<Type, TypeError> {
+fn infer_projection(checker: &mut TypeChecker, base: &Expr, span: Span) -> Result<Type, TypeError> {
     let base_ty = infer_expr(checker, base)?;
-    
+
     // Create projection type
     Ok(Type::new(
         TypeKind::Projection(Box::new(base_ty)),

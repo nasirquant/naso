@@ -10,7 +10,7 @@ use super::pir_types::*;
 use super::pretty_print::*;
 use super::schedule_tree::*;
 use super::validate::*;
-use crate::ast::{Quantity, Mutability};
+use crate::ast::{Mutability, Quantity};
 
 // Additional integration tests
 
@@ -384,7 +384,12 @@ fn test_quantity_validation_comprehensive() {
         map.clone(),
         AccessType::Write,
     ));
-    accesses.add(AccessRelation::new(StmtId(2), domain, map, AccessType::Write));
+    accesses.add(AccessRelation::new(
+        StmtId(2),
+        domain,
+        map,
+        AccessType::Write,
+    ));
 
     let mut quantities = QuantityMap::new();
     quantities.insert("z".to_string(), Quantity::Zero);
@@ -403,13 +408,19 @@ fn test_quantity_validation_comprehensive() {
     assert!(result.is_err());
     let errors = result.unwrap_err();
     // Should have: zero in runtime, one used once (OK), many used twice (OK)
-    assert!(errors
-        .iter()
-        .any(|e| matches!(e, ValidationError::ZeroQuantityInRuntime(_, _))));
-    assert!(!errors
-        .iter()
-        .any(|e| matches!(e, ValidationError::LinearVarNotUsed(_))));
-    assert!(!errors
-        .iter()
-        .any(|e| matches!(e, ValidationError::LinearVarUsedMultipleTimes(_, _))));
+    assert!(
+        errors
+            .iter()
+            .any(|e| matches!(e, ValidationError::ZeroQuantityInRuntime(_, _)))
+    );
+    assert!(
+        !errors
+            .iter()
+            .any(|e| matches!(e, ValidationError::LinearVarNotUsed(_)))
+    );
+    assert!(
+        !errors
+            .iter()
+            .any(|e| matches!(e, ValidationError::LinearVarUsedMultipleTimes(_, _)))
+    );
 }

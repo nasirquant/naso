@@ -6,6 +6,9 @@ use crate::ast::Span;
 use std::path::PathBuf;
 use thiserror::Error;
 
+#[cfg(feature = "llvm")]
+use inkwell::builder::BuilderError;
+
 /// Result type for codegen operations
 pub type CodegenResult<T> = Result<T, CodegenError>;
 
@@ -57,6 +60,13 @@ pub enum CodegenError {
     UnsupportedFeature(String),
 }
 
+#[cfg(feature = "llvm")]
+impl From<BuilderError> for CodegenError {
+    fn from(e: BuilderError) -> Self {
+        CodegenError::InstructionError(e.to_string())
+    }
+}
+
 impl CodegenError {
     /// Create a type lowering error with span
     pub fn type_lowering_with_span(msg: impl Into<String>, span: Span) -> Self {
@@ -75,7 +85,11 @@ impl CodegenError {
 
     /// Create an unsupported feature error
     pub fn unsupported_feature(feature: impl Into<String>, target: impl Into<String>) -> Self {
-        CodegenError::UnsupportedFeature(format!("{} not supported on target {}", feature.into(), target.into()))
+        CodegenError::UnsupportedFeature(format!(
+            "{} not supported on target {}",
+            feature.into(),
+            target.into()
+        ))
     }
 }
 
@@ -138,13 +152,18 @@ impl Diagnostic for CodegenError {
     fn emit(&self) {
         let severity = self.severity();
         eprintln!("{}: {}", severity, self.message());
-        
+
         if let Some(span) = self.span() {
-            eprintln!("  --> {}:{}:{}", 
-                self.file().map(|p| p.display().to_string()).unwrap_or_else(|| "<unknown>".to_string()),
-                span.line, span.column);
+            eprintln!(
+                "  --> {}:{}:{}",
+                self.file()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "<unknown>".to_string()),
+                span.line,
+                span.column
+            );
         }
-        
+
         if let Some(help) = self.help() {
             eprintln!("  = help: {}", help);
         }
@@ -215,7 +234,9 @@ impl DiagnosticEmitter {
     }
 
     pub fn has_errors(&self) -> bool {
-        self.diagnostics.iter().any(|d| d.severity() >= Severity::Error)
+        self.diagnostics
+            .iter()
+            .any(|d| d.severity() >= Severity::Error)
     }
 
     pub fn diagnostics(&self) -> &[Box<dyn Diagnostic>] {
@@ -249,13 +270,16 @@ impl SourceMap {
         let content = &file.content;
         let start_byte = span.start as usize;
         let end_byte = span.end as usize;
-        
-        let line_start = content[..start_byte].rfind('\n').map(|i| i + 1).unwrap_or(0);
+
+        let line_start = content[..start_byte]
+            .rfind('\n')
+            .map(|i| i + 1)
+            .unwrap_or(0);
         let line_end = content[..end_byte].rfind('\n').map(|i| i + 1).unwrap_or(0);
-        
+
         let column_start = start_byte - line_start;
         let column_end = end_byte - line_end;
-        
+
         Some(SourceLocation {
             file_id,
             line_start: span.line,

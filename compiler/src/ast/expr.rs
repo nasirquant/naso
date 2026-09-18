@@ -3,7 +3,7 @@
 //! Defines expressions including reversible blocks, inout projections,
 //! quantum operations, and quantitative annotations.
 
-use crate::ast::{Ident, Literal, Mutability, Quantity, Span, NodeId};
+use crate::ast::{Ident, Literal, Mutability, NodeId, Quantity, Span};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -200,10 +200,24 @@ pub struct ForLoop {
 /// Binary operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinOp {
-    Add, Sub, Mul, Div, Rem,
-    Eq, Ne, Lt, Le, Gt, Ge,
-    And, Or, BitAnd, BitOr, BitXor,
-    Shl, Shr,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    And,
+    Or,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Shl,
+    Shr,
     Assign,
 }
 
@@ -278,9 +292,18 @@ pub enum QuantumOp {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GateKind {
-    H, X, Y, Z, S, T,
-    CX, CY, CZ,
-    RX(Box<Expr>), RY(Box<Expr>), RZ(Box<Expr>),
+    H,
+    X,
+    Y,
+    Z,
+    S,
+    T,
+    CX,
+    CY,
+    CZ,
+    RX(Box<Expr>),
+    RY(Box<Expr>),
+    RZ(Box<Expr>),
     Custom(Ident),
 }
 

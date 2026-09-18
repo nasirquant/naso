@@ -39,9 +39,7 @@ pub enum ScheduleNode {
         child: Box<ScheduleNode>,
     },
     /// Sequence node: execute children sequentially
-    Sequence {
-        children: Vec<ScheduleNode>,
-    },
+    Sequence { children: Vec<ScheduleNode> },
     /// Context node: parameter constraints
     Context {
         domain: AffineDomain,
@@ -172,7 +170,11 @@ impl ScheduleNode {
             return Err(ScheduleValidationError::MaxDepthExceeded);
         }
         match self {
-            ScheduleNode::Band { members, coincident, child } => {
+            ScheduleNode::Band {
+                members,
+                coincident,
+                child,
+            } => {
                 if members.is_empty() {
                     return Err(ScheduleValidationError::EmptyBand);
                 }
@@ -224,16 +226,31 @@ impl ScheduleNode {
     pub fn pretty_print(&self, indent: usize) -> String {
         let prefix = "  ".repeat(indent);
         match self {
-            ScheduleNode::Band { members, coincident, child } => {
+            ScheduleNode::Band {
+                members,
+                coincident,
+                child,
+            } => {
                 let mut s = format!("{}Band ({} dims):\n", prefix, members.len());
                 for (i, (m, c)) in members.iter().zip(coincident.iter()).enumerate() {
-                    s += &format!("{}  [{}] {} {}\n", prefix, i, if *c { "coincident" } else { "sequential" }, m);
+                    s += &format!(
+                        "{}  [{}] {} {}\n",
+                        prefix,
+                        i,
+                        if *c { "coincident" } else { "sequential" },
+                        m
+                    );
                 }
                 s += &child.pretty_print(indent + 1);
                 s
             }
             ScheduleNode::Filter { domain, child } => {
-                format!("{}Filter: {}\n{}", prefix, domain.name.as_deref().unwrap_or(""), child.pretty_print(indent + 1))
+                format!(
+                    "{}Filter: {}\n{}",
+                    prefix,
+                    domain.name.as_deref().unwrap_or(""),
+                    child.pretty_print(indent + 1)
+                )
             }
             ScheduleNode::Sequence { children } => {
                 let mut s = format!("{}Sequence:\n", prefix);
@@ -243,13 +260,28 @@ impl ScheduleNode {
                 s
             }
             ScheduleNode::Context { domain, child } => {
-                format!("{}Context: {}\n{}", prefix, domain.name.as_deref().unwrap_or(""), child.pretty_print(indent + 1))
+                format!(
+                    "{}Context: {}\n{}",
+                    prefix,
+                    domain.name.as_deref().unwrap_or(""),
+                    child.pretty_print(indent + 1)
+                )
             }
             ScheduleNode::Domain { stmt_id, domain } => {
-                format!("{}Domain {}: {}\n", prefix, stmt_id, domain.name.as_deref().unwrap_or(""))
+                format!(
+                    "{}Domain {}: {}\n",
+                    prefix,
+                    stmt_id,
+                    domain.name.as_deref().unwrap_or("")
+                )
             }
             ScheduleNode::Extension { sizes, child } => {
-                format!("{}Extension (sizes={:?}):\n{}", prefix, sizes, child.pretty_print(indent + 1))
+                format!(
+                    "{}Extension (sizes={:?}):\n{}",
+                    prefix,
+                    sizes,
+                    child.pretty_print(indent + 1)
+                )
             }
             ScheduleNode::Empty => format!("{}Empty\n", prefix),
         }
@@ -307,13 +339,21 @@ impl fmt::Display for ScheduleValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ScheduleValidationError::EmptyBand => write!(f, "Band node has no members"),
-            ScheduleValidationError::CoincidentLengthMismatch => write!(f, "Coincident flags length doesn't match band members"),
-            ScheduleValidationError::BandDimensionMismatch => write!(f, "Band members have different input dimensions"),
+            ScheduleValidationError::CoincidentLengthMismatch => {
+                write!(f, "Coincident flags length doesn't match band members")
+            }
+            ScheduleValidationError::BandDimensionMismatch => {
+                write!(f, "Band members have different input dimensions")
+            }
             ScheduleValidationError::EmptyFilterDomain => write!(f, "Filter node has empty domain"),
             ScheduleValidationError::EmptySequence => write!(f, "Sequence node has no children"),
-            ScheduleValidationError::EmptyContextDomain => write!(f, "Context node has empty domain"),
+            ScheduleValidationError::EmptyContextDomain => {
+                write!(f, "Context node has empty domain")
+            }
             ScheduleValidationError::EmptyDomainNode => write!(f, "Domain node has empty domain"),
-            ScheduleValidationError::MaxDepthExceeded => write!(f, "Schedule tree exceeds maximum depth"),
+            ScheduleValidationError::MaxDepthExceeded => {
+                write!(f, "Schedule tree exceeds maximum depth")
+            }
         }
     }
 }
@@ -322,16 +362,20 @@ impl std::error::Error for ScheduleValidationError {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::affine_domain::AffineDomain;
+    use super::*;
 
     #[test]
     fn test_simple_schedule() {
         // Simple schedule: for i in 0..N { S(i) }
-        let domain = AffineDomain::new(1, 1, vec![
-            super::super::affine_domain::AffineConstraint::inequality(vec![1, 0], 0),
-            super::super::affine_domain::AffineConstraint::inequality(vec![-1, 1], 1),
-        ]);
+        let domain = AffineDomain::new(
+            1,
+            1,
+            vec![
+                super::super::affine_domain::AffineConstraint::inequality(vec![1, 0], 0),
+                super::super::affine_domain::AffineConstraint::inequality(vec![-1, 1], 1),
+            ],
+        );
 
         let mut m = super::super::affine_map::Matrix::new(1, 2);
         m.set(0, 0, 1); // schedule time = i
@@ -354,12 +398,16 @@ mod tests {
     #[test]
     fn test_nested_schedule() {
         // for i in 0..N { for j in 0..M { S(i,j) } }
-        let domain = AffineDomain::new(2, 2, vec![
-            super::super::affine_domain::AffineConstraint::inequality(vec![1, 0, 0, 0], 0),
-            super::super::affine_domain::AffineConstraint::inequality(vec![-1, 0, 1, 0], 1),
-            super::super::affine_domain::AffineConstraint::inequality(vec![0, 1, 0, 0], 0),
-            super::super::affine_domain::AffineConstraint::inequality(vec![0, -1, 0, 1], 1),
-        ]);
+        let domain = AffineDomain::new(
+            2,
+            2,
+            vec![
+                super::super::affine_domain::AffineConstraint::inequality(vec![1, 0, 0, 0], 0),
+                super::super::affine_domain::AffineConstraint::inequality(vec![-1, 0, 1, 0], 1),
+                super::super::affine_domain::AffineConstraint::inequality(vec![0, 1, 0, 0], 0),
+                super::super::affine_domain::AffineConstraint::inequality(vec![0, -1, 0, 1], 1),
+            ],
+        );
 
         // Outer loop: i
         let mut m1 = super::super::affine_map::Matrix::new(1, 4);
@@ -389,22 +437,38 @@ mod tests {
 
     #[test]
     fn test_sequence_schedule() {
-        let domain1 = AffineDomain::new(1, 0, vec![
-            super::super::affine_domain::AffineConstraint::inequality(vec![1], 0),
-            super::super::affine_domain::AffineConstraint::inequality(vec![-1], -5),
-        ]);
-        let domain2 = AffineDomain::new(1, 0, vec![
-            super::super::affine_domain::AffineConstraint::inequality(vec![1], 0),
-            super::super::affine_domain::AffineConstraint::inequality(vec![-1], -3),
-        ]);
+        let domain1 = AffineDomain::new(
+            1,
+            0,
+            vec![
+                super::super::affine_domain::AffineConstraint::inequality(vec![1], 0),
+                super::super::affine_domain::AffineConstraint::inequality(vec![-1], -5),
+            ],
+        );
+        let domain2 = AffineDomain::new(
+            1,
+            0,
+            vec![
+                super::super::affine_domain::AffineConstraint::inequality(vec![1], 0),
+                super::super::affine_domain::AffineConstraint::inequality(vec![-1], -3),
+            ],
+        );
 
         let mut m = super::super::affine_map::Matrix::identity(1);
         let map1 = super::super::affine_map::AffineMap::total(domain1.clone(), m.clone());
         let map2 = super::super::affine_map::AffineMap::total(domain2.clone(), m);
 
         let seq = ScheduleNode::sequence(vec![
-            ScheduleNode::band(vec![map1], vec![false], ScheduleNode::domain(StmtId(0), domain1)),
-            ScheduleNode::band(vec![map2], vec![false], ScheduleNode::domain(StmtId(1), domain2)),
+            ScheduleNode::band(
+                vec![map1],
+                vec![false],
+                ScheduleNode::domain(StmtId(0), domain1),
+            ),
+            ScheduleNode::band(
+                vec![map2],
+                vec![false],
+                ScheduleNode::domain(StmtId(1), domain2),
+            ),
         ]);
 
         let sched = ScheduleTree::new(seq, vec![]);

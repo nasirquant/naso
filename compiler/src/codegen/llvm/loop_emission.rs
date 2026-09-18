@@ -6,9 +6,9 @@
 use crate::codegen::error::{CodegenError, CodegenResult};
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::affine_map::AffineMap;
-use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue};
-use inkwell::types::BasicTypeEnum;
 use inkwell::IntPredicate;
+use inkwell::types::BasicTypeEnum;
+use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue};
 
 /// Loop emitter for sequential and parallel bands
 pub struct LoopEmitter<'ctx> {
@@ -74,8 +74,13 @@ impl<'ctx> LoopEmitter<'ctx> {
     where
         F: FnMut(&mut LlvmValueBuilder<'ctx>) -> CodegenResult<()>,
     {
-        let func = value_builder.builder().get_insert_block().unwrap().get_parent().unwrap();
-        
+        let func = value_builder
+            .builder()
+            .get_insert_block()
+            .unwrap()
+            .get_parent()
+            .unwrap();
+
         // Create loop blocks
         let preheader = self.context.append_basic_block(func, "loop_preheader");
         let header = self.context.append_basic_block(func, "loop_header");
@@ -88,8 +93,14 @@ impl<'ctx> LoopEmitter<'ctx> {
 
         // Preheader: initialize induction variable
         value_builder.builder().position_at_end(preheader);
-        let int_type = value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64);
-        let init_val = value_builder.build_int_constant(int_type, bounds.lower.into_int_value().get_zero_extended_constant() as u64, "iv_init")?;
+        let int_type = value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64);
+        let init_val = value_builder.build_int_constant(
+            int_type,
+            bounds.lower.into_int_value().get_zero_extended_constant() as u64,
+            "iv_init",
+        )?;
         let iv_alloca = value_builder.build_alloca(int_type, "iv")?;
         value_builder.build_store(iv_alloca, init_val.into())?;
         value_builder.build_unconditional_branch(header)?;
@@ -100,16 +111,14 @@ impl<'ctx> LoopEmitter<'ctx> {
         phi.add_incoming(&[(init_val.into(), preheader)]);
 
         // Load current induction variable value
-        let iv_val = value_builder.build_load(iv_alloca, "iv_val")?.into_int_value();
+        let iv_val = value_builder
+            .build_load(iv_alloca, "iv_val")?
+            .into_int_value();
 
         // Compare with upper bound
         let upper_val = bounds.upper.into_int_value();
-        let cond = value_builder.build_int_compare(
-            IntPredicate::SLT,
-            iv_val,
-            upper_val,
-            "loop_cond",
-        )?;
+        let cond =
+            value_builder.build_int_compare(IntPredicate::SLT, iv_val, upper_val, "loop_cond")?;
 
         value_builder.build_conditional_branch(cond, body, exit)?;
 
@@ -123,7 +132,7 @@ impl<'ctx> LoopEmitter<'ctx> {
         let step_val = value_builder.build_int_constant(int_type, bounds.step as u64, "iv_step")?;
         let next_iv = value_builder.build_int_add(iv_val, step_val, "iv_next")?;
         value_builder.build_store(iv_alloca, next_iv.into())?;
-        
+
         // Add incoming to phi
         phi.add_incoming(&[(next_iv.into(), latch)]);
         value_builder.build_unconditional_branch(header)?;

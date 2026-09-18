@@ -17,29 +17,29 @@ pub mod llvm;
 #[cfg(feature = "llvm")]
 pub mod qir;
 
-use crate::ir::pir_types::{PirModule, PirStatement};
+use crate::ast::Ident;
 use crate::ast::Quantity;
 use crate::ast::Span;
 use crate::ast::Type;
-use crate::ast::Ident;
+use crate::ir::pir_types::{PirModule, PirStatement};
 
-pub use abi::{lower_pir_type, lower_pir_module_types, QuantityAwareType};
+pub use abi::{QuantityAwareType, lower_pir_module_types, lower_pir_type};
 pub use context::{CodegenTarget, OptLevel};
 pub use error::{CodegenError, CodegenResult};
 
 #[cfg(feature = "llvm")]
 pub use context::CodegenContext;
 #[cfg(feature = "llvm")]
+pub use inkwell::OptimizationLevel;
+#[cfg(feature = "llvm")]
+pub use inkwell::builder::Builder as LlvmBuilder;
+#[cfg(feature = "llvm")]
 /// Re-export inkwell types for convenience
 pub use inkwell::context::Context as LlvmContext;
 #[cfg(feature = "llvm")]
 pub use inkwell::module::Module as LlvmModule;
 #[cfg(feature = "llvm")]
-pub use inkwell::builder::Builder as LlvmBuilder;
-#[cfg(feature = "llvm")]
-pub use inkwell::targets::{TargetMachine, Target, InitializationConfig};
-#[cfg(feature = "llvm")]
-pub use inkwell::OptimizationLevel;
+pub use inkwell::targets::{InitializationConfig, Target, TargetMachine};
 
 /// Main entry point for code generation
 #[cfg(feature = "llvm")]
@@ -76,7 +76,9 @@ impl CodegenPipeline {
     #[cfg(not(feature = "cranelift"))]
     /// Compile and execute via Cranelift JIT (stub when not available)
     pub fn execute_cranelift_jit(&self, _module: &PirModule) -> CodegenResult<i32> {
-        Err(CodegenError::UnsupportedFeature("Cranelift backend not enabled. Compile with 'cranelift' feature.".to_string()))
+        Err(CodegenError::UnsupportedFeature(
+            "Cranelift backend not enabled. Compile with 'cranelift' feature.".to_string(),
+        ))
     }
 }
 
@@ -92,17 +94,23 @@ impl CodegenPipeline {
 
     /// Generate LLVM IR from a PIR module (stub when LLVM not available)
     pub fn emit_llvm(&self, _module: &PirModule) -> CodegenResult<String> {
-        Err(CodegenError::UnsupportedFeature("LLVM backend not enabled. Compile with 'llvm' feature.".to_string()))
+        Err(CodegenError::UnsupportedFeature(
+            "LLVM backend not enabled. Compile with 'llvm' feature.".to_string(),
+        ))
     }
 
     /// Generate QIR from a PIR module (stub when LLVM not available)
     pub fn emit_qir(&self, _module: &PirModule) -> CodegenResult<String> {
-        Err(CodegenError::UnsupportedFeature("QIR backend requires LLVM. Compile with 'llvm' feature.".to_string()))
+        Err(CodegenError::UnsupportedFeature(
+            "QIR backend requires LLVM. Compile with 'llvm' feature.".to_string(),
+        ))
     }
 
     /// Compile and execute via Cranelift JIT (stub when not available)
     pub fn execute_cranelift_jit(&self, _module: &PirModule) -> CodegenResult<i32> {
-        Err(CodegenError::UnsupportedFeature("Cranelift backend not enabled. Compile with 'cranelift' feature.".to_string()))
+        Err(CodegenError::UnsupportedFeature(
+            "Cranelift backend not enabled. Compile with 'cranelift' feature.".to_string(),
+        ))
     }
 }
 

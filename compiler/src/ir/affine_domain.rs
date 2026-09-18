@@ -6,8 +6,8 @@
 //! This is a native Rust implementation avoiding external C dependencies.
 //! For production use, the `isl` crate can be swapped in when it compiles on Windows.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Type of affine constraint
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,7 +55,9 @@ impl AffineConstraint {
 
     /// Check if a point satisfies this constraint
     pub fn contains(&self, point: &[i64]) -> bool {
-        let sum: i64 = self.coefficients.iter()
+        let sum: i64 = self
+            .coefficients
+            .iter()
             .zip(point.iter())
             .map(|(c, x)| c * x)
             .sum();
@@ -121,7 +123,11 @@ impl AffineDomain {
 
     /// Add a constraint to the domain
     pub fn add_constraint(&mut self, constraint: AffineConstraint) {
-        assert_eq!(constraint.dims(), self.dims, "Constraint dimension mismatch");
+        assert_eq!(
+            constraint.dims(),
+            self.dims,
+            "Constraint dimension mismatch"
+        );
         self.constraints.push(constraint);
     }
 
@@ -177,17 +183,22 @@ impl AffineDomain {
 
         // Fourier-Motzkin elimination for projection
         // Simplified: drop constraints involving removed dims and remap kept coefficients
-        let constraints: Vec<AffineConstraint> = self.constraints.iter()
+        let constraints: Vec<AffineConstraint> = self
+            .constraints
+            .iter()
             .filter(|c| {
-                c.coefficients.iter().enumerate()
+                c.coefficients
+                    .iter()
+                    .enumerate()
                     .all(|(i, &coeff)| coeff == 0 || keep[i])
             })
             .map(|c| {
                 // Remap coefficients to new dimension indices
-                let new_coeffs: Vec<i64> = c.coefficients.iter().enumerate()
-                    .filter_map(|(i, &coeff)| {
-                        old_to_new[i].map(|new_i| (new_i, coeff))
-                    })
+                let new_coeffs: Vec<i64> = c
+                    .coefficients
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, &coeff)| old_to_new[i].map(|new_i| (new_i, coeff)))
                     .fold(vec![0; new_dims], |mut acc, (new_i, coeff)| {
                         acc[new_i] = coeff;
                         acc
@@ -214,7 +225,7 @@ impl AffineDomain {
         // Simple check: look for contradictory constraints like x >= 1, x <= 0
         // Full emptiness requires ILP solving (Fourier-Motzkin or simplex)
         for i in 0..self.constraints.len() {
-            for j in i+1..self.constraints.len() {
+            for j in i + 1..self.constraints.len() {
                 if self.are_contradictory(&self.constraints[i], &self.constraints[j]) {
                     return true;
                 }
@@ -232,11 +243,9 @@ impl AffineDomain {
                     // Both >= : c1: sum >= a, c2: sum >= b -> not contradictory
                     false
                 }
-                (ConstraintType::Equality, ConstraintType::Equality) => {
-                    c1.constant != c2.constant
-                }
-                (ConstraintType::Equality, ConstraintType::Inequality) |
-                (ConstraintType::Inequality, ConstraintType::Equality) => {
+                (ConstraintType::Equality, ConstraintType::Equality) => c1.constant != c2.constant,
+                (ConstraintType::Equality, ConstraintType::Inequality)
+                | (ConstraintType::Inequality, ConstraintType::Equality) => {
                     // x = a and x >= b: contradictory if a < b
                     // x = a and x <= b: contradictory if a > b
                     let (eq, ineq) = if c1.ctype == ConstraintType::Equality {
@@ -304,8 +313,12 @@ impl AffineDomain {
 
         for c in &self.constraints {
             // Look for constraints of form: x_i >= expr or -x_i >= -expr
-            if c.coefficients[iter_dim] != 0 && c.coefficients.iter().enumerate()
-                .all(|(i, &coeff)| i == iter_dim || coeff == 0) {
+            if c.coefficients[iter_dim] != 0
+                && c.coefficients
+                    .iter()
+                    .enumerate()
+                    .all(|(i, &coeff)| i == iter_dim || coeff == 0)
+            {
                 // Constraint only involves this iterator (and maybe constant)
                 let coeff = c.coefficients[iter_dim];
                 if coeff > 0 && c.ctype == ConstraintType::Inequality {
@@ -331,20 +344,28 @@ pub struct AffineExpr {
 
 impl AffineExpr {
     pub fn constant(c: i64) -> Self {
-        Self { coefficients: Vec::new(), constant: c }
+        Self {
+            coefficients: Vec::new(),
+            constant: c,
+        }
     }
 
     pub fn var(dim: usize, coeff: i64) -> Self {
         let mut coefficients = vec![0; dim + 1];
         coefficients[dim] = coeff;
-        Self { coefficients, constant: 0 }
+        Self {
+            coefficients,
+            constant: 0,
+        }
     }
 
     pub fn evaluate(&self, point: &[i64]) -> i64 {
-        self.coefficients.iter()
+        self.coefficients
+            .iter()
             .zip(point.iter())
             .map(|(c, x)| c * x)
-            .sum::<i64>() + self.constant
+            .sum::<i64>()
+            + self.constant
     }
 }
 
@@ -382,14 +403,22 @@ mod tests {
 
     #[test]
     fn test_intersection() {
-        let d1 = AffineDomain::new(1, 0, vec![
-            AffineConstraint::inequality(vec![1], 0),   // x >= 0
-            AffineConstraint::inequality(vec![-1], -5), // x <= 5
-        ]);
-        let d2 = AffineDomain::new(1, 0, vec![
-            AffineConstraint::inequality(vec![1], 3),   // x >= 3
-            AffineConstraint::inequality(vec![-1], -10), // x <= 10
-        ]);
+        let d1 = AffineDomain::new(
+            1,
+            0,
+            vec![
+                AffineConstraint::inequality(vec![1], 0),   // x >= 0
+                AffineConstraint::inequality(vec![-1], -5), // x <= 5
+            ],
+        );
+        let d2 = AffineDomain::new(
+            1,
+            0,
+            vec![
+                AffineConstraint::inequality(vec![1], 3),    // x >= 3
+                AffineConstraint::inequality(vec![-1], -10), // x <= 10
+            ],
+        );
         let inter = d1.intersection(&d2);
         // Should be 3 <= x <= 5
         assert!(inter.contains(&[3]));
@@ -419,7 +448,7 @@ mod tests {
     fn test_contradiction_detection() {
         // x >= 5 and x <= 3 (impossible)
         let mut d = AffineDomain::universe(1, 0);
-        d.add_constraint(AffineConstraint::inequality(vec![1], 5));   // x >= 5
+        d.add_constraint(AffineConstraint::inequality(vec![1], 5)); // x >= 5
         d.add_constraint(AffineConstraint::inequality(vec![-1], -3)); // -x >= -3 => x <= 3
 
         assert!(d.is_empty());
@@ -427,8 +456,11 @@ mod tests {
 
     #[test]
     fn test_affine_expr() {
-        let e = AffineExpr { coefficients: vec![2, 3], constant: 5 };
-        assert_eq!(e.evaluate(&[1, 2]), 2*1 + 3*2 + 5);
+        let e = AffineExpr {
+            coefficients: vec![2, 3],
+            constant: 5,
+        };
+        assert_eq!(e.evaluate(&[1, 2]), 2 * 1 + 3 * 2 + 5);
         assert_eq!(e.evaluate(&[0, 0]), 5);
     }
 }

@@ -3,11 +3,11 @@
 //! Top-level Polyhedral IR module container integrating all IR components
 //! with QTT quantity tracking from the type checker.
 
+use super::access_relation::{AccessRelation, AccessRelations, AccessType};
 use super::affine_domain::AffineDomain;
 use super::affine_map::AffineMap;
 use super::schedule_tree::{ScheduleNode, ScheduleTree, StmtId};
-use super::access_relation::{AccessRelation, AccessRelations, AccessType};
-use crate::ast::{Quantity, Mutability};
+use crate::ast::{Mutability, Quantity};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -29,25 +29,16 @@ pub enum PirExpr {
         right: Box<PirExpr>,
     },
     /// Unary operation
-    Unary {
-        op: UnaryOp,
-        expr: Box<PirExpr>,
-    },
+    Unary { op: UnaryOp, expr: Box<PirExpr> },
     /// Function call
-    Call {
-        name: String,
-        args: Vec<PirExpr>,
-    },
+    Call { name: String, args: Vec<PirExpr> },
     /// Array access
     Index {
         base: Box<PirExpr>,
         indices: Vec<PirExpr>,
     },
     /// Struct field access
-    Field {
-        base: Box<PirExpr>,
-        field: String,
-    },
+    Field { base: Box<PirExpr>, field: String },
     /// Let binding (for SSA form)
     Let {
         name: String,
@@ -71,15 +62,28 @@ pub enum PirExpr {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinaryOp {
-    Add, Sub, Mul, Div, Mod,
-    And, Or, Xor,
-    Eq, Ne, Lt, Le, Gt, Ge,
-    Shl, Shr,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    And,
+    Or,
+    Xor,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Shl,
+    Shr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UnaryOp {
-    Neg, Not,
+    Neg,
+    Not,
 }
 
 /// PIR Statement: a computational unit with iteration domain
@@ -163,7 +167,8 @@ impl PirModule {
 
         // Check all statements have corresponding domain nodes in schedule
         let scheduled_domains = self.schedule.collect_domains();
-        let scheduled_ids: std::collections::HashSet<_> = scheduled_domains.iter().map(|(id, _)| *id).collect();
+        let scheduled_ids: std::collections::HashSet<_> =
+            scheduled_domains.iter().map(|(id, _)| *id).collect();
 
         for stmt in &self.statements {
             if !scheduled_ids.contains(&stmt.id) {
@@ -191,7 +196,10 @@ impl PirModule {
                 if count == 0 {
                     errors.push(ValidationError::LinearVarNotUsed(var.clone()));
                 } else if count > 1 {
-                    errors.push(ValidationError::LinearVarUsedMultipleTimes(var.clone(), count));
+                    errors.push(ValidationError::LinearVarUsedMultipleTimes(
+                        var.clone(),
+                        count,
+                    ));
                 }
             }
         }
@@ -215,13 +223,18 @@ impl PirModule {
             PirExpr::Unary { expr, .. } => self.expr_contains_var(expr, var),
             PirExpr::Call { args, .. } => args.iter().any(|a| self.expr_contains_var(a, var)),
             PirExpr::Index { base, indices } => {
-                self.expr_contains_var(base, var) || indices.iter().any(|i| self.expr_contains_var(i, var))
+                self.expr_contains_var(base, var)
+                    || indices.iter().any(|i| self.expr_contains_var(i, var))
             }
             PirExpr::Field { base, .. } => self.expr_contains_var(base, var),
-            PirExpr::If { cond, then_branch, else_branch } => {
-                self.expr_contains_var(cond, var) ||
-                self.expr_contains_var(then_branch, var) ||
-                self.expr_contains_var(else_branch, var)
+            PirExpr::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.expr_contains_var(cond, var)
+                    || self.expr_contains_var(then_branch, var)
+                    || self.expr_contains_var(else_branch, var)
             }
             PirExpr::Reversible { body, inverse } => {
                 self.expr_contains_var(body, var) || self.expr_contains_var(inverse, var)
@@ -231,7 +244,8 @@ impl PirModule {
     }
 
     fn count_var_occurrences(&self, var: &str) -> usize {
-        self.statements.iter()
+        self.statements
+            .iter()
             .map(|s| self.count_in_expr(&s.body, var))
             .sum()
     }
@@ -248,11 +262,21 @@ impl PirModule {
             PirExpr::Unary { expr, .. } => self.count_in_expr(expr, var),
             PirExpr::Call { args, .. } => args.iter().map(|a| self.count_in_expr(a, var)).sum(),
             PirExpr::Index { base, indices } => {
-                self.count_in_expr(base, var) + indices.iter().map(|i| self.count_in_expr(i, var)).sum::<usize>()
+                self.count_in_expr(base, var)
+                    + indices
+                        .iter()
+                        .map(|i| self.count_in_expr(i, var))
+                        .sum::<usize>()
             }
             PirExpr::Field { base, .. } => self.count_in_expr(base, var),
-            PirExpr::If { cond, then_branch, else_branch } => {
-                self.count_in_expr(cond, var) + self.count_in_expr(then_branch, var) + self.count_in_expr(else_branch, var)
+            PirExpr::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.count_in_expr(cond, var)
+                    + self.count_in_expr(then_branch, var)
+                    + self.count_in_expr(else_branch, var)
             }
             PirExpr::Reversible { body, inverse } => {
                 self.count_in_expr(body, var) + self.count_in_expr(inverse, var)
@@ -269,8 +293,14 @@ impl PirModule {
         s += &format!("Quantities: {:?}\n", self.quantities);
         s += "\n--- Statements ---\n";
         for stmt in &self.statements {
-            s += &format!("  {}: qty={:?}, mut={:?}\n", stmt.id, stmt.quantity, stmt.mutability);
-            s += &format!("    Domain: {}\n", stmt.domain.name.as_deref().unwrap_or(""));
+            s += &format!(
+                "  {}: qty={:?}, mut={:?}\n",
+                stmt.id, stmt.quantity, stmt.mutability
+            );
+            s += &format!(
+                "    Domain: {}\n",
+                stmt.domain.name.as_deref().unwrap_or("")
+            );
             s += &format!("    Body: {}\n", pir_expr_to_string(&stmt.body, 0));
         }
         s += "\n--- Schedule ---\n";
@@ -299,12 +329,24 @@ impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ValidationError::ScheduleError(e) => write!(f, "Schedule error: {}", e),
-            ValidationError::UnscheduledStatement(id) => write!(f, "Statement {} not in schedule", id),
-            ValidationError::ZeroQuantityInRuntime(var, id) => write!(f, "[0] variable '{}' appears in runtime statement {}", var, id),
+            ValidationError::UnscheduledStatement(id) => {
+                write!(f, "Statement {} not in schedule", id)
+            }
+            ValidationError::ZeroQuantityInRuntime(var, id) => write!(
+                f,
+                "[0] variable '{}' appears in runtime statement {}",
+                var, id
+            ),
             ValidationError::LinearVarNotUsed(var) => write!(f, "[1] variable '{}' not used", var),
-            ValidationError::LinearVarUsedMultipleTimes(var, count) => write!(f, "[1] variable '{}' used {} times", var, count),
-            ValidationError::AccessDomainMismatch(id) => write!(f, "Access domain mismatch for statement {}", id),
-            ValidationError::DuplicateStatementId(id) => write!(f, "Duplicate statement ID: {}", id),
+            ValidationError::LinearVarUsedMultipleTimes(var, count) => {
+                write!(f, "[1] variable '{}' used {} times", var, count)
+            }
+            ValidationError::AccessDomainMismatch(id) => {
+                write!(f, "Access domain mismatch for statement {}", id)
+            }
+            ValidationError::DuplicateStatementId(id) => {
+                write!(f, "Duplicate statement ID: {}", id)
+            }
         }
     }
 }
@@ -319,57 +361,114 @@ fn pir_expr_to_string(expr: &PirExpr, indent: usize) -> String {
         PirExpr::BoolLit(v) => format!("{}", v),
         PirExpr::Var(v) => v.clone(),
         PirExpr::Binary { op, left, right } => {
-            format!("({} {} {})", pir_expr_to_string(left, 0), binary_op_to_str(*op), pir_expr_to_string(right, 0))
+            format!(
+                "({} {} {})",
+                pir_expr_to_string(left, 0),
+                binary_op_to_str(*op),
+                pir_expr_to_string(right, 0)
+            )
         }
         PirExpr::Unary { op, expr } => {
             format!("{}{}", unary_op_to_str(*op), pir_expr_to_string(expr, 0))
         }
         PirExpr::Call { name, args } => {
-            format!("{}({})", name, args.iter().map(|a| pir_expr_to_string(a, 0)).collect::<Vec<_>>().join(", "))
+            format!(
+                "{}({})",
+                name,
+                args.iter()
+                    .map(|a| pir_expr_to_string(a, 0))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         }
         PirExpr::Index { base, indices } => {
-            format!("{}[{}]", pir_expr_to_string(base, 0), indices.iter().map(|i| pir_expr_to_string(i, 0)).collect::<Vec<_>>().join(", "))
+            format!(
+                "{}[{}]",
+                pir_expr_to_string(base, 0),
+                indices
+                    .iter()
+                    .map(|i| pir_expr_to_string(i, 0))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         }
         PirExpr::Field { base, field } => {
             format!("{}.{}", pir_expr_to_string(base, 0), field)
         }
-        PirExpr::Let { name, qty, mutability, value, body } => {
-            format!("let {:?} {:?} {} = {}; {}", qty, mutability, name, pir_expr_to_string(value, 0), pir_expr_to_string(body, 0))
+        PirExpr::Let {
+            name,
+            qty,
+            mutability,
+            value,
+            body,
+        } => {
+            format!(
+                "let {:?} {:?} {} = {}; {}",
+                qty,
+                mutability,
+                name,
+                pir_expr_to_string(value, 0),
+                pir_expr_to_string(body, 0)
+            )
         }
-        PirExpr::If { cond, then_branch, else_branch } => {
-            format!("if {} then {} else {}", pir_expr_to_string(cond, 0), pir_expr_to_string(then_branch, 0), pir_expr_to_string(else_branch, 0))
+        PirExpr::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            format!(
+                "if {} then {} else {}",
+                pir_expr_to_string(cond, 0),
+                pir_expr_to_string(then_branch, 0),
+                pir_expr_to_string(else_branch, 0)
+            )
         }
         PirExpr::Reversible { body, inverse } => {
-            format!("reversible {} inv {}", pir_expr_to_string(body, 0), pir_expr_to_string(inverse, 0))
+            format!(
+                "reversible {} inv {}",
+                pir_expr_to_string(body, 0),
+                pir_expr_to_string(inverse, 0)
+            )
         }
     }
 }
 
 fn binary_op_to_str(op: BinaryOp) -> &'static str {
     match op {
-        BinaryOp::Add => "+", BinaryOp::Sub => "-", BinaryOp::Mul => "*",
-        BinaryOp::Div => "/", BinaryOp::Mod => "%",
-        BinaryOp::And => "&&", BinaryOp::Or => "||", BinaryOp::Xor => "^",
-        BinaryOp::Eq => "==", BinaryOp::Ne => "!=", BinaryOp::Lt => "<",
-        BinaryOp::Le => "<=", BinaryOp::Gt => ">", BinaryOp::Ge => ">=",
-        BinaryOp::Shl => "<<", BinaryOp::Shr => ">>",
+        BinaryOp::Add => "+",
+        BinaryOp::Sub => "-",
+        BinaryOp::Mul => "*",
+        BinaryOp::Div => "/",
+        BinaryOp::Mod => "%",
+        BinaryOp::And => "&&",
+        BinaryOp::Or => "||",
+        BinaryOp::Xor => "^",
+        BinaryOp::Eq => "==",
+        BinaryOp::Ne => "!=",
+        BinaryOp::Lt => "<",
+        BinaryOp::Le => "<=",
+        BinaryOp::Gt => ">",
+        BinaryOp::Ge => ">=",
+        BinaryOp::Shl => "<<",
+        BinaryOp::Shr => ">>",
     }
 }
 
 fn unary_op_to_str(op: UnaryOp) -> &'static str {
     match op {
-        UnaryOp::Neg => "-", UnaryOp::Not => "!",
+        UnaryOp::Neg => "-",
+        UnaryOp::Not => "!",
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::access_relation::{AccessRelation, AccessRelations, AccessType};
     use super::super::affine_domain::AffineDomain;
     use super::super::affine_map::{AffineMap, Matrix};
     use super::super::schedule_tree::{ScheduleNode, ScheduleTree, StmtId};
-    use super::super::access_relation::{AccessRelation, AccessRelations, AccessType};
-    use crate::ast::{Quantity, Mutability};
+    use super::*;
+    use crate::ast::{Mutability, Quantity};
 
     #[test]
     fn test_pir_module_creation() {
@@ -397,7 +496,12 @@ mod tests {
         );
 
         let mut accesses = AccessRelations::new();
-        accesses.add(AccessRelation::new(StmtId(0), domain.clone(), map, AccessType::Write));
+        accesses.add(AccessRelation::new(
+            StmtId(0),
+            domain.clone(),
+            map,
+            AccessType::Write,
+        ));
 
         let mut quantities = QuantityMap::new();
         quantities.insert("x".to_string(), Quantity::Many);
@@ -432,7 +536,12 @@ mod tests {
         );
 
         let mut accesses = AccessRelations::new();
-        accesses.add(AccessRelation::new(StmtId(0), domain.clone(), map, AccessType::Write));
+        accesses.add(AccessRelation::new(
+            StmtId(0),
+            domain.clone(),
+            map,
+            AccessType::Write,
+        ));
 
         let mut quantities = QuantityMap::new();
         quantities.insert("x".to_string(), Quantity::Zero); // [0] quantity
@@ -441,7 +550,11 @@ mod tests {
         let result = module.validate();
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, ValidationError::ZeroQuantityInRuntime(_, _))));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, ValidationError::ZeroQuantityInRuntime(_, _)))
+        );
     }
 
     #[test]
@@ -475,7 +588,12 @@ mod tests {
         );
 
         let mut accesses = AccessRelations::new();
-        accesses.add(AccessRelation::new(StmtId(0), domain.clone(), map, AccessType::Write));
+        accesses.add(AccessRelation::new(
+            StmtId(0),
+            domain.clone(),
+            map,
+            AccessType::Write,
+        ));
 
         let mut quantities = QuantityMap::new();
         quantities.insert("x".to_string(), Quantity::One); // [1] quantity
@@ -484,6 +602,10 @@ mod tests {
         let result = module.validate();
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, ValidationError::LinearVarUsedMultipleTimes(_, 2))));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, ValidationError::LinearVarUsedMultipleTimes(_, 2)))
+        );
     }
 }

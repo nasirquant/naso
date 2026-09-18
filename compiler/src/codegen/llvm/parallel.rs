@@ -6,9 +6,9 @@
 use crate::codegen::error::{CodegenError, CodegenResult};
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::affine_map::AffineMap;
-use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue};
-use inkwell::types::BasicTypeEnum;
 use inkwell::IntPredicate;
+use inkwell::types::BasicTypeEnum;
+use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue};
 
 /// Parallel emitter for parallel bands
 pub struct ParallelEmitter<'ctx> {
@@ -51,8 +51,13 @@ impl<'ctx> ParallelEmitter<'ctx> {
     where
         F: FnMut(&mut LlvmValueBuilder<'ctx>) -> CodegenResult<()>,
     {
-        let func = value_builder.builder().get_insert_block().unwrap().get_parent().unwrap();
-        
+        let func = value_builder
+            .builder()
+            .get_insert_block()
+            .unwrap()
+            .get_parent()
+            .unwrap();
+
         // Create loop blocks (same structure as sequential but with metadata)
         let preheader = self.context.append_basic_block(func, "par_loop_preheader");
         let header = self.context.append_basic_block(func, "par_loop_header");
@@ -65,8 +70,14 @@ impl<'ctx> ParallelEmitter<'ctx> {
 
         // Preheader: initialize induction variable
         value_builder.builder().position_at_end(preheader);
-        let int_type = value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64);
-        let init_val = value_builder.build_int_constant(int_type, bounds.lower.into_int_value().get_zero_extended_constant() as u64, "iv_init")?;
+        let int_type = value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64);
+        let init_val = value_builder.build_int_constant(
+            int_type,
+            bounds.lower.into_int_value().get_zero_extended_constant() as u64,
+            "iv_init",
+        )?;
         let iv_alloca = value_builder.build_alloca(int_type, "iv")?;
         value_builder.build_store(iv_alloca, init_val.into())?;
         value_builder.build_unconditional_branch(header)?;
@@ -77,25 +88,23 @@ impl<'ctx> ParallelEmitter<'ctx> {
         phi.add_incoming(&[(init_val.into(), preheader)]);
 
         // Load current induction variable value
-        let iv_val = value_builder.build_load(iv_alloca, "iv_val")?.into_int_value();
+        let iv_val = value_builder
+            .build_load(iv_alloca, "iv_val")?
+            .into_int_value();
 
         // Compare with upper bound
         let upper_val = bounds.upper.into_int_value();
-        let cond = value_builder.build_int_compare(
-            IntPredicate::SLT,
-            iv_val,
-            upper_val,
-            "loop_cond",
-        )?;
+        let cond =
+            value_builder.build_int_compare(IntPredicate::SLT, iv_val, upper_val, "loop_cond")?;
 
         value_builder.build_conditional_branch(cond, body, exit)?;
 
         // Body
         value_builder.builder().position_at_end(body);
-        
+
         // Add parallel metadata to the loop
         self.add_parallel_metadata(value_builder, header)?;
-        
+
         body_builder(value_builder)?;
         value_builder.build_unconditional_branch(latch)?;
 
@@ -104,7 +113,7 @@ impl<'ctx> ParallelEmitter<'ctx> {
         let step_val = value_builder.build_int_constant(int_type, bounds.step as u64, "iv_step")?;
         let next_iv = value_builder.build_int_add(iv_val, step_val, "iv_next")?;
         value_builder.build_store(iv_alloca, next_iv.into())?;
-        
+
         // Add incoming to phi
         phi.add_incoming(&[(next_iv.into(), latch)]);
         value_builder.build_unconditional_branch(header)?;
@@ -125,11 +134,11 @@ impl<'ctx> ParallelEmitter<'ctx> {
         // This tells LLVM that iterations of this loop can be executed in parallel
         let module = value_builder.builder().get_module().unwrap();
         let context = value_builder.type_lowering().context();
-        
+
         // Create metadata node for parallel loop
         let parallel_md = context.create_string_metadata("llvm.loop.parallel_accesses");
         let md_node = context.create_metadata_node(&[parallel_md.into()]);
-        
+
         // Attach to the loop header's terminator instruction
         // Note: In real implementation, we'd attach to the branch instruction in the latch
         // For now, we add it as function-level metadata
@@ -154,7 +163,12 @@ impl<'ctx> ParallelEmitter<'ctx> {
         F: FnMut(&mut LlvmValueBuilder<'ctx>) -> CodegenResult<()>,
     {
         // Create parallel region entry/exit blocks
-        let func = value_builder.builder().get_insert_block().unwrap().get_parent().unwrap();
+        let func = value_builder
+            .builder()
+            .get_insert_block()
+            .unwrap()
+            .get_parent()
+            .unwrap();
         let entry = self.context.append_basic_block(func, "omp_parallel_entry");
         let exit = self.context.append_basic_block(func, "omp_parallel_exit");
 
@@ -181,8 +195,13 @@ impl<'ctx> ParallelEmitter<'ctx> {
         F: FnMut(&mut LlvmValueBuilder<'ctx>) -> CodegenResult<()>,
     {
         // Similar to parallel loop but with SIMD metadata
-        let func = value_builder.builder().get_insert_block().unwrap().get_parent().unwrap();
-        
+        let func = value_builder
+            .builder()
+            .get_insert_block()
+            .unwrap()
+            .get_parent()
+            .unwrap();
+
         let preheader = self.context.append_basic_block(func, "simd_loop_preheader");
         let header = self.context.append_basic_block(func, "simd_loop_header");
         let body = self.context.append_basic_block(func, "simd_loop_body");
@@ -192,8 +211,14 @@ impl<'ctx> ParallelEmitter<'ctx> {
         value_builder.build_unconditional_branch(preheader)?;
 
         value_builder.builder().position_at_end(preheader);
-        let int_type = value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64);
-        let init_val = value_builder.build_int_constant(int_type, bounds.lower.into_int_value().get_zero_extended_constant() as u64, "iv_init")?;
+        let int_type = value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64);
+        let init_val = value_builder.build_int_constant(
+            int_type,
+            bounds.lower.into_int_value().get_zero_extended_constant() as u64,
+            "iv_init",
+        )?;
         let iv_alloca = value_builder.build_alloca(int_type, "iv")?;
         value_builder.build_store(iv_alloca, init_val.into())?;
         value_builder.build_unconditional_branch(header)?;
@@ -202,21 +227,28 @@ impl<'ctx> ParallelEmitter<'ctx> {
         let phi = value_builder.build_phi(int_type.into(), "iv_phi")?;
         phi.add_incoming(&[(init_val.into(), preheader)]);
 
-        let iv_val = value_builder.build_load(iv_alloca, "iv_val")?.into_int_value();
+        let iv_val = value_builder
+            .build_load(iv_alloca, "iv_val")?
+            .into_int_value();
         let upper_val = bounds.upper.into_int_value();
-        let cond = value_builder.build_int_compare(IntPredicate::SLT, iv_val, upper_val, "loop_cond")?;
+        let cond =
+            value_builder.build_int_compare(IntPredicate::SLT, iv_val, upper_val, "loop_cond")?;
         value_builder.build_conditional_branch(cond, body, exit)?;
 
         value_builder.builder().position_at_end(body);
-        
+
         // Add SIMD metadata
         self.add_simd_metadata(value_builder, header, simd_width)?;
-        
+
         body_builder(value_builder)?;
         value_builder.build_unconditional_branch(latch)?;
 
         value_builder.builder().position_at_end(latch);
-        let step_val = value_builder.build_int_constant(int_type, (bounds.step * simd_width as i64) as u64, "iv_step")?;
+        let step_val = value_builder.build_int_constant(
+            int_type,
+            (bounds.step * simd_width as i64) as u64,
+            "iv_step",
+        )?;
         let next_iv = value_builder.build_int_add(iv_val, step_val, "iv_next")?;
         value_builder.build_store(iv_alloca, next_iv.into())?;
         phi.add_incoming(&[(next_iv.into(), latch)]);
@@ -235,11 +267,12 @@ impl<'ctx> ParallelEmitter<'ctx> {
     ) -> CodegenResult<()> {
         let module = value_builder.builder().get_module().unwrap();
         let context = value_builder.type_lowering().context();
-        
-        let simd_md = context.create_string_metadata(&format!("llvm.loop.vectorize.width {}", width));
+
+        let simd_md =
+            context.create_string_metadata(&format!("llvm.loop.vectorize.width {}", width));
         let md_node = context.create_metadata_node(&[simd_md.into()]);
         module.add_metadata("llvm.loop.vectorize", &md_node);
-        
+
         Ok(())
     }
 }

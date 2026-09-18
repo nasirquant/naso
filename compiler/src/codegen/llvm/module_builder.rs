@@ -2,17 +2,17 @@
 //
 // High-level wrapper around inkwell::module::Module for building LLVM IR.
 
+use crate::ast::{Quantity, Span, Type, TypeKind};
 use crate::codegen::context::CodegenContext;
 use crate::codegen::error::{CodegenError, CodegenResult};
 use crate::codegen::llvm::type_lowering::LlvmTypeLowering;
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
-use crate::ir::pir_types::{PirModule, PirStatement, PirExpr, BinaryOp, UnaryOp};
-use crate::ast::{Quantity, Span, Type, TypeKind};
-use inkwell::module::Module as LlvmModule;
-use inkwell::builder::Builder as LlvmBuilder;
-use inkwell::values::{FunctionValue, BasicValueEnum, PointerValue, BasicBlock};
-use inkwell::types::{BasicTypeEnum, FunctionType};
+use crate::ir::pir_types::{BinaryOp, PirExpr, PirModule, PirStatement, UnaryOp};
 use inkwell::AddressSpace;
+use inkwell::builder::Builder as LlvmBuilder;
+use inkwell::module::Module as LlvmModule;
+use inkwell::types::{BasicTypeEnum, FunctionType};
+use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue, PointerValue};
 use std::collections::HashMap;
 
 /// LLVM Module Builder for constructing LLVM IR from PIR
@@ -118,57 +118,79 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
         }
 
         // Verify the module
-        self.module.verify().map_err(|e| CodegenError::VerificationError(e.to_string()))?;
+        self.module
+            .verify()
+            .map_err(|e| CodegenError::VerificationError(e.to_string()))?;
 
         Ok(())
     }
 
     /// Declare an external function
-    fn declare_extern_function(&mut self, extern_fn: &crate::ir::pir_types::ExternFunction) -> CodegenResult<()> {
-        let param_types: CodegenResult<Vec<BasicTypeEnum<'ctx>>> = extern_fn.params.iter()
+    fn declare_extern_function(
+        &mut self,
+        extern_fn: &crate::ir::pir_types::ExternFunction,
+    ) -> CodegenResult<()> {
+        let param_types: CodegenResult<Vec<BasicTypeEnum<'ctx>>> = extern_fn
+            .params
+            .iter()
             .map(|p| {
                 let ty = Type {
                     kind: TypeKind::Int, // placeholder
                     quantity: p.quantity,
                     span: Span::default(),
                 };
-                self.type_lowering.lower_quantity_aware(
-                    &crate::codegen::abi::lower_pir_type(&ty, &HashMap::new())?
-                )
+                self.type_lowering
+                    .lower_quantity_aware(&crate::codegen::abi::lower_pir_type(
+                        &ty,
+                        &HashMap::new(),
+                    )?)
             })
             .collect();
-        
+
         let param_types = param_types?;
-        let ret_type = extern_fn.return_type.as_ref()
+        let ret_type = extern_fn
+            .return_type
+            .as_ref()
             .map(|_| self.type_lowering.void_type().into())
             .unwrap_or_else(|| self.type_lowering.void_type().into());
 
-        let fn_type = self.type_lowering.fn_type(Some(ret_type), &param_types, false);
+        let fn_type = self
+            .type_lowering
+            .fn_type(Some(ret_type), &param_types, false);
         self.module.add_function(&extern_fn.name, fn_type, None);
         Ok(())
     }
 
     /// Build a PIR statement as a function
-    fn build_statement(&mut self, stmt: &PirStatement, quantities: &HashMap<String, Quantity>) -> CodegenResult<()> {
+    fn build_statement(
+        &mut self,
+        stmt: &PirStatement,
+        quantities: &HashMap<String, Quantity>,
+    ) -> CodegenResult<()> {
         let func_name = format!("stmt_{}", stmt.id.0);
-        
+
         // Determine function signature based on quantities used
         let params: Vec<BasicTypeEnum<'ctx>> = Vec::new(); // Simplified for now
         let ret_type = self.type_lowering.void_type().into();
         let fn_type = self.type_lowering.fn_type(Some(ret_type), &params, false);
-        
+
         let function = self.module.add_function(&func_name, fn_type, None);
         self.set_current_function(function);
-        
+
         // Create entry block
-        let entry = self.context.llvm_context().append_basic_block(function, "entry");
+        let entry = self
+            .context
+            .llvm_context()
+            .append_basic_block(function, "entry");
         self.set_current_block(entry);
 
         // Build the statement body
         self.build_expr(&stmt.body, quantities)?;
 
         // Return void
-        self.builder.build_return(None).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+        self.builder
+            .build_return(None)
+            .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
 
         self.current_function = None;
         self.current_block = None;
@@ -178,29 +200,60 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
     }
 
     /// Build a PIR expression
-    fn build_expr(&mut self, expr: &PirExpr, quantities: &HashMap<String, Quantity>) -> CodegenResult<BasicValueEnum<'ctx>> {
+    fn build_expr(
+        &mut self,
+        expr: &PirExpr,
+        quantities: &HashMap<String, Quantity>,
+    ) -> CodegenResult<BasicValueEnum<'ctx>> {
         match expr {
             PirExpr::IntLit(val) => {
-                let int_type = self.type_lowering.int_type(crate::codegen::abi::IntWidth::I64);
-                Ok(self.builder.build_int_constant(int_type, *val as u64, "int_lit").unwrap().into())
+                let int_type = self
+                    .type_lowering
+                    .int_type(crate::codegen::abi::IntWidth::I64);
+                Ok(self
+                    .builder
+                    .build_int_constant(int_type, *val as u64, "int_lit")
+                    .unwrap()
+                    .into())
             }
             PirExpr::FloatLit(val) => {
-                let float_type = self.type_lowering.float_type(crate::codegen::abi::FloatWidth::F64);
+                let float_type = self
+                    .type_lowering
+                    .float_type(crate::codegen::abi::FloatWidth::F64);
                 let parsed = val.parse::<f64>().unwrap_or(0.0);
-                Ok(self.builder.build_float_constant(float_type, parsed, "float_lit").unwrap().into())
+                Ok(self
+                    .builder
+                    .build_float_constant(float_type, parsed, "float_lit")
+                    .unwrap()
+                    .into())
             }
             PirExpr::BoolLit(val) => {
-                let bool_type = self.type_lowering.int_type(crate::codegen::abi::IntWidth::I1);
-                Ok(self.builder.build_int_constant(bool_type, *val as u64, "bool_lit").unwrap().into())
+                let bool_type = self
+                    .type_lowering
+                    .int_type(crate::codegen::abi::IntWidth::I1);
+                Ok(self
+                    .builder
+                    .build_int_constant(bool_type, *val as u64, "bool_lit")
+                    .unwrap()
+                    .into())
             }
             PirExpr::Var(name) => {
                 if let Some(ptr) = self.get_variable(name) {
-                    let load = self.builder.build_load(ptr, name).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                    let load = self
+                        .builder
+                        .build_load(ptr, name)
+                        .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
                     Ok(load)
                 } else {
                     // Return zero for undefined variables (should not happen in valid IR)
-                    let int_type = self.type_lowering.int_type(crate::codegen::abi::IntWidth::I64);
-                    Ok(self.builder.build_int_constant(int_type, 0, "undef").unwrap().into())
+                    let int_type = self
+                        .type_lowering
+                        .int_type(crate::codegen::abi::IntWidth::I64);
+                    Ok(self
+                        .builder
+                        .build_int_constant(int_type, 0, "undef")
+                        .unwrap()
+                        .into())
                 }
             }
             PirExpr::Binary { op, left, right } => {
@@ -213,64 +266,104 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
                 self.build_unary_op(*op, e)
             }
             PirExpr::Call { name, args } => {
-                let arg_values: CodegenResult<Vec<_>> = args.iter()
+                let arg_values: CodegenResult<Vec<_>> = args
+                    .iter()
                     .map(|a| self.build_expr(a, quantities))
                     .collect();
                 let arg_values = arg_values?;
-                
-                let func = self.module.get_function(name)
-                    .ok_or_else(|| CodegenError::FunctionBuildError(format!("Function '{}' not found", name)))?;
-                
-                let call = self.builder.build_call(func, &arg_values, "call").map_err(|e| CodegenError::InstructionError(e.to_string()))?;
-                Ok(call.try_as_basic_value().left().unwrap_or_else(|| self.type_lowering.void_type().const_zero().into()))
+
+                let func = self.module.get_function(name).ok_or_else(|| {
+                    CodegenError::FunctionBuildError(format!("Function '{}' not found", name))
+                })?;
+
+                let call = self
+                    .builder
+                    .build_call(func, &arg_values, "call")
+                    .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                Ok(call
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap_or_else(|| self.type_lowering.void_type().const_zero().into()))
             }
-            PirExpr::Let { name, qty, mutability, value, body } => {
+            PirExpr::Let {
+                name,
+                qty,
+                mutability,
+                value,
+                body,
+            } => {
                 // Allocate variable
                 let val = self.build_expr(value, quantities)?;
-                let alloca = self.builder.build_alloca(val.get_type(), name).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
-                self.builder.build_store(alloca, val).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                let alloca = self
+                    .builder
+                    .build_alloca(val.get_type(), name)
+                    .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                self.builder
+                    .build_store(alloca, val)
+                    .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
                 self.add_variable(name.clone(), alloca);
-                
+
                 // Build body
                 let result = self.build_expr(body, quantities)?;
-                
+
                 // Remove variable from scope
                 self.variables.remove(name);
-                
+
                 Ok(result)
             }
-            PirExpr::If { cond, then_branch, else_branch } => {
+            PirExpr::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
                 let cond_val = self.build_expr(cond, quantities)?;
-                let bool_type = self.type_lowering.int_type(crate::codegen::abi::IntWidth::I1);
-                let cond_bool = self.builder.build_int_compare(
-                    inkwell::IntPredicate::NE,
-                    cond_val.into_int_value(),
-                    bool_type.const_zero(),
-                    "if_cond"
-                ).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                let bool_type = self
+                    .type_lowering
+                    .int_type(crate::codegen::abi::IntWidth::I1);
+                let cond_bool = self
+                    .builder
+                    .build_int_compare(
+                        inkwell::IntPredicate::NE,
+                        cond_val.into_int_value(),
+                        bool_type.const_zero(),
+                        "if_cond",
+                    )
+                    .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
 
                 let func = self.current_function().unwrap();
                 let then_block = self.context.llvm_context().append_basic_block(func, "then");
                 let else_block = self.context.llvm_context().append_basic_block(func, "else");
-                let merge_block = self.context.llvm_context().append_basic_block(func, "if_merge");
+                let merge_block = self
+                    .context
+                    .llvm_context()
+                    .append_basic_block(func, "if_merge");
 
-                self.builder.build_conditional_branch(cond_bool, then_block, else_block).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                self.builder
+                    .build_conditional_branch(cond_bool, then_block, else_block)
+                    .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
 
                 // Then branch
                 self.set_current_block(then_block);
                 let then_val = self.build_expr(then_branch, quantities)?;
-                self.builder.build_unconditional_branch(merge_block).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                self.builder
+                    .build_unconditional_branch(merge_block)
+                    .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
                 let then_block_end = self.current_block().unwrap();
 
                 // Else branch
                 self.set_current_block(else_block);
                 let else_val = self.build_expr(else_branch, quantities)?;
-                self.builder.build_unconditional_branch(merge_block).map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                self.builder
+                    .build_unconditional_branch(merge_block)
+                    .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
                 let else_block_end = self.current_block().unwrap();
 
                 // Merge block
                 self.set_current_block(merge_block);
-                let phi = self.builder.build_phi(then_val.get_type(), "if_phi").map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+                let phi = self
+                    .builder
+                    .build_phi(then_val.get_type(), "if_phi")
+                    .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
                 phi.add_incoming(&[(&then_val, then_block_end), (&else_val, else_block_end)]);
                 Ok(phi.as_basic_value())
             }
@@ -280,11 +373,12 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
             }
             PirExpr::Index { base, indices } => {
                 let base_ptr = self.build_expr(base, quantities)?;
-                let index_vals: CodegenResult<Vec<_>> = indices.iter()
+                let index_vals: CodegenResult<Vec<_>> = indices
+                    .iter()
                     .map(|i| self.build_expr(i, quantities))
                     .collect();
                 let index_vals = index_vals?;
-                
+
                 // Simplified: just return base pointer for now
                 Ok(base_ptr)
             }
@@ -296,9 +390,14 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
         }
     }
 
-    fn build_binary_op(&mut self, op: BinaryOp, left: BasicValueEnum<'ctx>, right: BasicValueEnum<'ctx>) -> CodegenResult<BasicValueEnum<'ctx>> {
-        use inkwell::IntPredicate;
+    fn build_binary_op(
+        &mut self,
+        op: BinaryOp,
+        left: BasicValueEnum<'ctx>,
+        right: BasicValueEnum<'ctx>,
+    ) -> CodegenResult<BasicValueEnum<'ctx>> {
         use inkwell::FloatPredicate;
+        use inkwell::IntPredicate;
 
         let left_int = left.into_int_value();
         let right_int = right.into_int_value();
@@ -307,30 +406,60 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
             BinaryOp::Add => self.builder.build_int_add(left_int, right_int, "add"),
             BinaryOp::Sub => self.builder.build_int_sub(left_int, right_int, "sub"),
             BinaryOp::Mul => self.builder.build_int_mul(left_int, right_int, "mul"),
-            BinaryOp::Div => self.builder.build_int_signed_div(left_int, right_int, "div"),
-            BinaryOp::Mod => self.builder.build_int_signed_rem(left_int, right_int, "mod"),
+            BinaryOp::Div => self
+                .builder
+                .build_int_signed_div(left_int, right_int, "div"),
+            BinaryOp::Mod => self
+                .builder
+                .build_int_signed_rem(left_int, right_int, "mod"),
             BinaryOp::And => self.builder.build_and(left_int, right_int, "and"),
             BinaryOp::Or => self.builder.build_or(left_int, right_int, "or"),
             BinaryOp::Xor => self.builder.build_xor(left_int, right_int, "xor"),
-            BinaryOp::Eq => self.builder.build_int_compare(IntPredicate::EQ, left_int, right_int, "eq"),
-            BinaryOp::Ne => self.builder.build_int_compare(IntPredicate::NE, left_int, right_int, "ne"),
-            BinaryOp::Lt => self.builder.build_int_compare(IntPredicate::SLT, left_int, right_int, "lt"),
-            BinaryOp::Le => self.builder.build_int_compare(IntPredicate::SLE, left_int, right_int, "le"),
-            BinaryOp::Gt => self.builder.build_int_compare(IntPredicate::SGT, left_int, right_int, "gt"),
-            BinaryOp::Ge => self.builder.build_int_compare(IntPredicate::SGE, left_int, right_int, "ge"),
+            BinaryOp::Eq => {
+                self.builder
+                    .build_int_compare(IntPredicate::EQ, left_int, right_int, "eq")
+            }
+            BinaryOp::Ne => {
+                self.builder
+                    .build_int_compare(IntPredicate::NE, left_int, right_int, "ne")
+            }
+            BinaryOp::Lt => {
+                self.builder
+                    .build_int_compare(IntPredicate::SLT, left_int, right_int, "lt")
+            }
+            BinaryOp::Le => {
+                self.builder
+                    .build_int_compare(IntPredicate::SLE, left_int, right_int, "le")
+            }
+            BinaryOp::Gt => {
+                self.builder
+                    .build_int_compare(IntPredicate::SGT, left_int, right_int, "gt")
+            }
+            BinaryOp::Ge => {
+                self.builder
+                    .build_int_compare(IntPredicate::SGE, left_int, right_int, "ge")
+            }
             BinaryOp::Shl => self.builder.build_left_shift(left_int, right_int, "shl"),
-            BinaryOp::Shr => self.builder.build_right_shift(left_int, right_int, true, "shr"),
-        }.map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+            BinaryOp::Shr => self
+                .builder
+                .build_right_shift(left_int, right_int, true, "shr"),
+        }
+        .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
 
         Ok(result.into())
     }
 
-    fn build_unary_op(&mut self, op: UnaryOp, expr: BasicValueEnum<'ctx>) -> CodegenResult<BasicValueEnum<'ctx>> {
+    fn build_unary_op(
+        &mut self,
+        op: UnaryOp,
+        expr: BasicValueEnum<'ctx>,
+    ) -> CodegenResult<BasicValueEnum<'ctx>> {
         let int_val = expr.into_int_value();
         let result = match op {
             UnaryOp::Neg => self.builder.build_int_neg(int_val, "neg"),
             UnaryOp::Not => self.builder.build_not(int_val, "not"),
-        }.map_err(|e| CodegenError::InstructionError(e.to_string()))?;
+        }
+        .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
         Ok(result.into())
     }
 
@@ -341,7 +470,9 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
 
     /// Write module to .ll file
     pub fn write_ll_file(&self, path: &std::path::Path) -> CodegenResult<()> {
-        self.module.print_to_file(path).map_err(|e| CodegenError::EmissionError(e.to_string()))
+        self.module
+            .print_to_file(path)
+            .map_err(|e| CodegenError::EmissionError(e.to_string()))
     }
 }
 
@@ -374,17 +505,20 @@ mod tests {
     fn test_empty_module_emission() {
         let context = CodegenContext::new(CodegenTarget::Host, OptLevel::None).unwrap();
         let mut builder = LLVMModuleBuilder::new(&context).unwrap();
-        
+
         // Create a minimal PIR module
-        use crate::ir::pir_types::{PirModule, PirStatement, AffineDomain, ScheduleTree, ScheduleNode, AccessRelations, StmtId};
         use crate::ast::Mutability;
+        use crate::ir::pir_types::{
+            AccessRelations, AffineDomain, PirModule, PirStatement, ScheduleNode, ScheduleTree,
+            StmtId,
+        };
         use std::collections::HashMap;
-        
+
         let domain = AffineDomain::universe(0, 0);
         let schedule = ScheduleTree::new(ScheduleNode::domain(StmtId(0), domain.clone()), vec![]);
         let accesses = AccessRelations::new();
         let quantities = HashMap::new();
-        
+
         let stmt = PirStatement {
             id: StmtId(0),
             domain,
@@ -393,12 +527,12 @@ mod tests {
             mutability: Mutability::Immutable,
             span: None,
         };
-        
+
         let module = PirModule::new(vec![stmt], schedule, accesses, quantities, vec![]);
-        
+
         let result = builder.build_module(&module);
         assert!(result.is_ok());
-        
+
         let ir = builder.module_to_string();
         assert!(ir.contains("define"));
     }

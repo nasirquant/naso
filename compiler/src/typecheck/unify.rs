@@ -3,14 +3,14 @@
 //! Implements type and quantity unification with metavariable solving
 //! Quantity lattice: Zero <: One <: Bounded(N) <: Many
 
-use crate::ast::*;
 use crate::ast::ty::*;
+use crate::ast::*;
 use crate::typecheck::error::TypeError;
 use crate::typecheck::*;
 use indexmap::IndexMap;
 
 /// Quantity lattice: Zero <: One <: Bounded(N) <: Many
-/// 
+///
 /// Join (LUB) table:
 /// | q1 \ q2 | Zero | One | Bounded(M) | Many |
 /// |---------|------|-----|------------|------|
@@ -18,15 +18,11 @@ use indexmap::IndexMap;
 /// | One     | One  | One | Bounded(max(1,M)) | Many |
 /// | Bounded(N) | Bounded(N) | Bounded(max(1,N)) | Bounded(max(N,M)) | Many |
 /// | Many    | Many | Many | Many | Many |
-/// 
+///
 /// Errors: Zero only unifies with Zero.
 
 /// Unify two types, accumulating constraints in the checker
-pub fn unify_types(
-    checker: &mut TypeChecker,
-    ty1: &Type,
-    ty2: &Type,
-) -> Result<Type, TypeError> {
+pub fn unify_types(checker: &mut TypeChecker, ty1: &Type, ty2: &Type) -> Result<Type, TypeError> {
     // Handle metavariables first
     if let TypeKind::Meta(mv) = &ty1.kind {
         return unify_meta_var(checker, *mv, ty2);
@@ -34,14 +30,18 @@ pub fn unify_types(
     if let TypeKind::Meta(mv) = &ty2.kind {
         return unify_meta_var(checker, *mv, ty1);
     }
-    
+
     // Unify quantities with error reporting for Zero mismatch
     let unified_qty = unify_quantity(ty1.quantity, ty2.quantity, ty1.span.merge(ty2.span))?;
-    
+
     // Unify type kinds
     let unified_kind = unify_kinds(checker, &ty1.kind, &ty2.kind)?;
-    
-    Ok(Type::new(unified_kind, unified_qty, ty1.span.merge(ty2.span)))
+
+    Ok(Type::new(
+        unified_kind,
+        unified_qty,
+        ty1.span.merge(ty2.span),
+    ))
 }
 
 /// Unify two type kinds
@@ -62,7 +62,7 @@ fn unify_kinds(
         (TypeKind::String, TypeKind::String) => Ok(TypeKind::String),
         (TypeKind::Char, TypeKind::Char) => Ok(TypeKind::Char),
         (TypeKind::Error, _) | (_, TypeKind::Error) => Ok(TypeKind::Error),
-        
+
         // Named types
         (TypeKind::Named(name1, args1), TypeKind::Named(name2, args2)) => {
             if name1.name != name2.name {
@@ -87,7 +87,7 @@ fn unify_kinds(
             }
             Ok(TypeKind::Named(name1.clone(), unified_args))
         }
-        
+
         // Function types
         (TypeKind::Function(params1, ret1), TypeKind::Function(params2, ret2)) => {
             if params1.len() != params2.len() {
@@ -104,58 +104,62 @@ fn unify_kinds(
             let unified_ret = unify_types(checker, ret1, ret2)?;
             Ok(TypeKind::Function(unified_params, Box::new(unified_ret)))
         }
-        
+
         // Projection types
         (TypeKind::Projection(inner1), TypeKind::Projection(inner2)) => {
             let unified = unify_types(checker, inner1, inner2)?;
             Ok(TypeKind::Projection(Box::new(unified)))
         }
-        
+
         // Reversible types
         (TypeKind::Reversible(inner1), TypeKind::Reversible(inner2)) => {
             let unified = unify_types(checker, inner1, inner2)?;
             Ok(TypeKind::Reversible(Box::new(unified)))
         }
-        
+
         // Dependent types - Pi
         (TypeKind::Pi(name1, domain1, codomain1), TypeKind::Pi(name2, domain2, codomain2)) => {
             let unified_domain = unify_types(checker, domain1, domain2)?;
             let unified_codomain = unify_types(checker, codomain1, codomain2)?;
-            Ok(TypeKind::Pi(name1.clone(), Box::new(unified_domain), Box::new(unified_codomain)))
+            Ok(TypeKind::Pi(
+                name1.clone(),
+                Box::new(unified_domain),
+                Box::new(unified_codomain),
+            ))
         }
-        
+
         // Dependent types - Sigma
         (TypeKind::Sigma(name1, fst1, snd1), TypeKind::Sigma(name2, fst2, snd2)) => {
             let unified_fst = unify_types(checker, fst1, fst2)?;
             let unified_snd = unify_types(checker, snd1, snd2)?;
-            Ok(TypeKind::Sigma(name1.clone(), Box::new(unified_fst), Box::new(unified_snd)))
+            Ok(TypeKind::Sigma(
+                name1.clone(),
+                Box::new(unified_fst),
+                Box::new(unified_snd),
+            ))
         }
-        
+
         // Type-level lambda
         (TypeKind::Lambda(param1, body1), TypeKind::Lambda(param2, body2)) => {
             let unified_body = unify_types(checker, body1, body2)?;
             Ok(TypeKind::Lambda(param1.clone(), Box::new(unified_body)))
         }
-        
+
         // Type application
         (TypeKind::App(fun1, arg1), TypeKind::App(fun2, arg2)) => {
             let unified_fun = unify_types(checker, fun1, fun2)?;
             let unified_arg = unify_types(checker, arg1, arg2)?;
             Ok(TypeKind::App(Box::new(unified_fun), Box::new(unified_arg)))
         }
-        
+
         // Universe levels
-        (TypeKind::Universe(l1), TypeKind::Universe(l2)) if l1 == l2 => {
-            Ok(TypeKind::Universe(*l1))
-        }
-        
+        (TypeKind::Universe(l1), TypeKind::Universe(l2)) if l1 == l2 => Ok(TypeKind::Universe(*l1)),
+
         // Type variables
-        (TypeKind::Var(v1), TypeKind::Var(v2)) if v1 == v2 => {
-            Ok(TypeKind::Var(*v1))
-        }
-        
+        (TypeKind::Var(v1), TypeKind::Var(v2)) if v1 == v2 => Ok(TypeKind::Var(*v1)),
+
         // Metavariables handled above
-        
+
         // Mismatch
         _ => Err(TypeError::TypeMismatch {
             expected: Type::new(k1.clone(), Quantity::Many, Span::default()),
@@ -172,9 +176,7 @@ fn unify_type_args(
     a2: &TypeArg,
 ) -> Result<TypeArg, TypeError> {
     match (a1, a2) {
-        (TypeArg::Type(t1), TypeArg::Type(t2)) => {
-            Ok(TypeArg::Type(unify_types(checker, t1, t2)?))
-        }
+        (TypeArg::Type(t1), TypeArg::Type(t2)) => Ok(TypeArg::Type(unify_types(checker, t1, t2)?)),
         (TypeArg::Nat(n1), TypeArg::Nat(n2)) => {
             // For now, require exact match
             if n1 == n2 {
@@ -200,11 +202,7 @@ fn unify_type_args(
 }
 
 /// Unify a metavariable with a type
-fn unify_meta_var(
-    checker: &mut TypeChecker,
-    mv: MetaVar,
-    ty: &Type,
-) -> Result<Type, TypeError> {
+fn unify_meta_var(checker: &mut TypeChecker, mv: MetaVar, ty: &Type) -> Result<Type, TypeError> {
     // Check if already solved
     let solution = checker.lookup_meta(&mv).cloned();
     if let Some(Some(solution)) = solution {
@@ -241,9 +239,7 @@ fn occurs_in_kind(mv: MetaVar, kind: &TypeKind) -> bool {
         TypeKind::Pi(_, domain, codomain) => {
             occurs_in_type(mv, domain) || occurs_in_type(mv, codomain)
         }
-        TypeKind::Sigma(_, fst, snd) => {
-            occurs_in_type(mv, fst) || occurs_in_type(mv, snd)
-        }
+        TypeKind::Sigma(_, fst, snd) => occurs_in_type(mv, fst) || occurs_in_type(mv, snd),
         TypeKind::Lambda(_, body) => occurs_in_type(mv, body),
         TypeKind::App(fun, arg) => occurs_in_type(mv, fun) || occurs_in_type(mv, arg),
         TypeKind::Named(_, args) => args.iter().any(|a| occurs_in_arg(mv, a)),
@@ -352,7 +348,7 @@ pub fn unify_quantity(q1: Quantity, q2: Quantity, span: Span) -> Result<Quantity
             span,
         });
     }
-    
+
     // For all other cases, return the join
     Ok(qty_join(q1, q2))
 }
@@ -432,7 +428,9 @@ mod tests {
         let result = unify_quantity(Quantity::Zero, Quantity::One, Span::default());
         assert!(result.is_err());
         match result {
-            Err(crate::typecheck::error::TypeError::QuantityMismatch { expected, found, .. }) => {
+            Err(crate::typecheck::error::TypeError::QuantityMismatch {
+                expected, found, ..
+            }) => {
                 assert_eq!(expected, Quantity::Zero);
                 assert_eq!(found, Quantity::One);
             }
@@ -480,7 +478,10 @@ mod tests {
     fn test_qty_join_zero() {
         // Zero ⊔ X = X (join with Zero returns the other)
         assert_eq!(qty_join(Quantity::Zero, Quantity::One), Quantity::One);
-        assert_eq!(qty_join(Quantity::Zero, Quantity::Bounded(5)), Quantity::Bounded(5));
+        assert_eq!(
+            qty_join(Quantity::Zero, Quantity::Bounded(5)),
+            Quantity::Bounded(5)
+        );
         assert_eq!(qty_join(Quantity::Zero, Quantity::Many), Quantity::Many);
     }
 
@@ -488,15 +489,24 @@ mod tests {
     fn test_qty_meet_zero() {
         // Zero ⊓ X = Zero (meet with Zero returns Zero)
         assert_eq!(qty_meet(Quantity::Zero, Quantity::One), Quantity::Zero);
-        assert_eq!(qty_meet(Quantity::Zero, Quantity::Bounded(5)), Quantity::Zero);
+        assert_eq!(
+            qty_meet(Quantity::Zero, Quantity::Bounded(5)),
+            Quantity::Zero
+        );
         assert_eq!(qty_meet(Quantity::Zero, Quantity::Many), Quantity::Zero);
     }
 
     #[test]
     fn test_qty_join_one_bounded() {
         // One ⊔ Bounded(n) = Bounded(max(1, n))
-        assert_eq!(qty_join(Quantity::One, Quantity::Bounded(3)), Quantity::Bounded(3));
-        assert_eq!(qty_join(Quantity::One, Quantity::Bounded(1)), Quantity::Bounded(1));
+        assert_eq!(
+            qty_join(Quantity::One, Quantity::Bounded(3)),
+            Quantity::Bounded(3)
+        );
+        assert_eq!(
+            qty_join(Quantity::One, Quantity::Bounded(1)),
+            Quantity::Bounded(1)
+        );
     }
 
     #[test]

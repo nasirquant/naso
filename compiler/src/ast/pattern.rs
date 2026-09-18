@@ -2,7 +2,7 @@
 //!
 //! Patterns for match expressions and let bindings with quantitative annotations.
 
-use crate::ast::{Ident, Literal, Quantity, Span, NodeId};
+use crate::ast::{Ident, Literal, NodeId, Quantity, Span};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -84,18 +84,49 @@ impl fmt::Display for PatternKind {
             PatternKind::Wildcard => write!(f, "_"),
             PatternKind::Ident(i) => write!(f, "{}", i),
             PatternKind::Literal(l) => write!(f, "{}", l),
-            PatternKind::Tuple(ps) => write!(f, "({})", ps.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", ")),
+            PatternKind::Tuple(ps) => write!(
+                f,
+                "({})",
+                ps.iter()
+                    .map(|p| p.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             PatternKind::Struct(name, fields) => {
-                write!(f, "{} {{ {} }}", name, fields.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(", "))
+                write!(
+                    f,
+                    "{} {{ {} }}",
+                    name,
+                    fields
+                        .iter()
+                        .map(|f| f.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
             }
             PatternKind::Variant(enum_name, variant, fields) => {
                 write!(f, "{}::{}", enum_name, variant)?;
                 if !fields.is_empty() {
-                    write!(f, "({})", fields.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", "))?;
+                    write!(
+                        f,
+                        "({})",
+                        fields
+                            .iter()
+                            .map(|p| p.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )?;
                 }
                 Ok(())
             }
-            PatternKind::Array(ps) => write!(f, "[{}]", ps.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", ")),
+            PatternKind::Array(ps) => write!(
+                f,
+                "[{}]",
+                ps.iter()
+                    .map(|p| p.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             PatternKind::Range(s, e) => write!(f, "{}..{}", s, e),
             PatternKind::Or(a, b) => write!(f, "{} | {}", a, b),
             PatternKind::Ref(p) => write!(f, "&{}", p),

@@ -1,8 +1,8 @@
 //! Type parsing for the Naso parser.
 
-use crate::ast::*;
 use crate::ast::expr::Expr;
 use crate::ast::ty::NatExpr;
+use crate::ast::*;
 use crate::lexer::TokenKind as TK;
 use crate::parser::Parser;
 
@@ -173,10 +173,10 @@ impl<'a> Parser<'a> {
     fn parse_array_type(&mut self) -> Type {
         let start = self.pos;
         self.expect(TK::LBracket);
-        
+
         // Parse element type
         let elem_ty = self.parse_type();
-        
+
         // Check for size expression: [Type; expr]
         let size = if self.eat(TK::Semicolon) {
             let expr = self.parse_expr();
@@ -186,10 +186,14 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        
+
         self.expect(TK::RBracket);
         let span = self.span_from(start);
-        Type::new(TypeKind::Array(Box::new(elem_ty), size), Quantity::Many, span)
+        Type::new(
+            TypeKind::Array(Box::new(elem_ty), size),
+            Quantity::Many,
+            span,
+        )
     }
 
     /// Convert expression to NatExpr (simplified)
@@ -227,7 +231,8 @@ mod tests {
 
     #[test]
     fn parses_tuple_type() {
-        let prog = parse_program("fn f() -> (Qubit, Qubit) { (qalloc(1), qalloc(1)) }").expect("parse failed");
+        let prog = parse_program("fn f() -> (Qubit, Qubit) { (qalloc(1), qalloc(1)) }")
+            .expect("parse failed");
         let func = match &prog.items[0] {
             Item::Function(f) => f,
             other => panic!("expected function, got {other:?}"),

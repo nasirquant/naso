@@ -1,16 +1,15 @@
+pub mod dispatcher;
+pub mod exporter;
+pub mod jit;
 /// Naso Runtime Execution Engine
 ///
 /// Provides the runtime infrastructure for executing compiled Naso programs,
 /// including quantum statevector simulation, classical-quantum JIT execution,
 /// and hardware backend integration.
-
 pub mod statevector;
-pub mod dispatcher;
-pub mod exporter;
-pub mod jit;
 
-pub use dispatcher::{RuntimeDispatcher, ExecutionTarget};
-pub use statevector::{StatevectorSimulator, SimulatorConfig, MeasurementResult};
+pub use dispatcher::{ExecutionTarget, RuntimeDispatcher};
+pub use statevector::{MeasurementResult, SimulatorConfig, StatevectorSimulator};
 
 use std::sync::Arc;
 
@@ -58,13 +57,18 @@ impl Runtime {
 
     /// Execute a QIR module
     #[cfg(feature = "llvm")]
-    pub fn execute_qir(&mut self, module: &crate::codegen::qir::QIRModule) -> Result<ExecutionResult, RuntimeError> {
+    pub fn execute_qir(
+        &mut self,
+        module: &crate::codegen::qir::QIRModule,
+    ) -> Result<ExecutionResult, RuntimeError> {
         self.dispatcher.execute(module)
     }
 
     #[cfg(not(feature = "llvm"))]
     pub fn execute_qir(&self, _module: &()) -> Result<ExecutionResult, RuntimeError> {
-        Err(RuntimeError::ExecutionFailed("QIR execution requires LLVM feature".into()))
+        Err(RuntimeError::ExecutionFailed(
+            "QIR execution requires LLVM feature".into(),
+        ))
     }
 
     /// Execute a compiled program

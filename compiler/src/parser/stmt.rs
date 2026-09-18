@@ -2,7 +2,7 @@
 
 use crate::ast::*;
 use crate::lexer::TokenKind as TK;
-use crate::parser::{next_id, Parser};
+use crate::parser::{Parser, next_id};
 
 use super::expr::is_control_flow_stmt;
 
@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
     fn parse_let_stmt(&mut self) -> Stmt {
         let start = self.pos;
         self.expect(TK::Let);
-        
+
         // Check for `let inout` or `let consume` keywords
         if self.eat(TK::InOut) {
             // let inout name = value;

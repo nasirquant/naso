@@ -2,8 +2,8 @@
 mod tests {
     use super::*;
     use crate::ast::*;
-    use crate::typecheck::{check_program, TypeChecker, TypeError};
     use crate::parser::parse_program;
+    use crate::typecheck::{TypeChecker, TypeError, check_program};
 
     fn check_source(source: &str) -> Result<(), Vec<TypeError>> {
         let mut program = parse_program(source).expect("Failed to parse");
@@ -40,7 +40,11 @@ mod tests {
         let result = check_source(source);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, TypeError::LinearVariableUsedTwice { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, TypeError::LinearVariableUsedTwice { .. }))
+        );
     }
 
     #[test]
@@ -55,7 +59,11 @@ mod tests {
         let result = check_source(source);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, TypeError::ErasedVariableUsedAtRuntime { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, TypeError::ErasedVariableUsedAtRuntime { .. }))
+        );
     }
 
     #[test]
@@ -125,7 +133,11 @@ mod tests {
         let result = check_source(source);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, TypeError::InOutRequiresUnique { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, TypeError::InOutRequiresUnique { .. }))
+        );
     }
 
     #[test]
@@ -153,7 +165,11 @@ mod tests {
         let result = check_source(source);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, TypeError::QuantityMismatch { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, TypeError::QuantityMismatch { .. }))
+        );
     }
 
     #[test]
@@ -168,7 +184,11 @@ mod tests {
         let result = check_source(source);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, TypeError::UnusedLinearVariable { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, TypeError::UnusedLinearVariable { .. }))
+        );
     }
 
     #[test]
@@ -222,7 +242,11 @@ mod tests {
         }
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, TypeError::ImpureInReversible { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, TypeError::ImpureInReversible { .. }))
+        );
     }
 
     #[test]
@@ -255,8 +279,8 @@ mod tests {
 mod qty_tests {
     use super::*;
     use crate::ast::Quantity;
-    use crate::typecheck::unify::{unify_quantity, qty_subtype, qty_join, qty_meet, qty_consume};
     use crate::ast::Span;
+    use crate::typecheck::unify::{qty_consume, qty_join, qty_meet, qty_subtype, unify_quantity};
 
     fn span() -> Span {
         Span::default()
@@ -356,19 +380,34 @@ mod qty_tests {
     #[test]
     fn test_qty_join() {
         assert_eq!(qty_join(Quantity::One, Quantity::Many), Quantity::Many);
-        assert_eq!(qty_join(Quantity::One, Quantity::Bounded(3)), Quantity::Bounded(3));
-        assert_eq!(qty_join(Quantity::Bounded(2), Quantity::Bounded(5)), Quantity::Bounded(5));
+        assert_eq!(
+            qty_join(Quantity::One, Quantity::Bounded(3)),
+            Quantity::Bounded(3)
+        );
+        assert_eq!(
+            qty_join(Quantity::Bounded(2), Quantity::Bounded(5)),
+            Quantity::Bounded(5)
+        );
         assert_eq!(qty_join(Quantity::Zero, Quantity::One), Quantity::One);
-        assert_eq!(qty_join(Quantity::Zero, Quantity::Bounded(3)), Quantity::Bounded(3));
+        assert_eq!(
+            qty_join(Quantity::Zero, Quantity::Bounded(3)),
+            Quantity::Bounded(3)
+        );
     }
 
     #[test]
     fn test_qty_meet() {
         assert_eq!(qty_meet(Quantity::One, Quantity::Many), Quantity::One);
         assert_eq!(qty_meet(Quantity::One, Quantity::Bounded(3)), Quantity::One);
-        assert_eq!(qty_meet(Quantity::Bounded(2), Quantity::Bounded(5)), Quantity::Bounded(2));
+        assert_eq!(
+            qty_meet(Quantity::Bounded(2), Quantity::Bounded(5)),
+            Quantity::Bounded(2)
+        );
         assert_eq!(qty_meet(Quantity::Zero, Quantity::One), Quantity::Zero);
-        assert_eq!(qty_meet(Quantity::Bounded(3), Quantity::Many), Quantity::Bounded(3));
+        assert_eq!(
+            qty_meet(Quantity::Bounded(3), Quantity::Many),
+            Quantity::Bounded(3)
+        );
     }
 
     #[test]

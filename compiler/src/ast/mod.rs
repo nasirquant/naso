@@ -54,7 +54,12 @@ pub struct Span {
 
 impl Span {
     pub fn new(start: u32, end: u32, line: u32, column: u32) -> Self {
-        Self { start, end, line, column }
+        Self {
+            start,
+            end,
+            line,
+            column,
+        }
     }
 
     pub fn merge(self, other: Span) -> Span {

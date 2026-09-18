@@ -1,6 +1,9 @@
-use super::ffi::{jit_context_create, jit_context_destroy, jit_context_add_function, jit_context_compile, jit_context_run, JitContext};
-use std::ffi::{CString};
-use std::os::raw::{c_void};
+use super::ffi::{
+    JitContext, jit_context_add_function, jit_context_compile, jit_context_create,
+    jit_context_destroy, jit_context_run,
+};
+use std::ffi::CString;
+use std::os::raw::c_void;
 
 pub struct JitEngine {
     ctx: *mut JitContext,

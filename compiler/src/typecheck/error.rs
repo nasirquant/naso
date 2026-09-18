@@ -13,7 +13,9 @@ pub enum TypeError {
         span: Span,
     },
 
-    #[error("linear variable `{name}` used twice (first at {first_use:?}, second at {second_use:?})")]
+    #[error(
+        "linear variable `{name}` used twice (first at {first_use:?}, second at {second_use:?})"
+    )]
     LinearVariableUsedTwice {
         name: Ident,
         first_use: Span,
@@ -36,10 +38,7 @@ pub enum TypeError {
     },
 
     #[error("unused linear variable `{name}` (defined at {defined_at:?})")]
-    UnusedLinearVariable {
-        name: Ident,
-        defined_at: Span,
-    },
+    UnusedLinearVariable { name: Ident, defined_at: Span },
 
     #[error("type mismatch: expected `{expected}`, found `{found}`")]
     TypeMismatch {
@@ -71,11 +70,7 @@ pub enum TypeError {
     },
 
     #[error("field `{field}` not found in type `{ty}`")]
-    FieldNotFound {
-        field: Ident,
-        ty: Type,
-        span: Span,
-    },
+    FieldNotFound { field: Ident, ty: Type, span: Span },
 
     #[error("variant `{variant_name}` not found in enum `{enum_name}`")]
     VariantNotFound {
@@ -85,28 +80,16 @@ pub enum TypeError {
     },
 
     #[error("type `{name}` is not a struct")]
-    NotAStruct {
-        name: Ident,
-        span: Span,
-    },
+    NotAStruct { name: Ident, span: Span },
 
     #[error("type `{ty}` is not a function")]
-    NotAFunction {
-        ty: Type,
-        span: Span,
-    },
+    NotAFunction { ty: Type, span: Span },
 
     #[error("type `{ty}` is not indexable")]
-    NotIndexable {
-        ty: Type,
-        span: Span,
-    },
+    NotIndexable { ty: Type, span: Span },
 
     #[error("inout binding requires unique ownership (quantity 1), found `{found_qty}`")]
-    InOutRequiresUnique {
-        found_qty: Quantity,
-        span: Span,
-    },
+    InOutRequiresUnique { found_qty: Quantity, span: Span },
 
     #[error("occurs check failed: metavariable `{meta_var}` occurs in type `{ty}`")]
     OccursCheck {
@@ -116,83 +99,48 @@ pub enum TypeError {
     },
 
     #[error("undefined type `{name}`")]
-    UndefinedType {
-        name: Ident,
-        span: Span,
-    },
+    UndefinedType { name: Ident, span: Span },
 
-    #[error("erased variable `{name}` used at runtime (quantity 0 variables cannot appear in runtime positions)")]
-    ErasedVariableUsedAtRuntime {
-        name: Ident,
-        span: Span,
-    },
+    #[error(
+        "erased variable `{name}` used at runtime (quantity 0 variables cannot appear in runtime positions)"
+    )]
+    ErasedVariableUsedAtRuntime { name: Ident, span: Span },
 
     #[error("impure operation in reversible block: `{operation}`")]
-    ImpureInReversible {
-        operation: String,
-        span: Span,
-    },
+    ImpureInReversible { operation: String, span: Span },
 
     #[error("missing uncomputation step for variable `{name}` in reversible block")]
-    MissingUncompute {
-        name: Ident,
-        span: Span,
-    },
+    MissingUncompute { name: Ident, span: Span },
 
     #[error("cyclic uncomputation dependency involving `{name}`")]
-    CyclicUncompute {
-        name: Ident,
-        span: Span,
-    },
+    CyclicUncompute { name: Ident, span: Span },
 
     #[error("qubit must have quantity 1 (linear)")]
-    QubitQuantityMismatch {
-        found: Quantity,
-        span: Span,
-    },
+    QubitQuantityMismatch { found: Quantity, span: Span },
 
     #[error("measurement requires qubit with quantity 1 (consume)")]
-    MeasureRequiresConsumeQubit {
-        span: Span,
-    },
+    MeasureRequiresConsumeQubit { span: Span },
 
     #[error("entangle requires qubits with quantity 1 (consume)")]
-    EntangleRequiresConsumeQubits {
-        span: Span,
-    },
+    EntangleRequiresConsumeQubits { span: Span },
 
     #[error("generic type parameter mismatch")]
-    GenericMismatch {
-        message: String,
-        span: Span,
-    },
+    GenericMismatch { message: String, span: Span },
 
     #[error("dependent type evaluation failed: {message}")]
-    DependentTypeError {
-        message: String,
-        span: Span,
-    },
+    DependentTypeError { message: String, span: Span },
 
     #[error("pattern match is non-exhaustive")]
-    NonExhaustiveMatch {
-        span: Span,
-    },
+    NonExhaustiveMatch { span: Span },
 
     #[error("break/continue outside of loop")]
-    ControlFlowOutsideLoop {
-        span: Span,
-    },
+    ControlFlowOutsideLoop { span: Span },
 
     #[error("return outside of function")]
-    ReturnOutsideFunction {
-        span: Span,
-    },
+    ReturnOutsideFunction { span: Span },
 
     #[error("inference failed: {message}")]
-    InferenceError {
-        message: String,
-        span: Span,
-    },
+    InferenceError { message: String, span: Span },
 }
 
 /// Result type for type checking operations

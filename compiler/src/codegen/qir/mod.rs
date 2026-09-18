@@ -9,7 +9,7 @@ pub mod profile;
 
 #[cfg(feature = "llvm")]
 pub use module_builder::QIRModuleBuilder;
-pub use primitives::{QirPrimitive, QirIntrinsic};
+pub use primitives::{QirIntrinsic, QirPrimitive};
 pub use profile::{QirProfile, QirProfileKind};
 
 /// QIR Module representation (for runtime execution)
@@ -26,10 +26,22 @@ pub struct QIRModule {
 /// QIR Operation
 #[derive(Debug, Clone)]
 pub enum QIROperation {
-    AllocateQubit { index: usize, quantity: crate::ast::Quantity },
-    ReleaseQubit { index: usize },
-    Gate { name: String, qubits: Vec<usize>, params: Vec<f64> },
-    Measure { qubit: usize, basis: usize },
+    AllocateQubit {
+        index: usize,
+        quantity: crate::ast::Quantity,
+    },
+    ReleaseQubit {
+        index: usize,
+    },
+    Gate {
+        name: String,
+        qubits: Vec<usize>,
+        params: Vec<f64>,
+    },
+    Measure {
+        qubit: usize,
+        basis: usize,
+    },
 }
 
 impl QIRModule {

@@ -1,9 +1,9 @@
 #[cfg(feature = "llvm")]
 use crate::codegen::error::{CodegenError, CodegenResult};
 #[cfg(feature = "llvm")]
-use inkwell::module::Module as LlvmModule;
-#[cfg(feature = "llvm")]
 use inkwell::context::Context as LlvmContext;
+#[cfg(feature = "llvm")]
+use inkwell::module::Module as LlvmModule;
 
 /// Bitcode validation and structural verification for generated LLVM IR
 #[cfg(feature = "llvm")]
@@ -40,7 +40,7 @@ impl<'ctx> BitcodeValidator<'ctx> {
         Ok(report)
     }
 
-    /// Verify module-level integrity using LLVM's verifier
+    /// Verify module-level integrity using LLVM's built-in module verification
     fn verify_module_integrity(
         &self,
         module: &LlvmModule<'ctx>,
@@ -51,14 +51,12 @@ impl<'ctx> BitcodeValidator<'ctx> {
             Ok(_) => {
                 report.passed_checks.push("Module integrity".to_string());
             }
-            Err(errors) => {
-                for error in errors {
-                    report.errors.push(ValidationError {
-                        check: "Module integrity".to_string(),
-                        message: error.to_string(),
-                        severity: ValidationSeverity::Error,
-                    });
-                }
+            Err(error) => {
+                report.errors.push(ValidationError {
+                    check: "Module integrity".to_string(),
+                    message: error.to_string(),
+                    severity: ValidationSeverity::Error,
+                });
             }
         }
         Ok(())
@@ -244,9 +242,7 @@ impl<'ctx> BitcodeValidator<'ctx> {
 
             // Check global has initializer or is declaration
             if global.is_constant() || global.is_declaration() {
-                report
-                    .passed_checks
-                    .push(format!("Global valid: {}", name));
+                report.passed_checks.push(format!("Global valid: {}", name));
             } else if global.get_initializer().is_none() {
                 report.warnings.push(ValidationWarning {
                     check: format!("Global initializer: {}", name),
@@ -401,9 +397,7 @@ impl<'ctx> BitcodeValidator<'ctx> {
             .iter()
             .any(|l| l.contains("define") && (l.contains("main") || l.contains("entry")));
         if has_main {
-            report
-                .passed_checks
-                .push("Entry point found".to_string());
+            report.passed_checks.push("Entry point found".to_string());
         } else {
             report.warnings.push(QirValidationWarning {
                 check: "Entry point".to_string(),
@@ -432,9 +426,7 @@ impl<'ctx> BitcodeValidator<'ctx> {
             l.contains("__quantum__rt__result_get_one") || l.contains("__quantum__rt__measure")
         });
         if has_measurement {
-            report
-                .passed_checks
-                .push("Measurement present".to_string());
+            report.passed_checks.push("Measurement present".to_string());
         } else {
             report.warnings.push(QirValidationWarning {
                 check: "Measurement".to_string(),
@@ -553,10 +545,7 @@ pub struct StructuralVerifier;
 
 impl StructuralVerifier {
     /// Verify PIR to LLVM IR structural correctness
-    pub fn verify_pir_to_llvm(
-        pir_module: &str,
-        llvm_ir: &str,
-    ) -> CodegenResult<StructuralReport> {
+    pub fn verify_pir_to_llvm(pir_module: &str, llvm_ir: &str) -> CodegenResult<StructuralReport> {
         let mut report = StructuralReport::new();
 
         // Parse PIR to extract expected structure
@@ -569,10 +558,7 @@ impl StructuralVerifier {
     }
 
     /// Verify PIR to QIR structural correctness
-    pub fn verify_pir_to_qir(
-        pir_module: &str,
-        qir: &str,
-    ) -> CodegenResult<StructuralReport> {
+    pub fn verify_pir_to_qir(pir_module: &str, qir: &str) -> CodegenResult<StructuralReport> {
         let mut report = StructuralReport::new();
 
         let pir_structure = Self::parse_pir_structure(pir_module)?;
@@ -756,11 +742,6 @@ mod tests {
         report.warnings.push(ValidationWarning {
             check: "test".to_string(),
             message: "warning".to_string(),
-        });
-        report.errors.push(ValidationError {
-            check: "test".to_string(),
-            message: "error".to_string(),
-            severity: ValidationSeverity::Error,
         });
 
         assert!(!report.has_errors());

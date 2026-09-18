@@ -2,7 +2,7 @@
 //!
 //! Core types for codegen that don't require LLVM.
 
-use target_lexicon::{Triple, Architecture, OperatingSystem, Environment, BinaryFormat};
+use target_lexicon::{Architecture, BinaryFormat, Environment, OperatingSystem, Triple};
 
 /// Target platforms supported by Naso
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,7 +38,9 @@ impl CodegenTarget {
             "nvptx64" | "cuda" | "gpu" => Ok(CodegenTarget::Nvptx64),
             "wasm32" | "wasm" => Ok(CodegenTarget::Wasm32),
             "aarch64" | "arm64" => Ok(CodegenTarget::Aarch64),
-            other => Ok(CodegenTarget::Custom(Box::leak(other.to_string().into_boxed_str()))),
+            other => Ok(CodegenTarget::Custom(Box::leak(
+                other.to_string().into_boxed_str(),
+            ))),
         }
     }
 }

@@ -114,12 +114,15 @@ impl AccessRelation {
 impl fmt::Display for AccessRelation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = self.array_name.as_deref().unwrap_or("mem");
-        write!(f, "{} {}: {} -> {} ({})", 
-            self.access_type, 
+        write!(
+            f,
+            "{} {}: {} -> {} ({})",
+            self.access_type,
             name,
             self.stmt_id,
             self.access_map,
-            self.stmt_domain.name.as_deref().unwrap_or(""))
+            self.stmt_domain.name.as_deref().unwrap_or("")
+        )
     }
 }
 
@@ -140,7 +143,8 @@ impl AccessRelations {
 
     /// Get all accesses for a given statement
     pub fn for_stmt(&self, stmt_id: super::schedule_tree::StmtId) -> Vec<&AccessRelation> {
-        self.relations.iter()
+        self.relations
+            .iter()
             .filter(|r| r.stmt_id == stmt_id)
             .collect()
     }
@@ -188,7 +192,7 @@ impl AccessRelations {
         let writes = self.writes();
         let mut deps = Vec::new();
         for i in 0..writes.len() {
-            for j in i+1..writes.len() {
+            for j in i + 1..writes.len() {
                 if writes[i].may_alias(writes[j]) {
                     deps.push((writes[i], writes[j]));
                 }
@@ -200,18 +204,22 @@ impl AccessRelations {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::affine_domain::AffineDomain;
     use super::super::affine_map::{AffineMap, Matrix};
     use super::super::schedule_tree::StmtId;
+    use super::*;
 
     #[test]
     fn test_access_relation() {
         // Statement S(i) accessing A[i]
-        let stmt_domain = AffineDomain::new(1, 1, vec![
-            super::super::affine_domain::AffineConstraint::inequality(vec![1, 0], 0),
-            super::super::affine_domain::AffineConstraint::inequality(vec![-1, 1], 1),
-        ]);
+        let stmt_domain = AffineDomain::new(
+            1,
+            1,
+            vec![
+                super::super::affine_domain::AffineConstraint::inequality(vec![1, 0], 0),
+                super::super::affine_domain::AffineConstraint::inequality(vec![-1, 1], 1),
+            ],
+        );
 
         let mut m = Matrix::new(1, 2);
         m.set(0, 0, 1); // memory index = i
@@ -226,10 +234,14 @@ mod tests {
 
     #[test]
     fn test_alias_detection() {
-        let domain = AffineDomain::new(1, 1, vec![
-            super::super::affine_domain::AffineConstraint::inequality(vec![1, 0], 0),
-            super::super::affine_domain::AffineConstraint::inequality(vec![-1, 1], 1),
-        ]);
+        let domain = AffineDomain::new(
+            1,
+            1,
+            vec![
+                super::super::affine_domain::AffineConstraint::inequality(vec![1, 0], 0),
+                super::super::affine_domain::AffineConstraint::inequality(vec![-1, 1], 1),
+            ],
+        );
 
         let mut m = Matrix::new(1, 2);
         m.set(0, 0, 1);
@@ -243,8 +255,8 @@ mod tests {
         assert!(read.may_alias(&write));
 
         // Different arrays
-        let write_b = AccessRelation::new(StmtId(1), domain, map, AccessType::Write)
-            .with_array_name("B");
+        let write_b =
+            AccessRelation::new(StmtId(1), domain, map, AccessType::Write).with_array_name("B");
         assert!(!read.may_alias(&write_b));
     }
 
@@ -256,9 +268,18 @@ mod tests {
         let map = AffineMap::total(domain.clone(), m);
 
         let mut relations = AccessRelations::new();
-        relations.add(AccessRelation::new(StmtId(0), domain.clone(), map.clone(), AccessType::Write).with_array_name("A"));
-        relations.add(AccessRelation::new(StmtId(1), domain.clone(), map.clone(), AccessType::Read).with_array_name("A"));
-        relations.add(AccessRelation::new(StmtId(2), domain.clone(), map.clone(), AccessType::Write).with_array_name("A"));
+        relations.add(
+            AccessRelation::new(StmtId(0), domain.clone(), map.clone(), AccessType::Write)
+                .with_array_name("A"),
+        );
+        relations.add(
+            AccessRelation::new(StmtId(1), domain.clone(), map.clone(), AccessType::Read)
+                .with_array_name("A"),
+        );
+        relations.add(
+            AccessRelation::new(StmtId(2), domain.clone(), map.clone(), AccessType::Write)
+                .with_array_name("A"),
+        );
 
         let raw = relations.raw_dependences();
         // RAW: write must execute BEFORE read (write.stmt_id < read.stmt_id)

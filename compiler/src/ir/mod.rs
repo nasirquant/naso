@@ -7,22 +7,27 @@
 //! - Access relations (memory access patterns)
 //! - PIR module container with quantity tracking
 
+pub mod access_relation;
 pub mod affine_domain;
 pub mod affine_map;
-pub mod schedule_tree;
-pub mod access_relation;
 pub mod pir_types;
 pub mod pretty_print;
+pub mod schedule_tree;
 pub mod validate;
 
 #[cfg(test)]
 pub mod tests;
 
 // Re-exports for convenience
-pub use affine_domain::{AffineDomain, AffineConstraint, ConstraintType};
+pub use access_relation::{AccessRelation, AccessRelations, AccessType};
+pub use affine_domain::{AffineConstraint, AffineDomain, ConstraintType};
 pub use affine_map::{AffineMap, AffineMapPiece, Matrix};
-pub use schedule_tree::{ScheduleNode, ScheduleTree, StmtId, ScheduleValidationError};
-pub use access_relation::{AccessRelation, AccessType, AccessRelations};
-pub use pir_types::{PirModule, PirStatement, QuantityMap, PirExpr, ValidationError, BinaryOp, UnaryOp};
-pub use pretty_print::{pir_to_string, pir_to_json, format_golden_fixture};
-pub use validate::{validate_pir, ScheduleValidationReport, validate_domain, validate_map, validate_schedule_detailed, validate_accesses_for_dependence};
+pub use pir_types::{
+    BinaryOp, PirExpr, PirModule, PirStatement, QuantityMap, UnaryOp, ValidationError,
+};
+pub use pretty_print::{format_golden_fixture, pir_to_json, pir_to_string};
+pub use schedule_tree::{ScheduleNode, ScheduleTree, ScheduleValidationError, StmtId};
+pub use validate::{
+    ScheduleValidationReport, validate_accesses_for_dependence, validate_domain, validate_map,
+    validate_pir, validate_schedule_detailed,
+};

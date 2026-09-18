@@ -273,7 +273,11 @@ impl TypeEnv {
         // Check for immutable borrows
         // (would need to track immutable borrows too)
 
-        self.inout_borrows.push(InOutBorrow { var, place, borrow_span: span });
+        self.inout_borrows.push(InOutBorrow {
+            var,
+            place,
+            borrow_span: span,
+        });
         Ok(())
     }
 
@@ -383,7 +387,11 @@ impl TypeEnv {
         // Check for unused linear variables bound in this scope
         for (name, info) in self.vars.iter().skip(guard.vars_initial_len) {
             // Skip consume bindings - they represent a consumption point
-            if info.quantity == Quantity::One && info.used_at.is_empty() && !info.moved && info.mutability != Mutability::Consume {
+            if info.quantity == Quantity::One
+                && info.used_at.is_empty()
+                && !info.moved
+                && info.mutability != Mutability::Consume
+            {
                 return Err(TypeError::UnusedLinearVariable {
                     name: name.clone(),
                     defined_at: info.defined_at,
@@ -392,15 +400,20 @@ impl TypeEnv {
         }
 
         // Restore state - remove variables bound in this scope
-        let keys_to_remove: Vec<Ident> = self.vars.keys().skip(guard.vars_initial_len).cloned().collect();
+        let keys_to_remove: Vec<Ident> = self
+            .vars
+            .keys()
+            .skip(guard.vars_initial_len)
+            .cloned()
+            .collect();
         for key in keys_to_remove {
             self.vars.shift_remove(&key);
         }
-        
+
         self.inout_borrows.truncate(guard.inout_borrows_len);
         self.moved_vars = guard.moved_vars_snapshot.clone();
         self.erasable_vars = guard.erasable_vars_snapshot.clone();
-        
+
         Ok(())
     }
 }

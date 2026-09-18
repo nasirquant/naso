@@ -76,7 +76,7 @@ impl QirProfile {
                 self.allows_classical_computation = true; // Classical for parameters
                 self.allows_qubit_reuse = false;
                 self.max_qubits = None;
-                
+
                 // Enable base intrinsics
                 self.enable_base_intrinsics();
             }
@@ -86,7 +86,7 @@ impl QirProfile {
                 self.allows_classical_computation = true;
                 self.allows_qubit_reuse = true;
                 self.max_qubits = None;
-                
+
                 // Enable all intrinsics including control flow
                 self.enable_base_intrinsics();
                 self.enable_adaptive_intrinsics();
@@ -97,7 +97,7 @@ impl QirProfile {
                 self.allows_classical_computation = true;
                 self.allows_qubit_reuse = true;
                 self.max_qubits = None;
-                
+
                 // Enable everything
                 self.enable_base_intrinsics();
                 self.enable_adaptive_intrinsics();
@@ -109,23 +109,46 @@ impl QirProfile {
     fn enable_base_intrinsics(&mut self) {
         let base_intrinsics = [
             // Qubit management
-            "qir.qubit_alloc", "qir.qubit_release",
-            "qir.qubit_alloc_array", "qir.qubit_release_array",
+            "qir.qubit_alloc",
+            "qir.qubit_release",
+            "qir.qubit_alloc_array",
+            "qir.qubit_release_array",
             // Single-qubit gates
-            "qir.h", "qir.x", "qir.y", "qir.z", "qir.s", "qir.t",
-            "qir.rx", "qir.ry", "qir.rz", "qir.r1", "qir.rt1",
+            "qir.h",
+            "qir.x",
+            "qir.y",
+            "qir.z",
+            "qir.s",
+            "qir.t",
+            "qir.rx",
+            "qir.ry",
+            "qir.rz",
+            "qir.r1",
+            "qir.rt1",
             // Two-qubit gates
-            "qir.cx", "qir.cy", "qir.cz", "qir.swap", "qir.iswap",
+            "qir.cx",
+            "qir.cy",
+            "qir.cz",
+            "qir.swap",
+            "qir.iswap",
             // Three-qubit gates
             "qir.ccx",
             // Measurement
-            "qir.mz", "qir.mx", "qir.my", "qir.measure",
+            "qir.mz",
+            "qir.mx",
+            "qir.my",
+            "qir.measure",
             // Result handling
-            "qir.result_record", "qir.result_update", "qir.result_get", "qir.result_equal",
+            "qir.result_record",
+            "qir.result_update",
+            "qir.result_get",
+            "qir.result_equal",
             // Array operations
-            "qir.array_record", "qir.array_update",
+            "qir.array_record",
+            "qir.array_update",
             // Adjoint/Controlled
-            "qir.adjoint", "qir.controlled",
+            "qir.adjoint",
+            "qir.controlled",
         ];
         for intrinsic in base_intrinsics {
             self.enabled_intrinsics.insert(intrinsic);
@@ -135,7 +158,8 @@ impl QirProfile {
     fn enable_adaptive_intrinsics(&mut self) {
         let adaptive_intrinsics = [
             // Dynamic control flow
-            "qir.if", "qir.while",
+            "qir.if",
+            "qir.while",
             // Qubit reuse
             "qir.qubit_reset", // Not in base but in adaptive
         ];
@@ -146,11 +170,7 @@ impl QirProfile {
 
     fn enable_full_intrinsics(&mut self) {
         // Full profile includes all known intrinsics
-        let full_intrinsics = [
-            "qir.profiler_record",
-            "qir.qubit_reset",
-            "qir.dump_machine",
-        ];
+        let full_intrinsics = ["qir.profiler_record", "qir.qubit_reset", "qir.dump_machine"];
         for intrinsic in full_intrinsics {
             self.enabled_intrinsics.insert(intrinsic);
         }
@@ -221,14 +241,18 @@ impl QirProfile {
         // Check for dynamic control flow in base profile
         if !self.allows_dynamic_control_flow {
             if module_ir.contains("qir.if") || module_ir.contains("qir.while") {
-                errors.push("Dynamic control flow (qir.if/qir.while) not allowed in base profile".to_string());
+                errors.push(
+                    "Dynamic control flow (qir.if/qir.while) not allowed in base profile"
+                        .to_string(),
+                );
             }
         }
 
         // Check for qubit reuse in base profile
         if !self.allows_qubit_reuse {
             if module_ir.contains("qir.qubit_reset") {
-                errors.push("Qubit reuse (qir.qubit_reset) not allowed in base profile".to_string());
+                errors
+                    .push("Qubit reuse (qir.qubit_reset) not allowed in base profile".to_string());
             }
         }
 
@@ -271,10 +295,16 @@ impl QirTargetCapabilities {
                 supports_adaptive_control_flow: false,
                 supports_classical_computation: true,
                 supported_gate_set: [
-                    "h", "x", "y", "z", "s", "t", "rx", "ry", "rz", "r1", "rt1",
-                    "cx", "cy", "cz", "swap", "iswap", "ccx",
-                ].iter().map(|s| s.to_string()).collect(),
-                supported_measurement_bases: ["z", "x", "y"].iter().map(|s| s.to_string()).collect(),
+                    "h", "x", "y", "z", "s", "t", "rx", "ry", "rz", "r1", "rt1", "cx", "cy", "cz",
+                    "swap", "iswap", "ccx",
+                ]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+                supported_measurement_bases: ["z", "x", "y"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
             },
             QirProfileKind::Adaptive => Self {
                 profile,
@@ -284,10 +314,16 @@ impl QirTargetCapabilities {
                 supports_adaptive_control_flow: true,
                 supports_classical_computation: true,
                 supported_gate_set: [
-                    "h", "x", "y", "z", "s", "t", "rx", "ry", "rz", "r1", "rt1",
-                    "cx", "cy", "cz", "swap", "iswap", "ccx",
-                ].iter().map(|s| s.to_string()).collect(),
-                supported_measurement_bases: ["z", "x", "y"].iter().map(|s| s.to_string()).collect(),
+                    "h", "x", "y", "z", "s", "t", "rx", "ry", "rz", "r1", "rt1", "cx", "cy", "cz",
+                    "swap", "iswap", "ccx",
+                ]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+                supported_measurement_bases: ["z", "x", "y"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
             },
             QirProfileKind::Full => Self {
                 profile,
@@ -297,10 +333,16 @@ impl QirTargetCapabilities {
                 supports_adaptive_control_flow: true,
                 supports_classical_computation: true,
                 supported_gate_set: [
-                    "h", "x", "y", "z", "s", "t", "rx", "ry", "rz", "r1", "rt1",
-                    "cx", "cy", "cz", "swap", "iswap", "ccx", "u", "p", "cp",
-                ].iter().map(|s| s.to_string()).collect(),
-                supported_measurement_bases: ["z", "x", "y", "bell"].iter().map(|s| s.to_string()).collect(),
+                    "h", "x", "y", "z", "s", "t", "rx", "ry", "rz", "r1", "rt1", "cx", "cy", "cz",
+                    "swap", "iswap", "ccx", "u", "p", "cp",
+                ]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+                supported_measurement_bases: ["z", "x", "y", "bell"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
             },
         }
     }

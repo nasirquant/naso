@@ -35,11 +35,7 @@ impl PolyhedralOptimizer {
     }
 
     /// Apply loop tiling transformation
-    fn apply_tiling<F>(
-        &self,
-        tile_size: usize,
-        lower_child: &mut F,
-    ) -> CodegenResult<()>
+    fn apply_tiling<F>(&self, tile_size: usize, lower_child: &mut F) -> CodegenResult<()>
     where
         F: FnMut(&mut dyn FnMut(&ScheduleNode) -> CodegenResult<()>) -> CodegenResult<()>,
     {
@@ -51,11 +47,7 @@ impl PolyhedralOptimizer {
     }
 
     /// Apply loop fusion
-    pub fn apply_fusion<F>(
-        &self,
-        nodes: &[ScheduleNode],
-        mut lower_fused: F,
-    ) -> CodegenResult<()>
+    pub fn apply_fusion<F>(&self, nodes: &[ScheduleNode], mut lower_fused: F) -> CodegenResult<()>
     where
         F: FnMut(&ScheduleNode) -> CodegenResult<()>,
     {
@@ -137,7 +129,11 @@ mod tests {
     #[test]
     fn test_tiling() {
         let optimizer = PolyhedralOptimizer::new();
-        let result = optimizer.apply_extension(&[4, 8], &crate::ir::schedule_tree::ScheduleNode::Empty, |_| Ok(()));
+        let result = optimizer.apply_extension(
+            &[4, 8],
+            &crate::ir::schedule_tree::ScheduleNode::Empty,
+            |_| Ok(()),
+        );
         assert!(result.is_ok());
     }
 }

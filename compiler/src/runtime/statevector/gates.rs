@@ -2,7 +2,6 @@
 ///
 /// Defines the quantum gate operations supported by the simulator,
 /// including single-qubit and two-qubit gates with their matrix representations.
-
 use num_complex::Complex64;
 
 /// Single-qubit gates
@@ -43,61 +42,114 @@ impl SingleQubitGate {
         let i = Complex64::new(0.0, 1.0);
 
         match self {
-            SingleQubitGate::X => [[Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)],
-                                    [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)]],
-            SingleQubitGate::Y => [[Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)],
-                                    [Complex64::new(0.0, 1.0), Complex64::new(0.0, 0.0)]],
-            SingleQubitGate::Z => [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                                    [Complex64::new(0.0, 0.0), Complex64::new(-1.0, 0.0)]],
+            SingleQubitGate::X => [
+                [Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)],
+                [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+            ],
+            SingleQubitGate::Y => [
+                [Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)],
+                [Complex64::new(0.0, 1.0), Complex64::new(0.0, 0.0)],
+            ],
+            SingleQubitGate::Z => [
+                [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                [Complex64::new(0.0, 0.0), Complex64::new(-1.0, 0.0)],
+            ],
             SingleQubitGate::H => {
                 let inv_sqrt2 = 1.0 / 2.0_f64.sqrt();
-                [[Complex64::new(inv_sqrt2, 0.0), Complex64::new(inv_sqrt2, 0.0)],
-                 [Complex64::new(inv_sqrt2, 0.0), Complex64::new(-inv_sqrt2, 0.0)]]
+                [
+                    [
+                        Complex64::new(inv_sqrt2, 0.0),
+                        Complex64::new(inv_sqrt2, 0.0),
+                    ],
+                    [
+                        Complex64::new(inv_sqrt2, 0.0),
+                        Complex64::new(-inv_sqrt2, 0.0),
+                    ],
+                ]
             }
-            SingleQubitGate::S => [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                                    [Complex64::new(0.0, 0.0), Complex64::new(0.0, 1.0)]],
-            SingleQubitGate::Sdg => [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                                      [Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)]],
+            SingleQubitGate::S => [
+                [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                [Complex64::new(0.0, 0.0), Complex64::new(0.0, 1.0)],
+            ],
+            SingleQubitGate::Sdg => [
+                [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                [Complex64::new(0.0, 0.0), Complex64::new(0.0, -1.0)],
+            ],
             SingleQubitGate::T => {
                 let angle = PI / 4.0;
-                [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                 [Complex64::new(0.0, 0.0), Complex64::new(angle.cos(), angle.sin())]]
+                [
+                    [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                    [
+                        Complex64::new(0.0, 0.0),
+                        Complex64::new(angle.cos(), angle.sin()),
+                    ],
+                ]
             }
             SingleQubitGate::Tdg => {
                 let angle = -PI / 4.0;
-                [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                 [Complex64::new(0.0, 0.0), Complex64::new(angle.cos(), angle.sin())]]
+                [
+                    [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                    [
+                        Complex64::new(0.0, 0.0),
+                        Complex64::new(angle.cos(), angle.sin()),
+                    ],
+                ]
             }
             SingleQubitGate::Phase(theta) => {
                 let half = theta / 2.0;
-                [[Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
-                 [Complex64::new(0.0, 0.0), Complex64::new(half.cos(), half.sin())]]
+                [
+                    [Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                    [
+                        Complex64::new(0.0, 0.0),
+                        Complex64::new(half.cos(), half.sin()),
+                    ],
+                ]
             }
             SingleQubitGate::Rx(theta) => {
                 let half = theta / 2.0;
                 let cos = half.cos();
                 let sin = half.sin();
-                [[Complex64::new(cos, 0.0), Complex64::new(0.0, -sin)],
-                 [Complex64::new(0.0, -sin), Complex64::new(cos, 0.0)]]
+                [
+                    [Complex64::new(cos, 0.0), Complex64::new(0.0, -sin)],
+                    [Complex64::new(0.0, -sin), Complex64::new(cos, 0.0)],
+                ]
             }
             SingleQubitGate::Ry(theta) => {
                 let half = theta / 2.0;
                 let cos = half.cos();
                 let sin = half.sin();
-                [[Complex64::new(cos, 0.0), Complex64::new(-sin, 0.0)],
-                 [Complex64::new(sin, 0.0), Complex64::new(cos, 0.0)]]
+                [
+                    [Complex64::new(cos, 0.0), Complex64::new(-sin, 0.0)],
+                    [Complex64::new(sin, 0.0), Complex64::new(cos, 0.0)],
+                ]
             }
             SingleQubitGate::Rz(theta) => {
                 let half = theta / 2.0;
-                [[Complex64::new(half.cos(), half.sin()), Complex64::new(0.0, 0.0)],
-                 [Complex64::new(0.0, 0.0), Complex64::new(half.cos(), -half.sin())]]
+                [
+                    [
+                        Complex64::new(half.cos(), half.sin()),
+                        Complex64::new(0.0, 0.0),
+                    ],
+                    [
+                        Complex64::new(0.0, 0.0),
+                        Complex64::new(half.cos(), -half.sin()),
+                    ],
+                ]
             }
             SingleQubitGate::U3(theta, phi, lambda) => {
                 let half = theta / 2.0;
                 let cos = half.cos();
                 let sin = half.sin();
-                [[Complex64::new(cos, 0.0), Complex64::new(-sin * phi.cos(), -sin * phi.sin())],
-                 [Complex64::new(sin * lambda.cos(), sin * lambda.sin()), Complex64::new(cos * (phi + lambda).cos(), cos * (phi + lambda).sin())]]
+                [
+                    [
+                        Complex64::new(cos, 0.0),
+                        Complex64::new(-sin * phi.cos(), -sin * phi.sin()),
+                    ],
+                    [
+                        Complex64::new(sin * lambda.cos(), sin * lambda.sin()),
+                        Complex64::new(cos * (phi + lambda).cos(), cos * (phi + lambda).sin()),
+                    ],
+                ]
             }
         }
     }
@@ -201,8 +253,18 @@ impl TwoQubitGate {
                 [
                     [one, zero, zero, zero],
                     [zero, one, zero, zero],
-                    [zero, zero, Complex64::new(cos, 0.0), Complex64::new(0.0, -sin)],
-                    [zero, zero, Complex64::new(0.0, -sin), Complex64::new(cos, 0.0)],
+                    [
+                        zero,
+                        zero,
+                        Complex64::new(cos, 0.0),
+                        Complex64::new(0.0, -sin),
+                    ],
+                    [
+                        zero,
+                        zero,
+                        Complex64::new(0.0, -sin),
+                        Complex64::new(cos, 0.0),
+                    ],
                 ]
             }
             TwoQubitGate::CRy(theta) => {
@@ -212,8 +274,18 @@ impl TwoQubitGate {
                 [
                     [one, zero, zero, zero],
                     [zero, one, zero, zero],
-                    [zero, zero, Complex64::new(cos, 0.0), Complex64::new(-sin, 0.0)],
-                    [zero, zero, Complex64::new(sin, 0.0), Complex64::new(cos, 0.0)],
+                    [
+                        zero,
+                        zero,
+                        Complex64::new(cos, 0.0),
+                        Complex64::new(-sin, 0.0),
+                    ],
+                    [
+                        zero,
+                        zero,
+                        Complex64::new(sin, 0.0),
+                        Complex64::new(cos, 0.0),
+                    ],
                 ]
             }
             TwoQubitGate::CRz(theta) => {
@@ -249,25 +321,51 @@ impl TwoQubitGate {
 /// Quantum operations for circuit execution
 #[derive(Debug, Clone)]
 pub enum QuantumOperation {
-    SingleQubit { gate: SingleQubitGate, target: usize },
-    TwoQubit { gate: TwoQubitGate, control: usize, target: usize },
-    Controlled { controls: Vec<usize>, gate: SingleQubitGate, target: usize },
-    Measure { qubit: usize },
+    SingleQubit {
+        gate: SingleQubitGate,
+        target: usize,
+    },
+    TwoQubit {
+        gate: TwoQubitGate,
+        control: usize,
+        target: usize,
+    },
+    Controlled {
+        controls: Vec<usize>,
+        gate: SingleQubitGate,
+        target: usize,
+    },
+    Measure {
+        qubit: usize,
+    },
 }
 
 impl QuantumOperation {
     /// Get the adjoint (inverse) of this operation
     pub fn adjoint(&self) -> Option<QuantumOperation> {
         match self {
-            QuantumOperation::SingleQubit { gate, target } => {
-                Some(QuantumOperation::SingleQubit { gate: gate.adjoint(), target: *target })
-            }
-            QuantumOperation::TwoQubit { gate, control, target } => {
-                Some(QuantumOperation::TwoQubit { gate: gate.adjoint(), control: *control, target: *target })
-            }
-            QuantumOperation::Controlled { controls, gate, target } => {
-                Some(QuantumOperation::Controlled { controls: controls.clone(), gate: gate.adjoint(), target: *target })
-            }
+            QuantumOperation::SingleQubit { gate, target } => Some(QuantumOperation::SingleQubit {
+                gate: gate.adjoint(),
+                target: *target,
+            }),
+            QuantumOperation::TwoQubit {
+                gate,
+                control,
+                target,
+            } => Some(QuantumOperation::TwoQubit {
+                gate: gate.adjoint(),
+                control: *control,
+                target: *target,
+            }),
+            QuantumOperation::Controlled {
+                controls,
+                gate,
+                target,
+            } => Some(QuantumOperation::Controlled {
+                controls: controls.clone(),
+                gate: gate.adjoint(),
+                target: *target,
+            }),
             QuantumOperation::Measure { .. } => None, // Measurement has no adjoint
         }
     }

@@ -6,7 +6,7 @@
 
 use crate::ast::*;
 use crate::lexer::TokenKind as TK;
-use crate::parser::{next_id, Parser};
+use crate::parser::{Parser, next_id};
 
 use super::token_span;
 
@@ -129,11 +129,7 @@ impl<'a> Parser<'a> {
                 let args = self.parse_args_until(TK::RParen);
                 self.expect(TK::RParen);
                 let span = expr.span;
-                expr = Expr::new(
-                    ExprKind::Call(Box::new(expr), args),
-                    span,
-                    next_id(),
-                );
+                expr = Expr::new(ExprKind::Call(Box::new(expr), args), span, next_id());
             } else if self.at(TK::Dot) {
                 self.bump();
                 let name = self.parse_ident();
@@ -200,8 +196,8 @@ impl<'a> Parser<'a> {
             Some(TK::Measure) => self.parse_measure(),
             Some(TK::Entangle) => self.parse_entangle(),
             Some(TK::QAlloc) => self.parse_qalloc(),
-            Some(TK::Int(_)) | Some(TK::Float(_)) | Some(TK::Bool(_))
-            | Some(TK::Str(_)) | Some(TK::Char(_)) => self.parse_literal(),
+            Some(TK::Int(_)) | Some(TK::Float(_)) | Some(TK::Bool(_)) | Some(TK::Str(_))
+            | Some(TK::Char(_)) => self.parse_literal(),
             Some(TK::LBrace) => self.parse_block_expr(),
             Some(TK::LParen) => self.parse_tuple_or_paren(),
             Some(TK::LBracket) => self.parse_array(),
@@ -411,7 +407,12 @@ impl<'a> Parser<'a> {
         };
         let span = self.span_from(start);
         Expr::new(
-            ExprKind::For(Box::new(ForLoop { var, iter, body, span })),
+            ExprKind::For(Box::new(ForLoop {
+                var,
+                iter,
+                body,
+                span,
+            })),
             span,
             next_id(),
         )
@@ -467,7 +468,11 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
         let span = self.span_from(start);
-        Expr::new(ExprKind::QuantumOp(QuantumOp::Entangle(args)), span, next_id())
+        Expr::new(
+            ExprKind::QuantumOp(QuantumOp::Entangle(args)),
+            span,
+            next_id(),
+        )
     }
 
     fn parse_qalloc(&mut self) -> Expr {
@@ -478,7 +483,11 @@ impl<'a> Parser<'a> {
         self.expect(TK::RParen);
         // qalloc() returns a qubit
         let span = self.span_from(start);
-        Expr::new(ExprKind::QuantumOp(QuantumOp::Alloc(Ident::new("qalloc", span))), span, next_id())
+        Expr::new(
+            ExprKind::QuantumOp(QuantumOp::Alloc(Ident::new("qalloc", span))),
+            span,
+            next_id(),
+        )
     }
 
     // ===== Reversible blocks =====
@@ -495,8 +504,8 @@ impl<'a> Parser<'a> {
 
     fn parse_pattern(&mut self) -> Pattern {
         match self.peek() {
-            Some(TK::Int(_)) | Some(TK::Float(_)) | Some(TK::Bool(_))
-            | Some(TK::Str(_)) | Some(TK::Char(_)) => self.parse_literal_pattern(),
+            Some(TK::Int(_)) | Some(TK::Float(_)) | Some(TK::Bool(_)) | Some(TK::Str(_))
+            | Some(TK::Char(_)) => self.parse_literal_pattern(),
             Some(TK::LParen) => self.parse_tuple_pattern(),
             Some(TK::Ident(_)) | Some(TK::TypeIdent(_)) => self.parse_ident_pattern(),
             None => self.unexpected("a pattern"),
@@ -628,7 +637,8 @@ mod tests {
 
     #[test]
     fn parses_struct_literal() {
-        let prog = parse_program("fn f() { let p = Point { x: 1.0, y: 2.0 }; }").expect("parse failed");
+        let prog =
+            parse_program("fn f() { let p = Point { x: 1.0, y: 2.0 }; }").expect("parse failed");
         let func = match &prog.items[0] {
             Item::Function(f) => f,
             other => panic!("expected function, got {other:?}"),
@@ -647,10 +657,8 @@ mod tests {
 
     #[test]
     fn parses_measure_and_entangle() {
-        let prog = parse_program(
-            "fn f(q: Qubit) { let r = measure q; let e = entangle(q, q); }",
-        )
-        .expect("parse failed");
+        let prog = parse_program("fn f(q: Qubit) { let r = measure q; let e = entangle(q, q); }")
+            .expect("parse failed");
         let func = match &prog.items[0] {
             Item::Function(f) => f,
             other => panic!("expected function, got {other:?}"),

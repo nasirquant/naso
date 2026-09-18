@@ -969,6 +969,7 @@ dependencies = [
  "cranelift",
  "cranelift-jit",
  "cranelift-module",
+ "cranelift-native",
  "indexmap",
  "inkwell",
  "logos",

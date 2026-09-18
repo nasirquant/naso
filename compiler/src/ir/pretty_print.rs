@@ -2,12 +2,14 @@
 //!
 //! Human-readable text format for debugging and golden fixtures.
 
+use super::access_relation::{AccessRelation, AccessRelations, AccessType};
 use super::affine_domain::AffineDomain;
 use super::affine_map::{AffineMap, Matrix};
+use super::pir_types::{
+    BinaryOp, ExternFunction, ExternParam, PirExpr, PirModule, PirStatement, UnaryOp,
+};
 use super::schedule_tree::{ScheduleNode, ScheduleTree, StmtId};
-use super::access_relation::{AccessRelation, AccessRelations, AccessType};
-use super::pir_types::{PirModule, PirStatement, PirExpr, BinaryOp, UnaryOp, ExternFunction, ExternParam};
-use crate::ast::{Quantity, Mutability};
+use crate::ast::{Mutability, Quantity};
 
 /// Convert PIR module to human-readable string
 pub fn pir_to_string(module: &PirModule) -> String {
@@ -74,46 +76,103 @@ fn pir_expr_to_string(expr: &PirExpr, indent: usize) -> String {
         PirExpr::BoolLit(v) => format!("{}", v),
         PirExpr::Var(v) => v.clone(),
         PirExpr::Binary { op, left, right } => {
-            format!("({} {} {})", pir_expr_to_string(left, 0), binary_op_to_str(*op), pir_expr_to_string(right, 0))
+            format!(
+                "({} {} {})",
+                pir_expr_to_string(left, 0),
+                binary_op_to_str(*op),
+                pir_expr_to_string(right, 0)
+            )
         }
         PirExpr::Unary { op, expr } => {
             format!("{}{}", unary_op_to_str(*op), pir_expr_to_string(expr, 0))
         }
         PirExpr::Call { name, args } => {
-            format!("{}({})", name, args.iter().map(|a| pir_expr_to_string(a, 0)).collect::<Vec<_>>().join(", "))
+            format!(
+                "{}({})",
+                name,
+                args.iter()
+                    .map(|a| pir_expr_to_string(a, 0))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         }
         PirExpr::Index { base, indices } => {
-            format!("{}[{}]", pir_expr_to_string(base, 0), indices.iter().map(|i| pir_expr_to_string(i, 0)).collect::<Vec<_>>().join(", "))
+            format!(
+                "{}[{}]",
+                pir_expr_to_string(base, 0),
+                indices
+                    .iter()
+                    .map(|i| pir_expr_to_string(i, 0))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         }
         PirExpr::Field { base, field } => {
             format!("{}.{}", pir_expr_to_string(base, 0), field)
         }
-        PirExpr::Let { name, qty, mutability, value, body } => {
-            format!("let {:?} {:?} {} = {}; {}", qty, mutability, name, pir_expr_to_string(value, 0), pir_expr_to_string(body, 0))
+        PirExpr::Let {
+            name,
+            qty,
+            mutability,
+            value,
+            body,
+        } => {
+            format!(
+                "let {:?} {:?} {} = {}; {}",
+                qty,
+                mutability,
+                name,
+                pir_expr_to_string(value, 0),
+                pir_expr_to_string(body, 0)
+            )
         }
-        PirExpr::If { cond, then_branch, else_branch } => {
-            format!("if {} then {} else {}", pir_expr_to_string(cond, 0), pir_expr_to_string(then_branch, 0), pir_expr_to_string(else_branch, 0))
+        PirExpr::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            format!(
+                "if {} then {} else {}",
+                pir_expr_to_string(cond, 0),
+                pir_expr_to_string(then_branch, 0),
+                pir_expr_to_string(else_branch, 0)
+            )
         }
         PirExpr::Reversible { body, inverse } => {
-            format!("reversible {} inv {}", pir_expr_to_string(body, 0), pir_expr_to_string(inverse, 0))
+            format!(
+                "reversible {} inv {}",
+                pir_expr_to_string(body, 0),
+                pir_expr_to_string(inverse, 0)
+            )
         }
     }
 }
 
 fn binary_op_to_str(op: BinaryOp) -> &'static str {
     match op {
-        BinaryOp::Add => "+", BinaryOp::Sub => "-", BinaryOp::Mul => "*",
-        BinaryOp::Div => "/", BinaryOp::Mod => "%",
-        BinaryOp::And => "&&", BinaryOp::Or => "||", BinaryOp::Xor => "^",
-        BinaryOp::Eq => "==", BinaryOp::Ne => "!=", BinaryOp::Lt => "<",
-        BinaryOp::Le => "<=", BinaryOp::Gt => ">", BinaryOp::Ge => ">=",
-        BinaryOp::Shl => "<<", BinaryOp::Shr => ">>",
+        BinaryOp::Add => "+",
+        BinaryOp::Sub => "-",
+        BinaryOp::Mul => "*",
+        BinaryOp::Div => "/",
+        BinaryOp::Mod => "%",
+        BinaryOp::And => "&&",
+        BinaryOp::Or => "||",
+        BinaryOp::Xor => "^",
+        BinaryOp::Eq => "==",
+        BinaryOp::Ne => "!=",
+        BinaryOp::Lt => "<",
+        BinaryOp::Le => "<=",
+        BinaryOp::Gt => ">",
+        BinaryOp::Ge => ">=",
+        BinaryOp::Shl => "<<",
+        BinaryOp::Shr => ">>",
     }
 }
 
 fn unary_op_to_str(op: UnaryOp) -> &'static str {
     match op {
-        UnaryOp::Neg => "-", UnaryOp::Not => "!",
+        UnaryOp::Neg => "-",
+        UnaryOp::Not => "!",
     }
 }
 
@@ -159,7 +218,9 @@ pub fn format_golden_fixture(module: &PirModule) -> String {
         for ext in &module.extern_functions {
             s += &format!("  {}(", ext.name);
             for (i, p) in ext.params.iter().enumerate() {
-                if i > 0 { s += ", "; }
+                if i > 0 {
+                    s += ", ";
+                }
                 s += &format!("{}: {} [{:?} {:?}]", p.name, p.ty, p.quantity, p.mutability);
             }
             s += ")";
@@ -176,13 +237,13 @@ pub fn format_golden_fixture(module: &PirModule) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::access_relation::{AccessRelation, AccessRelations, AccessType};
     use super::super::affine_domain::AffineDomain;
     use super::super::affine_map::{AffineMap, Matrix};
+    use super::super::pir_types::{PirExpr, PirModule, PirStatement, QuantityMap};
     use super::super::schedule_tree::{ScheduleNode, ScheduleTree, StmtId};
-    use super::super::access_relation::{AccessRelation, AccessRelations, AccessType};
-    use super::super::pir_types::{PirModule, PirStatement, PirExpr, QuantityMap};
-    use crate::ast::{Quantity, Mutability};
+    use super::*;
+    use crate::ast::{Mutability, Quantity};
 
     #[test]
     fn test_pir_to_string() {
@@ -210,7 +271,12 @@ mod tests {
         );
 
         let mut accesses = AccessRelations::new();
-        accesses.add(AccessRelation::new(StmtId(0), domain.clone(), map, AccessType::Write));
+        accesses.add(AccessRelation::new(
+            StmtId(0),
+            domain.clone(),
+            map,
+            AccessType::Write,
+        ));
 
         let mut quantities = QuantityMap::new();
         quantities.insert("x".to_string(), Quantity::Many);
@@ -248,13 +314,20 @@ mod tests {
         );
 
         let mut accesses = AccessRelations::new();
-        accesses.add(AccessRelation::new(StmtId(0), domain, map, AccessType::Write)
-            .with_array_name("A"));
+        accesses.add(
+            AccessRelation::new(StmtId(0), domain, map, AccessType::Write).with_array_name("A"),
+        );
 
         let mut quantities = QuantityMap::new();
         quantities.insert("n".to_string(), Quantity::Zero);
 
-        let module = PirModule::new(vec![stmt], schedule, accesses, quantities, vec!["N".to_string()]);
+        let module = PirModule::new(
+            vec![stmt],
+            schedule,
+            accesses,
+            quantities,
+            vec!["N".to_string()],
+        );
 
         let fixture = format_golden_fixture(&module);
         assert!(fixture.contains("[parameters]"));

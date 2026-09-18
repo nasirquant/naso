@@ -45,9 +45,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Look at the current token kind without consuming it.
-        pub fn peek(&self) -> Option<&TK> {
-            self.tokens.get(self.pos).map(|t| &t.kind)
-        }
+    pub fn peek(&self) -> Option<&TK> {
+        self.tokens.get(self.pos).map(|t| &t.kind)
+    }
 
     /// Look at the current token without consuming it.
     fn peek_token(&self) -> Option<&Token> {
@@ -71,7 +71,9 @@ impl<'a> Parser<'a> {
             other => panic!(
                 "parse error: expected `{}`, found {} at token {}",
                 kind.display_name(),
-                other.map(|k| k.to_string()).unwrap_or_else(|| "end of input".to_string()),
+                other
+                    .map(|k| k.to_string())
+                    .unwrap_or_else(|| "end of input".to_string()),
                 self.pos,
             ),
         }
@@ -111,7 +113,10 @@ impl<'a> Parser<'a> {
 
     /// Create a [`Span`] covering the tokens consumed since position `start`.
     pub fn span_from(&self, start: usize) -> Span {
-        match (self.tokens.get(start), self.tokens.get(self.pos.saturating_sub(1))) {
+        match (
+            self.tokens.get(start),
+            self.tokens.get(self.pos.saturating_sub(1)),
+        ) {
             (Some(f), Some(l)) => Span::new(
                 f.span.start as u32,
                 l.span.end as u32,
@@ -181,7 +186,9 @@ impl<'a> Parser<'a> {
         let name = match self.bump() {
             Some(t) => match &t.kind {
                 TK::Ident(s) | TK::TypeIdent(s) => s.clone(),
-                other => panic!("parse error: expected identifier, found `{other}` at token {start}"),
+                other => {
+                    panic!("parse error: expected identifier, found `{other}` at token {start}")
+                }
             },
             None => panic!("parse error: expected identifier, found end of input"),
         };
@@ -521,7 +528,12 @@ impl<'a> Parser<'a> {
         let value = self.parse_expr();
         self.eat(TK::Semicolon);
         let span = self.span_from(start);
-        ConstDef { name, ty, value, span }
+        ConstDef {
+            name,
+            ty,
+            value,
+            span,
+        }
     }
 
     fn parse_import(&mut self) -> Import {
@@ -643,7 +655,8 @@ mod tests {
 
     #[test]
     fn parses_function_with_quantity_markers() {
-        let prog = parse_program("fn f(x: [1] Qubit) -> Qubit { return x; }").expect("parse failed");
+        let prog =
+            parse_program("fn f(x: [1] Qubit) -> Qubit { return x; }").expect("parse failed");
         let func = match &prog.items[0] {
             Item::Function(f) => f,
             other => panic!("expected function, got {other:?}"),

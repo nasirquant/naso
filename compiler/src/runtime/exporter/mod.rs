@@ -1,3 +1,4 @@
+use crate::ast::Quantity;
 /// Hardware Backend Exporter
 ///
 /// Provides a unified trait for exporting QIR modules to various hardware backends
@@ -5,7 +6,6 @@
 
 #[cfg(feature = "llvm")]
 use crate::codegen::qir::QIRModule;
-use crate::ast::Quantity;
 use thiserror::Error;
 
 /// Target backend for hardware export
@@ -141,14 +141,21 @@ impl ExporterFactory {
     /// Create an exporter for the given backend
     pub fn create(backend: TargetBackend) -> Box<dyn HardwareExporter> {
         match backend {
-            TargetBackend::OpenQASM3 => Box::new(crate::runtime::exporter::openqasm::OpenQASMExporter::new()),
-            TargetBackend::Braket => Box::new(crate::runtime::exporter::braket::BraketExporter::new()),
+            TargetBackend::OpenQASM3 => {
+                Box::new(crate::runtime::exporter::openqasm::OpenQASMExporter::new())
+            }
+            TargetBackend::Braket => {
+                Box::new(crate::runtime::exporter::braket::BraketExporter::new())
+            }
             _ => Box::new(UnsupportedExporter::new(backend)),
         }
     }
 
     /// Export using the factory (convenience method)
-    pub fn export(module: &QIRModule, backend: TargetBackend) -> Result<ExportResult, ExporterError> {
+    pub fn export(
+        module: &QIRModule,
+        backend: TargetBackend,
+    ) -> Result<ExportResult, ExporterError> {
         let exporter = Self::create(backend);
         exporter.export(module)
     }
@@ -188,10 +195,22 @@ mod tests {
 
     #[test]
     fn test_backend_parsing() {
-        assert_eq!("openqasm3".parse::<TargetBackend>().unwrap(), TargetBackend::OpenQASM3);
-        assert_eq!("braket".parse::<TargetBackend>().unwrap(), TargetBackend::Braket);
-        assert_eq!("ibm".parse::<TargetBackend>().unwrap(), TargetBackend::IBMQuantum);
-        assert_eq!("ionq".parse::<TargetBackend>().unwrap(), TargetBackend::IonQ);
+        assert_eq!(
+            "openqasm3".parse::<TargetBackend>().unwrap(),
+            TargetBackend::OpenQASM3
+        );
+        assert_eq!(
+            "braket".parse::<TargetBackend>().unwrap(),
+            TargetBackend::Braket
+        );
+        assert_eq!(
+            "ibm".parse::<TargetBackend>().unwrap(),
+            TargetBackend::IBMQuantum
+        );
+        assert_eq!(
+            "ionq".parse::<TargetBackend>().unwrap(),
+            TargetBackend::IonQ
+        );
         assert!("unknown".parse::<TargetBackend>().is_err());
     }
 

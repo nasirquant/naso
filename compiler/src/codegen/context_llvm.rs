@@ -8,15 +8,17 @@ use super::context_core::{CodegenTarget, OptLevel};
 #[cfg(feature = "llvm")]
 use crate::codegen::error::{CodegenError, CodegenResult};
 #[cfg(feature = "llvm")]
+use inkwell::OptimizationLevel;
+#[cfg(feature = "llvm")]
 use inkwell::context::Context as LlvmContext;
 #[cfg(feature = "llvm")]
-use inkwell::targets::{Target, TargetMachine, TargetTriple, InitializationConfig, CodeModel, RelocMode, FileType};
-#[cfg(feature = "llvm")]
-use inkwell::OptimizationLevel;
+use inkwell::targets::{
+    CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
+};
 #[cfg(feature = "llvm")]
 use std::path::Path;
 #[cfg(feature = "llvm")]
-use target_lexicon::{Triple, Architecture, OperatingSystem, Environment, BinaryFormat};
+use target_lexicon::{Architecture, BinaryFormat, Environment, OperatingSystem, Triple};
 
 #[cfg(feature = "llvm")]
 /// LLVM-specific code generation context
@@ -43,7 +45,11 @@ impl CodegenContext {
     }
 
     /// Create a new codegen context with debug info option
-    pub fn with_debug(target: CodegenTarget, opt_level: OptLevel, emit_debug: bool) -> CodegenResult<Self> {
+    pub fn with_debug(
+        target: CodegenTarget,
+        opt_level: OptLevel,
+        emit_debug: bool,
+    ) -> CodegenResult<Self> {
         // Initialize LLVM targets
         Target::initialize_all(&InitializationConfig::default());
 
@@ -66,14 +72,21 @@ impl CodegenContext {
                 RelocMode::Default,
                 CodeModel::Default,
             )
-            .ok_or_else(|| CodegenError::TargetError("Failed to create target machine".to_string()))?;
+            .ok_or_else(|| {
+                CodegenError::TargetError("Failed to create target machine".to_string())
+            })?;
 
-        let data_layout = target_machine.get_target_data().get_data_layout().to_string();
+        let data_layout = target_machine
+            .get_target_data()
+            .get_data_layout()
+            .to_string();
 
         Ok(Self {
             llvm_context,
             target_machine,
-            target_triple: target_triple_str.parse().map_err(|e| CodegenError::TargetError(format!("Invalid target triple: {}", e)))?,
+            target_triple: target_triple_str
+                .parse()
+                .map_err(|e| CodegenError::TargetError(format!("Invalid target triple: {}", e)))?,
             opt_level,
             data_layout,
             emit_debug,
@@ -116,17 +129,27 @@ impl CodegenContext {
     }
 
     /// Write the module to an object file
-    pub fn write_object_file(&self, module: &inkwell::module::Module, path: &Path) -> CodegenResult<()> {
+    pub fn write_object_file(
+        &self,
+        module: &inkwell::module::Module,
+        path: &Path,
+    ) -> CodegenResult<()> {
         self.target_machine
             .write_to_file(module, FileType::Object, path)
             .map_err(|e| CodegenError::EmissionError(format!("Failed to write object file: {}", e)))
     }
 
     /// Write the module to assembly file
-    pub fn write_assembly_file(&self, module: &inkwell::module::Module, path: &Path) -> CodegenResult<()> {
+    pub fn write_assembly_file(
+        &self,
+        module: &inkwell::module::Module,
+        path: &Path,
+    ) -> CodegenResult<()> {
         self.target_machine
             .write_to_file(module, FileType::Assembly, path)
-            .map_err(|e| CodegenError::EmissionError(format!("Failed to write assembly file: {}", e)))
+            .map_err(|e| {
+                CodegenError::EmissionError(format!("Failed to write assembly file: {}", e))
+            })
     }
 
     /// Get target architecture
@@ -186,9 +209,9 @@ fn to_inkwell_triple(triple: &Triple) -> TargetTriple {
 
 // Stub implementation when llvm feature is not enabled
 #[cfg(not(feature = "llvm"))]
-use crate::codegen::error::{CodegenError, CodegenResult};
-#[cfg(not(feature = "llvm"))]
 use super::context_core::{CodegenTarget, OptLevel};
+#[cfg(not(feature = "llvm"))]
+use crate::codegen::error::{CodegenError, CodegenResult};
 
 #[cfg(not(feature = "llvm"))]
 /// Stub CodegenContext when LLVM is not available
@@ -198,12 +221,20 @@ pub struct CodegenContext;
 impl CodegenContext {
     /// Create a new codegen context (stub - returns error)
     pub fn new(_target: CodegenTarget, _opt_level: OptLevel) -> CodegenResult<Self> {
-        Err(CodegenError::UnsupportedFeature("LLVM backend not enabled. Compile with 'llvm' feature.".to_string()))
+        Err(CodegenError::UnsupportedFeature(
+            "LLVM backend not enabled. Compile with 'llvm' feature.".to_string(),
+        ))
     }
 
     /// Create a new codegen context with debug info option (stub - returns error)
-    pub fn with_debug(_target: CodegenTarget, _opt_level: OptLevel, _emit_debug: bool) -> CodegenResult<Self> {
-        Err(CodegenError::UnsupportedFeature("LLVM backend not enabled. Compile with 'llvm' feature.".to_string()))
+    pub fn with_debug(
+        _target: CodegenTarget,
+        _opt_level: OptLevel,
+        _emit_debug: bool,
+    ) -> CodegenResult<Self> {
+        Err(CodegenError::UnsupportedFeature(
+            "LLVM backend not enabled. Compile with 'llvm' feature.".to_string(),
+        ))
     }
 }
 

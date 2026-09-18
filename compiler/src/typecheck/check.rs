@@ -7,12 +7,12 @@
 //! - [N] bounded variables: consumed at most N times
 //! - [*] unrestricted: any number of uses
 
+use crate::ast::expr::{LetBinding, LetConsumeBinding, LetInOutBinding};
 use crate::ast::*;
-use crate::ast::expr::{LetBinding, LetInOutBinding, LetConsumeBinding};
+use crate::typecheck::constraints::{is_erasable, qty_subtype};
 use crate::typecheck::error::TypeError;
-use crate::typecheck::*;
 use crate::typecheck::inference::infer_expr;
-use crate::typecheck::constraints::{qty_subtype, is_erasable};
+use crate::typecheck::*;
 
 /// Check an expression against an expected type (Check mode)
 pub fn check_expr(
@@ -130,7 +130,12 @@ fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeEr
     }
 
     // Validate quantity/mutability combinations
-    validate_binding_quantity_mutability(&binding.name, binding.quantity, binding.mutability, binding.span)?;
+    validate_binding_quantity_mutability(
+        &binding.name,
+        binding.quantity,
+        binding.mutability,
+        binding.span,
+    )?;
 
     Ok(())
 }
@@ -257,10 +262,12 @@ fn check_pure_statement(checker: &mut TypeChecker, stmt: &Stmt) -> Result<(), Ty
 fn check_pure_expr(checker: &mut TypeChecker, expr: &Expr) -> Result<(), TypeError> {
     match &expr.kind {
         ExprKind::QuantumOp(qop) => match qop {
-            QuantumOp::Measure(_) | QuantumOp::Hamiltonian(_, _) => Err(TypeError::ImpureInReversible {
-                operation: "quantum measurement/hamiltonian".to_string(),
-                span: expr.span,
-            }),
+            QuantumOp::Measure(_) | QuantumOp::Hamiltonian(_, _) => {
+                Err(TypeError::ImpureInReversible {
+                    operation: "quantum measurement/hamiltonian".to_string(),
+                    span: expr.span,
+                })
+            }
             _ => Ok(()),
         },
         ExprKind::Call(callee, _) => {
@@ -362,21 +369,20 @@ pub fn check_pattern(
         }
         PatternKind::Struct(name, fields) => {
             // Look up struct type - clone the fields we need to avoid borrow issues
-            let struct_fields = checker
-                .env
-                .lookup_type(name)
-                .and_then(|td| {
-                    if let TypeDefKind::Struct(fields) = &td.kind {
-                        Some(fields.clone())
-                    } else {
-                        None
-                    }
-                });
+            let struct_fields = checker.env.lookup_type(name).and_then(|td| {
+                if let TypeDefKind::Struct(fields) = &td.kind {
+                    Some(fields.clone())
+                } else {
+                    None
+                }
+            });
 
             if let Some(struct_fields) = struct_fields {
                 for field_pat in fields {
-                    if let Some(field_def) = struct_fields.iter().find(|f| f.name == field_pat.name) {
-                        let field_bindings = checker.check_pattern(&field_pat.pattern, &field_def.ty)?;
+                    if let Some(field_def) = struct_fields.iter().find(|f| f.name == field_pat.name)
+                    {
+                        let field_bindings =
+                            checker.check_pattern(&field_pat.pattern, &field_def.ty)?;
                         bindings.extend(field_bindings);
                     }
                 }
@@ -385,16 +391,16 @@ pub fn check_pattern(
         }
         PatternKind::Variant(enum_name, variant_name, fields) => {
             // Look up enum variant - clone the fields we need to avoid borrow issues
-            let variant_fields = checker
-                .env
-                .lookup_type(enum_name)
-                .and_then(|td| {
-                    if let TypeDefKind::Enum(variants) = &td.kind {
-                        variants.iter().find(|v| v.name == *variant_name).map(|v| v.fields.clone())
-                    } else {
-                        None
-                    }
-                });
+            let variant_fields = checker.env.lookup_type(enum_name).and_then(|td| {
+                if let TypeDefKind::Enum(variants) = &td.kind {
+                    variants
+                        .iter()
+                        .find(|v| v.name == *variant_name)
+                        .map(|v| v.fields.clone())
+                } else {
+                    None
+                }
+            });
 
             if let Some(variant_fields) = variant_fields {
                 for (field_pat, field_def) in fields.iter().zip(&variant_fields) {
@@ -593,7 +599,9 @@ fn check_let_consume(checker: &mut TypeChecker, stmt: &LetConsumeStmt) -> Result
     let place = expr_to_place(&binding.value)?;
 
     // Mark the source variable as moved
-    checker.env.move_var(&place_to_ident(&place), binding.span)?;
+    checker
+        .env
+        .move_var(&place_to_ident(&place), binding.span)?;
 
     // Bind as consume with the inferred type
     checker.env.bind_var(

@@ -14,7 +14,7 @@ use std::fmt;
 pub struct Matrix {
     pub rows: usize,
     pub cols: usize,
-    pub data: Vec<i64>, // row-major
+    pub data: Vec<i64>,     // row-major
     pub constant: Vec<i64>, // translation vector
 }
 
@@ -225,7 +225,10 @@ pub struct AffineMapPiece {
 
 impl AffineMapPiece {
     pub fn new(domain: AffineDomain, matrix: Matrix) -> Self {
-        assert_eq!(domain.dims, matrix.cols, "Domain dims must match matrix cols");
+        assert_eq!(
+            domain.dims, matrix.cols,
+            "Domain dims must match matrix cols"
+        );
         Self { domain, matrix }
     }
 
@@ -330,7 +333,11 @@ impl fmt::Display for AffineMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "AffineMap({} pieces)", self.pieces.len())?;
         for (i, piece) in self.pieces.iter().enumerate() {
-            write!(f, "\n  Piece {}: domain={:?}, matrix={}", i, piece.domain.name, piece.matrix)?;
+            write!(
+                f,
+                "\n  Piece {}: domain={:?}, matrix={}",
+                i, piece.domain.name, piece.matrix
+            )?;
         }
         Ok(())
     }
@@ -356,7 +363,10 @@ mod tests {
         m.set_const(0, 5);
         m.set_const(1, -2);
 
-        assert_eq!(m.apply(&[1, 2]), vec![2*1 + 3*2 + 5, 1*1 + (-1)*2 - 2]);
+        assert_eq!(
+            m.apply(&[1, 2]),
+            vec![2 * 1 + 3 * 2 + 5, 1 * 1 + (-1) * 2 - 2]
+        );
     }
 
     #[test]

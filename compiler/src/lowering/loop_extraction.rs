@@ -2,7 +2,7 @@
 //!
 //! Extract loop nest structure from statements and convert to schedule tree bands.
 
-use crate::ast::{Stmt, Expr};
+use crate::ast::{Expr, Stmt};
 
 /// Extract loop nest structure from statements
 pub fn extract_loop_nest(stmt: &Stmt) -> Option<LoopNest> {
@@ -21,6 +21,9 @@ pub struct LoopNest {
 }
 
 /// Convert loop nest to schedule tree bands
-pub fn loop_nest_to_bands(nest: &LoopNest, ctx: &mut super::LoweringContext) -> Result<Vec<crate::ir::ScheduleNode>, super::LoweringError> {
+pub fn loop_nest_to_bands(
+    nest: &LoopNest,
+    ctx: &mut super::LoweringContext,
+) -> Result<Vec<crate::ir::ScheduleNode>, super::LoweringError> {
     Ok(Vec::<crate::ir::ScheduleNode>::new())
 }

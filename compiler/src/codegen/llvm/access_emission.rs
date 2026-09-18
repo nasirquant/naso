@@ -3,15 +3,15 @@
 //! Lowers PIR AccessRelations to LLVM GEP, load, and store instructions.
 //! Handles alias.scope metadata for [1]-quantity linearity verification.
 
+use crate::ast::Quantity;
 use crate::codegen::error::{CodegenError, CodegenResult};
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::{
     access_relation::{AccessRelation, AccessType},
     pir_types::PirExpr,
 };
-use crate::ast::Quantity;
-use inkwell::values::{BasicValueEnum, PointerValue};
 use inkwell::types::BasicTypeEnum;
+use inkwell::values::{BasicValueEnum, PointerValue};
 
 /// Access emitter for memory operations
 pub struct AccessEmitter<'ctx> {
@@ -71,7 +71,14 @@ impl<'ctx> AccessEmitter<'ctx> {
     ) -> CodegenResult<PointerValue<'ctx>> {
         // Look up the array name in variables
         if let Some(array_name) = &access.array_name {
-            if let Some(ptr) = value_builder.builder().get_insert_block().unwrap().get_parent().unwrap().get_param(0) {
+            if let Some(ptr) = value_builder
+                .builder()
+                .get_insert_block()
+                .unwrap()
+                .get_parent()
+                .unwrap()
+                .get_param(0)
+            {
                 // Simplified: assume first parameter is the array
                 return Ok(ptr.into_pointer_value());
             }
@@ -82,7 +89,9 @@ impl<'ctx> AccessEmitter<'ctx> {
         }
 
         // Return a dummy pointer for now
-        let int_type = value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64);
+        let int_type = value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64);
         let zero = value_builder.build_int_constant(int_type, 0, "null")?;
         let ptr_type = int_type.ptr_type(inkwell::AddressSpace::default());
         Ok(ptr_type.const_null())
@@ -108,14 +117,24 @@ impl<'ctx> AccessEmitter<'ctx> {
                         // Get the value for this dimension (induction variable or parameter)
                         let dim_val = self.get_dimension_value(value_builder, dim)?;
                         let coeff_val = value_builder.build_int_constant(
-                            value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64),
+                            value_builder
+                                .type_lowering()
+                                .int_type(crate::codegen::abi::IntWidth::I64),
                             coeff as u64,
                             "coeff",
                         )?;
-                        let term = value_builder.build_int_mul(dim_val.into_int_value(), coeff_val.into_int_value(), "term")?;
-                        
+                        let term = value_builder.build_int_mul(
+                            dim_val.into_int_value(),
+                            coeff_val.into_int_value(),
+                            "term",
+                        )?;
+
                         if let Some(current) = expr_val {
-                            expr_val = Some(value_builder.build_int_add(current.into_int_value(), term, "sum")?.into());
+                            expr_val = Some(
+                                value_builder
+                                    .build_int_add(current.into_int_value(), term, "sum")?
+                                    .into(),
+                            );
                         } else {
                             expr_val = Some(term.into());
                         }
@@ -138,8 +157,12 @@ impl<'ctx> AccessEmitter<'ctx> {
     ) -> CodegenResult<BasicValueEnum<'ctx>> {
         // In a real implementation, this would look up the induction variable
         // or parameter value from the current scope
-        let int_type = value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64);
-        Ok(value_builder.build_int_constant(int_type, 0, &format!("dim_{}", dim))?.into())
+        let int_type = value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64);
+        Ok(value_builder
+            .build_int_constant(int_type, 0, &format!("dim_{}", dim))?
+            .into())
     }
 
     /// Build GEP instruction
@@ -152,8 +175,13 @@ impl<'ctx> AccessEmitter<'ctx> {
     ) -> CodegenResult<PointerValue<'ctx>> {
         // Get the element type from the access map output
         let elem_type = self.get_element_type(value_builder, access)?;
-        
-        value_builder.build_gep(elem_type, base_ptr, indices, &format!("gep_{}", access.array_name.as_deref().unwrap_or("mem")))
+
+        value_builder.build_gep(
+            elem_type,
+            base_ptr,
+            indices,
+            &format!("gep_{}", access.array_name.as_deref().unwrap_or("mem")),
+        )
     }
 
     /// Get element type for GEP
@@ -164,7 +192,10 @@ impl<'ctx> AccessEmitter<'ctx> {
     ) -> CodegenResult<BasicTypeEnum<'ctx>> {
         // Simplified: return i64 for now
         // Real implementation would derive from array type
-        Ok(value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64).into())
+        Ok(value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64)
+            .into())
     }
 
     /// Add alias.scope metadata for [1]-quantity variables
@@ -212,7 +243,9 @@ impl<'ctx> AccessEmitter<'ctx> {
         _access: &AccessRelation,
     ) -> CodegenResult<()> {
         // Need a value to store - for now store zero
-        let int_type = value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64);
+        let int_type = value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64);
         let zero = value_builder.build_int_constant(int_type, 0, "store_zero")?;
         value_builder.build_store(gep, zero.into())?;
         Ok(())
@@ -227,7 +260,9 @@ impl<'ctx> AccessEmitter<'ctx> {
     ) -> CodegenResult<()> {
         // Load current value, add new value, store back
         let loaded = self.emit_load(value_builder, gep, _access)?;
-        let int_type = value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64);
+        let int_type = value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64);
         let one = value_builder.build_int_constant(int_type, 1, "red_one")?;
         let result = value_builder.build_int_add(loaded.into_int_value(), one, "red_add")?;
         value_builder.build_store(gep, result.into())?;

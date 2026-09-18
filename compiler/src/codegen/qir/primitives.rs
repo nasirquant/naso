@@ -3,8 +3,8 @@
 //! Defines QIR primitive types and intrinsic functions per Microsoft QIR spec.
 
 use crate::codegen::qir::module_builder::QIRModuleBuilder;
-use inkwell::types::{BasicTypeEnum, FunctionType, IntType, PointerType, VoidType};
 use inkwell::AddressSpace;
+use inkwell::types::{BasicTypeEnum, FunctionType, IntType, PointerType, VoidType};
 
 /// QIR Primitive Types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,7 +14,10 @@ pub enum QirPrimitive {
     /// Measurement result (i1)
     Result,
     /// Pauli operators
-    PauliI, PauliX, PauliY, PauliZ,
+    PauliI,
+    PauliX,
+    PauliY,
+    PauliZ,
     /// Rotation angles
     Double,
 }
@@ -25,9 +28,10 @@ impl QirPrimitive {
         match self {
             QirPrimitive::Qubit => builder.qubit_type().into(),
             QirPrimitive::Result => builder.result_type().into(),
-            QirPrimitive::PauliI | QirPrimitive::PauliX | QirPrimitive::PauliY | QirPrimitive::PauliZ => {
-                builder.llvm_context().i8_type().into()
-            }
+            QirPrimitive::PauliI
+            | QirPrimitive::PauliX
+            | QirPrimitive::PauliY
+            | QirPrimitive::PauliZ => builder.llvm_context().i8_type().into(),
             QirPrimitive::Double => builder.llvm_context().f64_type().into(),
         }
     }
@@ -72,18 +76,34 @@ impl QirIntrinsic {
             QirIntrinsicRetType::Result => builder.result_type().into(),
             QirIntrinsicRetType::Double => builder.llvm_context().f64_type().into(),
             QirIntrinsicRetType::Int(w) => builder.llvm_context().custom_width_int_type(w).into(),
-            QirIntrinsicRetType::Ptr => builder.llvm_context().ptr_type(AddressSpace::from(0)).into(),
+            QirIntrinsicRetType::Ptr => builder
+                .llvm_context()
+                .ptr_type(AddressSpace::from(0))
+                .into(),
         };
 
-        let params: Vec<BasicTypeEnum<'ctx>> = self.param_types.iter()
+        let params: Vec<BasicTypeEnum<'ctx>> = self
+            .param_types
+            .iter()
             .map(|p| match p {
                 QirIntrinsicParamType::Qubit => builder.qubit_type().into(),
                 QirIntrinsicParamType::Result => builder.result_type().into(),
                 QirIntrinsicParamType::Double => builder.llvm_context().f64_type().into(),
-                QirIntrinsicParamType::Int(w) => builder.llvm_context().custom_width_int_type(*w).into(),
-                QirIntrinsicParamType::Ptr => builder.llvm_context().ptr_type(AddressSpace::from(0)).into(),
-                QirIntrinsicParamType::QubitArray => builder.llvm_context().ptr_type(AddressSpace::from(0)).into(),
-                QirIntrinsicParamType::ResultArray => builder.llvm_context().ptr_type(AddressSpace::from(0)).into(),
+                QirIntrinsicParamType::Int(w) => {
+                    builder.llvm_context().custom_width_int_type(*w).into()
+                }
+                QirIntrinsicParamType::Ptr => builder
+                    .llvm_context()
+                    .ptr_type(AddressSpace::from(0))
+                    .into(),
+                QirIntrinsicParamType::QubitArray => builder
+                    .llvm_context()
+                    .ptr_type(AddressSpace::from(0))
+                    .into(),
+                QirIntrinsicParamType::ResultArray => builder
+                    .llvm_context()
+                    .ptr_type(AddressSpace::from(0))
+                    .into(),
             })
             .collect();
 
@@ -118,7 +138,6 @@ pub const QIR_INTRINSICS: &[QirIntrinsic] = &[
         param_types: &[QirIntrinsicParamType::QubitArray],
         is_var_args: false,
     },
-
     // Single-qubit gates
     QirIntrinsic {
         name: "qir.h",
@@ -186,7 +205,6 @@ pub const QIR_INTRINSICS: &[QirIntrinsic] = &[
         param_types: &[QirIntrinsicParamType::Double, QirIntrinsicParamType::Qubit],
         is_var_args: false,
     },
-
     // Two-qubit gates
     QirIntrinsic {
         name: "qir.cx",
@@ -209,7 +227,11 @@ pub const QIR_INTRINSICS: &[QirIntrinsic] = &[
     QirIntrinsic {
         name: "qir.ccx",
         ret_type: QirIntrinsicRetType::Void,
-        param_types: &[QirIntrinsicParamType::Qubit, QirIntrinsicParamType::Qubit, QirIntrinsicParamType::Qubit],
+        param_types: &[
+            QirIntrinsicParamType::Qubit,
+            QirIntrinsicParamType::Qubit,
+            QirIntrinsicParamType::Qubit,
+        ],
         is_var_args: false,
     },
     QirIntrinsic {
@@ -224,7 +246,6 @@ pub const QIR_INTRINSICS: &[QirIntrinsic] = &[
         param_types: &[QirIntrinsicParamType::Qubit, QirIntrinsicParamType::Qubit],
         is_var_args: false,
     },
-
     // Measurement
     QirIntrinsic {
         name: "qir.mz",
@@ -250,7 +271,6 @@ pub const QIR_INTRINSICS: &[QirIntrinsic] = &[
         param_types: &[QirIntrinsicParamType::Qubit, QirIntrinsicParamType::Int(8)],
         is_var_args: false,
     },
-
     // Result handling
     QirIntrinsic {
         name: "qir.result_record",
@@ -276,26 +296,35 @@ pub const QIR_INTRINSICS: &[QirIntrinsic] = &[
         param_types: &[QirIntrinsicParamType::Result, QirIntrinsicParamType::Result],
         is_var_args: false,
     },
-
     // Array operations
     QirIntrinsic {
         name: "qir.array_record",
         ret_type: QirIntrinsicRetType::Void,
-        param_types: &[QirIntrinsicParamType::ResultArray, QirIntrinsicParamType::Result],
+        param_types: &[
+            QirIntrinsicParamType::ResultArray,
+            QirIntrinsicParamType::Result,
+        ],
         is_var_args: false,
     },
     QirIntrinsic {
         name: "qir.array_update",
         ret_type: QirIntrinsicRetType::Void,
-        param_types: &[QirIntrinsicParamType::ResultArray, QirIntrinsicParamType::Result, QirIntrinsicParamType::Int(64)],
+        param_types: &[
+            QirIntrinsicParamType::ResultArray,
+            QirIntrinsicParamType::Result,
+            QirIntrinsicParamType::Int(64),
+        ],
         is_var_args: false,
     },
-
     // Control flow (for adaptive profile)
     QirIntrinsic {
         name: "qir.if",
         ret_type: QirIntrinsicRetType::Void,
-        param_types: &[QirIntrinsicParamType::Result, QirIntrinsicParamType::Ptr, QirIntrinsicParamType::Ptr],
+        param_types: &[
+            QirIntrinsicParamType::Result,
+            QirIntrinsicParamType::Ptr,
+            QirIntrinsicParamType::Ptr,
+        ],
         is_var_args: false,
     },
     QirIntrinsic {
@@ -304,7 +333,6 @@ pub const QIR_INTRINSICS: &[QirIntrinsic] = &[
         param_types: &[QirIntrinsicParamType::Ptr, QirIntrinsicParamType::Ptr],
         is_var_args: false,
     },
-
     // Adjoint/Controlled (for reusable operations)
     QirIntrinsic {
         name: "qir.adjoint",
@@ -315,10 +343,12 @@ pub const QIR_INTRINSICS: &[QirIntrinsic] = &[
     QirIntrinsic {
         name: "qir.controlled",
         ret_type: QirIntrinsicRetType::Void,
-        param_types: &[QirIntrinsicParamType::QubitArray, QirIntrinsicParamType::Ptr],
+        param_types: &[
+            QirIntrinsicParamType::QubitArray,
+            QirIntrinsicParamType::Ptr,
+        ],
         is_var_args: false,
     },
-
     // Profiling/debugging
     QirIntrinsic {
         name: "qir.profiler_record",
@@ -366,11 +396,24 @@ mod tests {
     #[test]
     fn test_all_required_intrinsics() {
         let required = [
-            "qir.mz", "qir.mx", "qir.my", "qir.h", "qir.x", "qir.cx", 
-            "qir.ccx", "qir.t", "qir.s", "qir.rz", "qir.r1", "qir.rt1",
-            "qir.qubit_alloc", "qir.qubit_release", "qir.result_record", "qir.result_update"
+            "qir.mz",
+            "qir.mx",
+            "qir.my",
+            "qir.h",
+            "qir.x",
+            "qir.cx",
+            "qir.ccx",
+            "qir.t",
+            "qir.s",
+            "qir.rz",
+            "qir.r1",
+            "qir.rt1",
+            "qir.qubit_alloc",
+            "qir.qubit_release",
+            "qir.result_record",
+            "qir.result_update",
         ];
-        
+
         for name in required {
             assert!(get_intrinsic(name).is_some(), "Missing intrinsic: {}", name);
         }

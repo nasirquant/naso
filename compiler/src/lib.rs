@@ -12,5 +12,5 @@ pub mod parser;
 pub mod runtime;
 pub mod typecheck;
 
-pub use ast::*;
 pub use ast::Program;
+pub use ast::*;

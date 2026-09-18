@@ -115,7 +115,10 @@ pub mod walk {
     use crate::ast::Visitor;
     use crate::ast::*;
 
-    pub fn walk_program<V: Visitor>(visitor: &mut V, program: &Program) -> Result<VisitOutcome, V::Err> {
+    pub fn walk_program<V: Visitor>(
+        visitor: &mut V,
+        program: &Program,
+    ) -> Result<VisitOutcome, V::Err> {
         for item in &program.items {
             if visitor.visit_item(item)? == VisitOutcome::Stop {
                 return Ok(VisitOutcome::Stop);
@@ -205,17 +208,11 @@ pub mod walk {
         visitor.visit_expr(&constant.value)
     }
 
-    pub fn walk_param<V: Visitor>(
-        visitor: &mut V,
-        param: &Param,
-    ) -> Result<VisitOutcome, V::Err> {
+    pub fn walk_param<V: Visitor>(visitor: &mut V, param: &Param) -> Result<VisitOutcome, V::Err> {
         visitor.visit_type(&param.ty)
     }
 
-    pub fn walk_block<V: Visitor>(
-        visitor: &mut V,
-        block: &Block,
-    ) -> Result<VisitOutcome, V::Err> {
+    pub fn walk_block<V: Visitor>(visitor: &mut V, block: &Block) -> Result<VisitOutcome, V::Err> {
         for stmt in &block.stmts {
             if visitor.visit_stmt(stmt)? == VisitOutcome::Stop {
                 return Ok(VisitOutcome::Stop);
@@ -245,22 +242,21 @@ pub mod walk {
                 Ok(VisitOutcome::Continue)
             }
             StmtKind::Item(i) => visitor.visit_item(i),
-            StmtKind::Return(opt) => opt.as_ref().map_or(Ok(VisitOutcome::Continue), |e| visitor.visit_expr(e)),
-            StmtKind::Break(opt) => opt.as_ref().map_or(Ok(VisitOutcome::Continue), |e| visitor.visit_expr(e)),
+            StmtKind::Return(opt) => opt
+                .as_ref()
+                .map_or(Ok(VisitOutcome::Continue), |e| visitor.visit_expr(e)),
+            StmtKind::Break(opt) => opt
+                .as_ref()
+                .map_or(Ok(VisitOutcome::Continue), |e| visitor.visit_expr(e)),
             StmtKind::Continue => Ok(VisitOutcome::Continue),
             StmtKind::Empty | StmtKind::Error => Ok(VisitOutcome::Continue),
         }
     }
 
-    pub fn walk_expr<V: Visitor>(
-        visitor: &mut V,
-        expr: &Expr,
-    ) -> Result<VisitOutcome, V::Err> {
+    pub fn walk_expr<V: Visitor>(visitor: &mut V, expr: &Expr) -> Result<VisitOutcome, V::Err> {
         use crate::ast::ExprKind;
         match &expr.kind {
-            ExprKind::Literal(_) | ExprKind::Var(_) | ExprKind::Error => {
-                Ok(VisitOutcome::Continue)
-            }
+            ExprKind::Literal(_) | ExprKind::Var(_) | ExprKind::Error => Ok(VisitOutcome::Continue),
             ExprKind::Binary(_, l, r) => {
                 if visitor.visit_expr(l)? == VisitOutcome::Stop {
                     return Ok(VisitOutcome::Stop);
@@ -432,10 +428,7 @@ pub mod walk {
         }
     }
 
-    pub fn walk_type<V: Visitor>(
-        visitor: &mut V,
-        ty: &Type,
-    ) -> Result<VisitOutcome, V::Err> {
+    pub fn walk_type<V: Visitor>(visitor: &mut V, ty: &Type) -> Result<VisitOutcome, V::Err> {
         match &ty.kind {
             TypeKind::Projection(inner) | TypeKind::Reversible(inner) => visitor.visit_type(inner),
             TypeKind::Function(params, ret) => {
@@ -508,4 +501,3 @@ pub mod walk {
         }
     }
 }
-

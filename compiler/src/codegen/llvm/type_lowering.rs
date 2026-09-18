@@ -4,12 +4,15 @@
 /// LLVM Type Lowering
 ///
 /// Maps Naso PIR types (with quantities) to LLVM types using inkwell.
-
-use crate::codegen::abi::{QuantityAwareType, LlvmAggregateType, IntWidth, FloatWidth, LlvmPointerType};
+use crate::codegen::abi::{
+    FloatWidth, IntWidth, LlvmAggregateType, LlvmPointerType, QuantityAwareType,
+};
 use crate::codegen::error::{CodegenError, CodegenResult};
-use inkwell::context::Context;
-use inkwell::types::{BasicType, BasicTypeEnum, IntType, FloatType, StructType, PointerType, ArrayType, VectorType, VoidType};
 use inkwell::AddressSpace;
+use inkwell::context::Context;
+use inkwell::types::{
+    BasicType, BasicTypeEnum, FloatType, IntType, PointerType, StructType, VoidType,
+};
 use std::collections::HashMap;
 
 /// Wrapper for LLVM type lowering context
@@ -30,7 +33,7 @@ impl<'ctx> LlvmTypeLowering<'ctx> {
     pub fn new(context: &'ctx Context) -> Self {
         let qubit_type = context.ptr_type(AddressSpace::from(0)); // Generic address space for qubits
         let result_type = context.bool_type(); // i1
-        
+
         Self {
             context,
             struct_cache: HashMap::new(),
@@ -78,7 +81,12 @@ impl<'ctx> LlvmTypeLowering<'ctx> {
     }
 
     /// Get or create a named struct type
-    pub fn get_or_create_struct(&mut self, name: &str, fields: &[BasicTypeEnum<'ctx>], is_packed: bool) -> StructType<'ctx> {
+    pub fn get_or_create_struct(
+        &mut self,
+        name: &str,
+        fields: &[BasicTypeEnum<'ctx>],
+        is_packed: bool,
+    ) -> StructType<'ctx> {
         if let Some(existing) = self.struct_cache.get(name) {
             return *existing;
         }
@@ -93,11 +101,14 @@ impl<'ctx> LlvmTypeLowering<'ctx> {
     }
 
     /// Lower a quantity-aware type to LLVM
-    pub fn lower_quantity_aware(&mut self, qty_ty: &QuantityAwareType) -> CodegenResult<BasicTypeEnum<'ctx>> {
+    pub fn lower_quantity_aware(
+        &mut self,
+        qty_ty: &QuantityAwareType,
+    ) -> CodegenResult<BasicTypeEnum<'ctx>> {
         match qty_ty {
-            QuantityAwareType::Erased => {
-                Err(CodegenError::TypeLoweringError("Cannot lower erased type".to_string()))
-            }
+            QuantityAwareType::Erased => Err(CodegenError::TypeLoweringError(
+                "Cannot lower erased type".to_string(),
+            )),
             QuantityAwareType::Linear(agg) => self.lower_aggregate(agg),
             QuantityAwareType::Unrestricted(ptr) => self.lower_pointer(ptr),
             QuantityAwareType::Qubit => Ok(self.qubit_type.into()),
@@ -111,7 +122,8 @@ impl<'ctx> LlvmTypeLowering<'ctx> {
             LlvmAggregateType::Int(width) => Ok(self.int_type(*width).into()),
             LlvmAggregateType::Float(width) => Ok(self.float_type(*width).into()),
             LlvmAggregateType::Struct(fields) => {
-                let field_types: CodegenResult<Vec<_>> = fields.iter()
+                let field_types: CodegenResult<Vec<_>> = fields
+                    .iter()
                     .map(|f| self.lower_quantity_aware(f))
                     .collect();
                 let struct_type = self.context.struct_type(&field_types?, false);
@@ -123,9 +135,8 @@ impl<'ctx> LlvmTypeLowering<'ctx> {
                 Ok(array_type.into())
             }
             LlvmAggregateType::Tuple(elems) => {
-                let elem_types: CodegenResult<Vec<_>> = elems.iter()
-                    .map(|e| self.lower_quantity_aware(e))
-                    .collect();
+                let elem_types: CodegenResult<Vec<_>> =
+                    elems.iter().map(|e| self.lower_quantity_aware(e)).collect();
                 let struct_type = self.context.struct_type(&elem_types?, false);
                 Ok(struct_type.into())
             }
@@ -151,7 +162,12 @@ impl<'ctx> LlvmTypeLowering<'ctx> {
     }
 
     /// Get function type
-    pub fn fn_type(&self, ret: Option<BasicTypeEnum<'ctx>>, params: &[BasicTypeEnum<'ctx>], is_var_args: bool) -> inkwell::types::FunctionType<'ctx> {
+    pub fn fn_type(
+        &self,
+        ret: Option<BasicTypeEnum<'ctx>>,
+        params: &[BasicTypeEnum<'ctx>],
+        is_var_args: bool,
+    ) -> inkwell::types::FunctionType<'ctx> {
         match ret {
             Some(r) => r.fn_type(params, is_var_args),
             None => self.void_type().fn_type(params, is_var_args),
@@ -165,7 +181,7 @@ pub type LlvmType<'ctx> = BasicTypeEnum<'ctx>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codegen::abi::{QuantityAwareType, LlvmAggregateType, IntWidth};
+    use crate::codegen::abi::{IntWidth, LlvmAggregateType, QuantityAwareType};
 
     #[test]
     fn test_type_lowering_creation() {
@@ -190,7 +206,9 @@ mod tests {
         let context = Context::create();
         let mut lowering = LlvmTypeLowering::new(&context);
         let qty_ty = QuantityAwareType::Unrestricted(crate::codegen::abi::LlvmPointerType {
-            pointee: Box::new(QuantityAwareType::Linear(LlvmAggregateType::Int(IntWidth::I32))),
+            pointee: Box::new(QuantityAwareType::Linear(LlvmAggregateType::Int(
+                IntWidth::I32,
+            ))),
             address_space: 0,
         });
         let result = lowering.lower_quantity_aware(&qty_ty);
@@ -223,10 +241,10 @@ mod tests {
         let context = Context::create();
         let mut lowering = LlvmTypeLowering::new(&context);
         let fields = vec![context.i32_type().into(), context.i64_type().into()];
-        
+
         let s1 = lowering.get_or_create_struct("test_struct", &fields, false);
         let s2 = lowering.get_or_create_struct("test_struct", &fields, false);
-        
+
         assert_eq!(s1, s2);
     }
 }

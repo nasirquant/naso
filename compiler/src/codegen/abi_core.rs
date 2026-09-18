@@ -6,7 +6,7 @@
 //! - [1] -> aggregate by-value (struct), linear: exactly one SSA def/use
 //! - [*] -> pointer (opaque), unrestricted aliasing
 
-use crate::ast::{Quantity, Type, TypeKind, Span};
+use crate::ast::{Quantity, Span, Type, TypeKind};
 use crate::codegen::error::{CodegenError, CodegenResult};
 use std::collections::HashMap;
 
@@ -36,12 +36,20 @@ pub enum LlvmAggregateType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntWidth {
-    I1, I8, I16, I32, I64, I128,
+    I1,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FloatWidth {
-    F16, F32, F64, F128,
+    F16,
+    F32,
+    F64,
+    F128,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,9 +76,12 @@ impl QuantityAwareType {
 }
 
 /// Lower a PIR type (with quantity) to a quantity-aware type
-pub fn lower_pir_type(ty: &Type, quantities: &HashMap<String, Quantity>) -> CodegenResult<QuantityAwareType> {
+pub fn lower_pir_type(
+    ty: &Type,
+    quantities: &HashMap<String, Quantity>,
+) -> CodegenResult<QuantityAwareType> {
     let qty = ty.quantity;
-    
+
     match qty {
         Quantity::Zero => Ok(QuantityAwareType::Erased),
         Quantity::One => {
@@ -97,7 +108,9 @@ pub fn lower_pir_type(ty: &Type, quantities: &HashMap<String, Quantity>) -> Code
 }
 
 /// Lower all types in a PIR module
-pub fn lower_pir_module_types(module: &crate::ir::pir_types::PirModule) -> CodegenResult<HashMap<String, QuantityAwareType>> {
+pub fn lower_pir_module_types(
+    module: &crate::ir::pir_types::PirModule,
+) -> CodegenResult<HashMap<String, QuantityAwareType>> {
     let mut result = HashMap::new();
     for (name, qty) in &module.quantities {
         // Create a dummy type with the quantity for lowering
@@ -112,7 +125,10 @@ pub fn lower_pir_module_types(module: &crate::ir::pir_types::PirModule) -> Codeg
     Ok(result)
 }
 
-fn lower_type_kind_to_aggregate(kind: &TypeKind, quantities: &HashMap<String, Quantity>) -> CodegenResult<LlvmAggregateType> {
+fn lower_type_kind_to_aggregate(
+    kind: &TypeKind,
+    quantities: &HashMap<String, Quantity>,
+) -> CodegenResult<LlvmAggregateType> {
     match kind {
         TypeKind::Unit => Ok(LlvmAggregateType::Struct(vec![])),
         TypeKind::Bool => Ok(LlvmAggregateType::Int(IntWidth::I1)),
@@ -120,28 +136,26 @@ fn lower_type_kind_to_aggregate(kind: &TypeKind, quantities: &HashMap<String, Qu
         TypeKind::UInt => Ok(LlvmAggregateType::Int(IntWidth::I64)),
         TypeKind::Float => Ok(LlvmAggregateType::Float(FloatWidth::F64)),
         TypeKind::Nat => Ok(LlvmAggregateType::Int(IntWidth::I64)),
-        TypeKind::Qubit => Ok(LlvmAggregateType::Struct(vec![
-            QuantityAwareType::Qubit
-        ])),
+        TypeKind::Qubit => Ok(LlvmAggregateType::Struct(vec![QuantityAwareType::Qubit])),
         TypeKind::QRegister(dims) => {
-            let elem_types: CodegenResult<Vec<_>> = dims.iter()
+            let elem_types: CodegenResult<Vec<_>> = dims
+                .iter()
                 .map(|d| lower_pir_type(d, quantities).map(|qt| qt))
                 .collect();
             // For qregister, we represent as struct of qubits
-            Ok(LlvmAggregateType::Struct(vec![
-                QuantityAwareType::Linear(LlvmAggregateType::Array(
-                    Box::new(QuantityAwareType::Qubit),
-                    dims.len() as u64
-                ))
-            ]))
+            Ok(LlvmAggregateType::Struct(vec![QuantityAwareType::Linear(
+                LlvmAggregateType::Array(Box::new(QuantityAwareType::Qubit), dims.len() as u64),
+            )]))
         }
         TypeKind::Tensor(dims) => {
-            let elem_types: CodegenResult<Vec<_>> = dims.iter()
-                .map(|d| lower_pir_type(d, quantities))
-                .collect();
-            Ok(LlvmAggregateType::Struct(elem_types?.into_iter()
-                .map(|qt| QuantityAwareType::Linear(LlvmAggregateType::Struct(vec![qt])))
-                .collect()))
+            let elem_types: CodegenResult<Vec<_>> =
+                dims.iter().map(|d| lower_pir_type(d, quantities)).collect();
+            Ok(LlvmAggregateType::Struct(
+                elem_types?
+                    .into_iter()
+                    .map(|qt| QuantityAwareType::Linear(LlvmAggregateType::Struct(vec![qt])))
+                    .collect(),
+            ))
         }
         TypeKind::Array(elem, size) => {
             let elem_qt = lower_pir_type(elem, quantities)?;
@@ -149,7 +163,8 @@ fn lower_type_kind_to_aggregate(kind: &TypeKind, quantities: &HashMap<String, Qu
             Ok(LlvmAggregateType::Array(Box::new(elem_qt), size_val))
         }
         TypeKind::Tuple(elems) => {
-            let elem_types: CodegenResult<Vec<_>> = elems.iter()
+            let elem_types: CodegenResult<Vec<_>> = elems
+                .iter()
                 .map(|e| lower_pir_type(e, quantities))
                 .collect();
             Ok(LlvmAggregateType::Tuple(elem_types?))
@@ -161,7 +176,8 @@ fn lower_type_kind_to_aggregate(kind: &TypeKind, quantities: &HashMap<String, Qu
         }
         TypeKind::Function(params, ret) => {
             // Function types become pointer to function
-            let param_types: CodegenResult<Vec<_>> = params.iter()
+            let param_types: CodegenResult<Vec<_>> = params
+                .iter()
                 .map(|p| lower_pir_type(p, quantities))
                 .collect();
             // ret is Box<Type>, deref to get &Type
@@ -171,43 +187,47 @@ fn lower_type_kind_to_aggregate(kind: &TypeKind, quantities: &HashMap<String, Qu
                 QuantityAwareType::Unrestricted(LlvmPointerType {
                     pointee: Box::new(QuantityAwareType::Erased),
                     address_space: 0,
-                })
+                }),
             ]))
         }
         TypeKind::Projection(inner) => {
             // Reference type becomes pointer
             let ptr = lower_type_kind_to_pointer(&inner.kind, quantities)?;
             Ok(LlvmAggregateType::Struct(vec![
-                QuantityAwareType::Unrestricted(ptr)
+                QuantityAwareType::Unrestricted(ptr),
             ]))
         }
         TypeKind::Reversible(inner) => {
             // Reversible computations are linear
             let agg = lower_type_kind_to_aggregate(&inner.kind, quantities)?;
-            Ok(LlvmAggregateType::Struct(vec![
-                QuantityAwareType::Linear(agg)
-            ]))
+            Ok(LlvmAggregateType::Struct(vec![QuantityAwareType::Linear(
+                agg,
+            )]))
         }
         TypeKind::Pi(_, domain, codomain) | TypeKind::Sigma(_, domain, codomain) => {
             // Dependent types: lower domain and codomain
             let dom_qt = lower_pir_type(domain, quantities)?;
             let cod_qt = lower_pir_type(codomain, quantities)?;
-            Ok(LlvmAggregateType::Struct(vec![
-                QuantityAwareType::Linear(LlvmAggregateType::Struct(vec![dom_qt, cod_qt]))
-            ]))
+            Ok(LlvmAggregateType::Struct(vec![QuantityAwareType::Linear(
+                LlvmAggregateType::Struct(vec![dom_qt, cod_qt]),
+            )]))
         }
         TypeKind::Lambda(_, _) | TypeKind::App(_, _) => {
             // Type-level functions: treat as opaque
             Ok(LlvmAggregateType::Struct(vec![]))
         }
         TypeKind::Universe(_) => Ok(LlvmAggregateType::Struct(vec![])),
-        TypeKind::Var(_) | TypeKind::Meta(_) => {
-            Err(CodegenError::TypeLoweringError("Cannot lower unresolved type variable".to_string()))
-        }
-        TypeKind::Error => Err(CodegenError::TypeLoweringError("Cannot lower error type".to_string())),
+        TypeKind::Var(_) | TypeKind::Meta(_) => Err(CodegenError::TypeLoweringError(
+            "Cannot lower unresolved type variable".to_string(),
+        )),
+        TypeKind::Error => Err(CodegenError::TypeLoweringError(
+            "Cannot lower error type".to_string(),
+        )),
         TypeKind::String => Ok(LlvmAggregateType::Struct(vec![
             QuantityAwareType::Unrestricted(LlvmPointerType {
-                pointee: Box::new(QuantityAwareType::Linear(LlvmAggregateType::Int(IntWidth::I8))),
+                pointee: Box::new(QuantityAwareType::Linear(LlvmAggregateType::Int(
+                    IntWidth::I8,
+                ))),
                 address_space: 0,
             }),
             QuantityAwareType::Linear(LlvmAggregateType::Int(IntWidth::I64)),
@@ -216,7 +236,10 @@ fn lower_type_kind_to_aggregate(kind: &TypeKind, quantities: &HashMap<String, Qu
     }
 }
 
-fn lower_type_kind_to_pointer(kind: &TypeKind, quantities: &HashMap<String, Quantity>) -> CodegenResult<LlvmPointerType> {
+fn lower_type_kind_to_pointer(
+    kind: &TypeKind,
+    quantities: &HashMap<String, Quantity>,
+) -> CodegenResult<LlvmPointerType> {
     // For unrestricted types, we create a pointer to the lowered aggregate
     // The pointee type depends on the kind
     let pointee = match kind {
@@ -227,7 +250,7 @@ fn lower_type_kind_to_pointer(kind: &TypeKind, quantities: &HashMap<String, Quan
             QuantityAwareType::Linear(agg)
         }
     };
-    
+
     Ok(LlvmPointerType {
         pointee: Box::new(pointee),
         address_space: 0,
@@ -275,7 +298,7 @@ impl NasoAbi {
                 }
             }
             QuantityAwareType::Qubit => ParamClass::ByPointer, // Qubits are always by pointer
-            QuantityAwareType::Result => ParamClass::ByValue,   // i1 fits in register
+            QuantityAwareType::Result => ParamClass::ByValue,  // i1 fits in register
         }
     }
 
@@ -314,7 +337,7 @@ pub enum ReturnClass {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{Type, TypeKind, Quantity, Span};
+    use crate::ast::{Quantity, Span, Type, TypeKind};
     use std::collections::HashMap;
 
     #[test]

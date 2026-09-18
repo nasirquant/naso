@@ -13,21 +13,18 @@
 use crate::codegen::context::CodegenContext;
 use crate::codegen::error::{CodegenError, CodegenResult};
 use crate::codegen::llvm::{
-    loop_emission::LoopEmitter,
-    access_emission::AccessEmitter,
-    polyhedral_opts::PolyhedralOptimizer,
-    parallel::ParallelEmitter,
-    type_lowering::LlvmTypeLowering,
+    access_emission::AccessEmitter, loop_emission::LoopEmitter, parallel::ParallelEmitter,
+    polyhedral_opts::PolyhedralOptimizer, type_lowering::LlvmTypeLowering,
     value_builder::LlvmValueBuilder,
 };
 use crate::ir::{
     affine_domain::AffineDomain,
     affine_map::AffineMap,
-    pir_types::{PirModule, PirStatement, AccessRelations, QuantityMap},
+    pir_types::{AccessRelations, PirModule, PirStatement, QuantityMap},
     schedule_tree::{ScheduleNode, ScheduleTree, StmtId},
 };
-use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue, PointerValue};
 use inkwell::types::BasicTypeEnum;
+use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue, PointerValue};
 use std::collections::HashMap;
 
 /// Main entry point for lowering a ScheduleTree to LLVM IR
@@ -62,10 +59,14 @@ pub fn lower_schedule_tree<'ctx>(
 
     // Build return
     let void_type = lowering.value_builder.type_lowering().void_type();
-    value_builder.builder().build_return(Some(&void_type.const_zero()))?;
+    value_builder
+        .builder()
+        .build_return(Some(&void_type.const_zero()))?;
 
     // Verify function
-    function.verify(true).map_err(|e| CodegenError::VerificationError(e.to_string()))?;
+    function
+        .verify(true)
+        .map_err(|e| CodegenError::VerificationError(e.to_string()))?;
 
     Ok(())
 }
@@ -77,7 +78,7 @@ pub struct ScheduleLowering<'ctx, 'a> {
     pir_module: &'a PirModule,
     quantities: &'a QuantityMap,
     access_relations: &'a AccessRelations,
-    
+
     /// Current basic block
     current_block: Option<BasicBlock<'ctx>>,
     /// Statement -> block mapping
@@ -86,7 +87,7 @@ pub struct ScheduleLowering<'ctx, 'a> {
     induction_vars: HashMap<String, inkwell::values::PhiValue<'ctx>>,
     /// Loop metadata
     loop_metadata: HashMap<String, inkwell::metadata::MetadataValue<'ctx>>,
-    
+
     // Sub-emitters
     loop_emitter: LoopEmitter<'ctx>,
     access_emitter: AccessEmitter<'ctx>,
@@ -136,24 +137,16 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     /// Lower a schedule node recursively
     pub fn lower_node(&mut self, node: &ScheduleNode) -> CodegenResult<()> {
         match node {
-            ScheduleNode::Band { members, coincident, child } => {
-                self.lower_band(members, coincident, child)
-            }
-            ScheduleNode::Filter { domain, child } => {
-                self.lower_filter(domain, child)
-            }
-            ScheduleNode::Sequence { children } => {
-                self.lower_sequence(children)
-            }
-            ScheduleNode::Context { domain, child } => {
-                self.lower_context(domain, child)
-            }
-            ScheduleNode::Domain { stmt_id, domain } => {
-                self.lower_domain(*stmt_id, domain)
-            }
-            ScheduleNode::Extension { sizes, child } => {
-                self.lower_extension(sizes, child)
-            }
+            ScheduleNode::Band {
+                members,
+                coincident,
+                child,
+            } => self.lower_band(members, coincident, child),
+            ScheduleNode::Filter { domain, child } => self.lower_filter(domain, child),
+            ScheduleNode::Sequence { children } => self.lower_sequence(children),
+            ScheduleNode::Context { domain, child } => self.lower_context(domain, child),
+            ScheduleNode::Domain { stmt_id, domain } => self.lower_domain(*stmt_id, domain),
+            ScheduleNode::Extension { sizes, child } => self.lower_extension(sizes, child),
             ScheduleNode::Empty => Ok(()),
         }
     }
@@ -203,7 +196,9 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     fn is_band_erased(&self, members: &[AffineMap]) -> bool {
         // Check if any statement in this band's scope has [0] quantity
         // For now, check if any statement in the module is erased
-        self.quantities.values().any(|q| matches!(q, crate::ast::Quantity::Zero))
+        self.quantities
+            .values()
+            .any(|q| matches!(q, crate::ast::Quantity::Zero))
     }
 
     /// Extract loop bounds from affine scheduling maps
@@ -213,7 +208,7 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
         for member in members {
             // Get the domain of the schedule map
             let domain = &member.pieces[0].domain;
-            
+
             // For each iterator dimension, extract bounds
             for iter_dim in 0..domain.n_iter {
                 if let Some((lower, upper)) = domain.iterator_bounds(iter_dim) {
@@ -231,30 +226,48 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     }
 
     /// Lower an affine expression to LLVM value
-    fn lower_affine_expr(&self, expr: &crate::ir::affine_domain::AffineExpr) -> CodegenResult<BasicValueEnum<'ctx>> {
+    fn lower_affine_expr(
+        &self,
+        expr: &crate::ir::affine_domain::AffineExpr,
+    ) -> CodegenResult<BasicValueEnum<'ctx>> {
         // Simplified: just return the constant for now
         // In reality, this would evaluate parameters and induction variables
-        let int_type = self.value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I64);
-        Ok(self.value_builder.build_int_constant(int_type, expr.constant as u64, "bound")?.into())
+        let int_type = self
+            .value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I64);
+        Ok(self
+            .value_builder
+            .build_int_constant(int_type, expr.constant as u64, "bound")?
+            .into())
     }
 
     /// Lower a filter node (conditional domain restriction)
-    fn lower_filter(
-        &mut self,
-        domain: &AffineDomain,
-        child: &ScheduleNode,
-    ) -> CodegenResult<()> {
+    fn lower_filter(&mut self, domain: &AffineDomain, child: &ScheduleNode) -> CodegenResult<()> {
         // Compute predicate from filter domain constraints
         let predicate = self.compute_filter_predicate(domain)?;
 
         // Create basic blocks for then/else
         let func = self.function;
-        let then_block = self.value_builder.type_lowering().context().append_basic_block(func, "filter_then");
-        let else_block = self.value_builder.type_lowering().context().append_basic_block(func, "filter_else");
-        let merge_block = self.value_builder.type_lowering().context().append_basic_block(func, "filter_merge");
+        let then_block = self
+            .value_builder
+            .type_lowering()
+            .context()
+            .append_basic_block(func, "filter_then");
+        let else_block = self
+            .value_builder
+            .type_lowering()
+            .context()
+            .append_basic_block(func, "filter_else");
+        let merge_block = self
+            .value_builder
+            .type_lowering()
+            .context()
+            .append_basic_block(func, "filter_merge");
 
         // Branch on predicate
-        self.value_builder.build_conditional_branch(predicate, then_block, else_block)?;
+        self.value_builder
+            .build_conditional_branch(predicate, then_block, else_block)?;
 
         // Then branch: lower child
         self.set_current_block(then_block);
@@ -271,29 +284,39 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     }
 
     /// Compute filter predicate from domain constraints
-    fn compute_filter_predicate(&mut self, domain: &AffineDomain) -> CodegenResult<inkwell::values::IntValue<'ctx>> {
-        let bool_type = self.value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I1);
+    fn compute_filter_predicate(
+        &mut self,
+        domain: &AffineDomain,
+    ) -> CodegenResult<inkwell::values::IntValue<'ctx>> {
+        let bool_type = self
+            .value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I1);
         let zero = bool_type.const_zero();
-        
+
         // For now, combine all constraints with AND
         let mut predicate = bool_type.const_int(1, false);
-        
+
         for constraint in &domain.constraints {
             let constraint_val = self.lower_constraint(constraint)?;
-            predicate = self.value_builder.build_and(
-                predicate,
-                constraint_val,
-                "filter_and",
-            )?;
+            predicate = self
+                .value_builder
+                .build_and(predicate, constraint_val, "filter_and")?;
         }
 
         Ok(predicate)
     }
 
     /// Lower a single constraint to a boolean value
-    fn lower_constraint(&mut self, constraint: &crate::ir::affine_domain::AffineConstraint) -> CodegenResult<inkwell::values::IntValue<'ctx>> {
+    fn lower_constraint(
+        &mut self,
+        constraint: &crate::ir::affine_domain::AffineConstraint,
+    ) -> CodegenResult<inkwell::values::IntValue<'ctx>> {
         // Simplified implementation
-        let bool_type = self.value_builder.type_lowering().int_type(crate::codegen::abi::IntWidth::I1);
+        let bool_type = self
+            .value_builder
+            .type_lowering()
+            .int_type(crate::codegen::abi::IntWidth::I1);
         Ok(bool_type.const_int(1, false))
     }
 
@@ -315,9 +338,14 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     /// Lower a domain node (statement instance)
     fn lower_domain(&mut self, stmt_id: StmtId, domain: &AffineDomain) -> CodegenResult<()> {
         // Find the statement
-        let stmt = self.pir_module.statements.iter()
+        let stmt = self
+            .pir_module
+            .statements
+            .iter()
             .find(|s| s.id == stmt_id)
-            .ok_or_else(|| CodegenError::FunctionBuildError(format!("Statement {:?} not found", stmt_id)))?;
+            .ok_or_else(|| {
+                CodegenError::FunctionBuildError(format!("Statement {:?} not found", stmt_id))
+            })?;
 
         // Check if statement is [0]-quantity (erased)
         if stmt.quantity == crate::ast::Quantity::Zero {
@@ -326,7 +354,7 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
 
         // Get access relations for this statement
         let accesses = self.access_relations.for_stmt(stmt_id);
-        
+
         // Emit access instructions (loads/stores/GEPs)
         for access in accesses {
             self.access_emitter.emit_access(
@@ -353,9 +381,8 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     /// Lower an extension node (tiling, unrolling)
     fn lower_extension(&mut self, sizes: &[usize], child: &ScheduleNode) -> CodegenResult<()> {
         // Apply polyhedral optimization
-        self.optimizer.apply_extension(sizes, child, |lowering| {
-            lowering.lower_node(child)
-        })
+        self.optimizer
+            .apply_extension(sizes, child, |lowering| lowering.lower_node(child))
     }
 }
 
@@ -371,14 +398,14 @@ struct LoopBounds {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::{Mutability, Quantity};
     use crate::codegen::context::{CodegenContext, CodegenTarget, OptLevel};
     use crate::ir::{
         affine_domain::AffineDomain,
         affine_map::{AffineMap, Matrix},
-        pir_types::{PirModule, PirStatement, AccessRelations, ScheduleTree, ScheduleNode, StmtId},
+        pir_types::{AccessRelations, PirModule, PirStatement, ScheduleNode, ScheduleTree, StmtId},
         schedule_tree::ScheduleNode,
     };
-    use crate::ast::{Quantity, Mutability};
     use std::collections::HashMap;
 
     #[test]
@@ -394,7 +421,7 @@ mod tests {
         let schedule = ScheduleTree::new(ScheduleNode::domain(StmtId(0), domain.clone()), vec![]);
         let accesses = AccessRelations::new();
         let quantities = HashMap::new();
-        
+
         let stmt = PirStatement {
             id: StmtId(0),
             domain,
@@ -406,9 +433,11 @@ mod tests {
 
         let pir_module = PirModule::new(vec![stmt], schedule, accesses, quantities, vec![]);
 
-        let mut type_lowering = crate::codegen::llvm::type_lowering::LlvmTypeLowering::new(llvm_context);
+        let mut type_lowering =
+            crate::codegen::llvm::type_lowering::LlvmTypeLowering::new(llvm_context);
         let builder = llvm_context.create_builder();
-        let mut value_builder = crate::codegen::llvm::value_builder::LlvmValueBuilder::new(builder, type_lowering);
+        let mut value_builder =
+            crate::codegen::llvm::value_builder::LlvmValueBuilder::new(builder, type_lowering);
 
         let lowering = ScheduleLowering::new(
             &mut value_builder,
