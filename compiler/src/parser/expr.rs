@@ -196,6 +196,8 @@ impl<'a> Parser<'a> {
             Some(TK::Measure) => self.parse_measure(),
             Some(TK::Entangle) => self.parse_entangle(),
             Some(TK::QAlloc) => self.parse_qalloc(),
+            Some(TK::Hadamard) => self.parse_hadamard(),
+            Some(TK::CNot) => self.parse_cnot(),
             Some(TK::Int(_)) | Some(TK::Float(_)) | Some(TK::Bool(_)) | Some(TK::Str(_))
             | Some(TK::Char(_)) => self.parse_literal(),
             Some(TK::LBrace) => self.parse_block_expr(),
@@ -490,6 +492,36 @@ impl<'a> Parser<'a> {
         )
     }
 
+    fn parse_hadamard(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::Hadamard);
+        self.expect(TK::LParen);
+        let args = self.parse_args_until(TK::RParen);
+        self.expect(TK::RParen);
+        let span = self.span_from(start);
+        // hadamard takes 1 qubit argument
+        Expr::new(
+            ExprKind::QuantumOp(QuantumOp::ApplyGate(GateKind::H, args)),
+            span,
+            next_id(),
+        )
+    }
+
+    fn parse_cnot(&mut self) -> Expr {
+        let start = self.pos;
+        self.expect(TK::CNot);
+        self.expect(TK::LParen);
+        let args = self.parse_args_until(TK::RParen);
+        self.expect(TK::RParen);
+        let span = self.span_from(start);
+        // cnot takes 2 qubit arguments (control, target)
+        Expr::new(
+            ExprKind::QuantumOp(QuantumOp::ApplyGate(GateKind::CX, args)),
+            span,
+            next_id(),
+        )
+    }
+
     // ===== Reversible blocks =====
 
     /// Parse a `reversible { ... }` block expression.
@@ -664,6 +696,37 @@ mod tests {
             other => panic!("expected function, got {other:?}"),
         };
         assert_eq!(func.body.stmts.len(), 2);
+    }
+
+    #[test]
+    fn parses_hadamard_and_cnot() {
+        let prog = parse_program("fn f(q0: Qubit, q1: Qubit) { hadamard(q0); cnot(q0, q1); }")
+            .expect("parse failed");
+        let func = match &prog.items[0] {
+            Item::Function(f) => f,
+            other => panic!("expected function, got {other:?}"),
+        };
+        assert_eq!(func.body.stmts.len(), 2);
+        // First stmt: hadamard(q0)
+        match &func.body.stmts[0].kind {
+            StmtKind::Expr(e) => match &e.kind {
+                ExprKind::QuantumOp(QuantumOp::ApplyGate(GateKind::H, args)) => {
+                    assert_eq!(args.len(), 1);
+                }
+                other => panic!("expected QuantumOp::ApplyGate(H), got {:?}", other),
+            },
+            other => panic!("expected expr stmt, got {:?}", other),
+        }
+        // Second stmt: cnot(q0, q1)
+        match &func.body.stmts[1].kind {
+            StmtKind::Expr(e) => match &e.kind {
+                ExprKind::QuantumOp(QuantumOp::ApplyGate(GateKind::CX, args)) => {
+                    assert_eq!(args.len(), 2);
+                }
+                other => panic!("expected QuantumOp::ApplyGate(CX), got {:?}", other),
+            },
+            other => panic!("expected expr stmt, got {:?}", other),
+        }
     }
 
     #[test]

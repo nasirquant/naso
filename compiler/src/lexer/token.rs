@@ -123,6 +123,10 @@ pub enum TokenKind {
     Gate,
     #[regex("[eE][nN][tT][aA][nN][gG][lL][eE]", priority = 3)]
     Entangle,
+    #[regex("[hH][aA][dD][aA][mM][aA][rR][dD]", priority = 3)]
+    Hadamard,
+    #[regex("[cC][nN][oO][tT]", priority = 3)]
+    CNot,
     #[regex("[qQ][aA][lL][lL][oO][cC]", priority = 3)]
     QAlloc,
     #[regex("[nN][aA][tT]", priority = 3)]
@@ -253,6 +257,8 @@ impl TokenKind {
             TokenKind::Measure => "'measure'",
             TokenKind::Gate => "'gate'",
             TokenKind::Entangle => "'entangle'",
+            TokenKind::Hadamard => "'hadamard'",
+            TokenKind::CNot => "'cnot'",
             TokenKind::QAlloc => "'qalloc'",
             TokenKind::Nat => "'nat'",
             TokenKind::FloatKw => "'float'",
