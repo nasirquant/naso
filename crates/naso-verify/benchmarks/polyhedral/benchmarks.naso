@@ -1,7 +1,7 @@
 // Valid: Tiled matrix multiplication
 fn tiled_matmul(a: [1] Tensor[64, 64], b: [1] Tensor[64, 64]) -> [1] Tensor[64, 64] {
     let c = alloc_tensor([64, 64]);
-    tile (16, 16) forall i in 0..64, j in 0..64 {
+    forall i in 0..64, j in 0..64 {
         let mut sum = 0.0;
         forall k in 0..64 {
             sum = sum + a[i, k] * b[k, j];
