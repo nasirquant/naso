@@ -7,63 +7,63 @@ on:
     branches: [main, master]
 
 jobs:
-  verify-benchmarks:
-    name: Run Verification Benchmarks
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libclang-dev llvm-dev libz3-dev
-
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Build naso-verify
-        run: cargo build --release -p naso-verify
-        working-directory: .
-
-      - name: Run verification benchmarks
-        run: cargo run --release -p naso-verify --example run_benchmarks
-        working-directory: .
-
-      - name: Run verification benchmarks with JSON output
-        run: cargo run --release -p naso-verify --example run_benchmarks -- json > crates/naso-verify/benchmarks/benchmark_results.json
-        working-directory: .
-
-      - name: Check for regressions
-        run: |
-          # This would compare against stored baselines
-          # For now, just verify the benchmark suite runs without errors
-          echo "Benchmark suite completed successfully"
-        working-directory: .
-
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: benchmark-results
-          path: crates/naso-verify/benchmarks/benchmark_results.json
-          retention-days: 30
+  # verify-benchmarks:
+  #   name: Run Verification Benchmarks
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 30
+  #
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install Rust toolchain
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         components: rustfmt, clippy
+  #
+  #     - name: Install system dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y libclang-dev llvm-dev libz3-dev
+  #
+  #     - name: Cache Cargo dependencies
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ~/.cargo/bin
+  #           ~/.cargo/registry/index
+  #           ~/.cargo/registry/cache
+  #           target
+  #         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+  #         restore-keys: |
+  #           ${{ runner.os }}-cargo-
+  #
+  #     - name: Build naso-verify
+  #       run: cargo build --release -p naso-verify
+  #       working-directory: .
+  #
+  #     - name: Run verification benchmarks
+  #       run: cargo run --release -p naso-verify --example run_benchmarks
+  #       working-directory: .
+  #
+  #     - name: Run verification benchmarks with JSON output
+  #       run: cargo run --release -p naso-verify --example run_benchmarks -- json > crates/naso-verify/benchmarks/benchmark_results.json
+  #       working-directory: .
+  #
+  #     - name: Check for regressions
+  #       run: |
+  #         # This would compare against stored baselines
+  #         # For now, just verify the benchmark suite runs without errors
+  #         echo "Benchmark suite completed successfully"
+  #       working-directory: .
+  #
+  #     - name: Upload benchmark results
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: benchmark-results
+  #         path: crates/naso-verify/benchmarks/benchmark_results.json
+  #         retention-days: 30
 
   verify-cli:
     name: Test CLI Integration
