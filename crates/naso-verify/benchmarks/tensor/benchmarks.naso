@@ -74,7 +74,7 @@ fn elementwise_add(a: [1] Tensor[100], b: [1] Tensor[100]) -> [1] Tensor[100] {
 }
 
 // Valid: Transpose with inout for mutation
-fn transpose_inout(inout m: [1] Tensor[8, 8]) {
+fn transpose_inout(m: [1] Tensor[8, 8]) {
     forall i in 0..8, j in i+1..8 {
         let tmp = m[i, j];
         m[i, j] = m[j, i];

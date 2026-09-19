@@ -80,7 +80,7 @@ fn skewed_loop(a: [1] Tensor[50, 50]) -> [1] Tensor[50, 50] {
 }
 
 // Invalid: Loop with data race (simulated by aliasing)
-fn data_race_loop(inout a: [1] Tensor[100], inout b: [1] Tensor[100]) {
+fn data_race_loop(a: [1] Tensor[100], b: [1] Tensor[100]) {
     // a and b might alias - MVS should catch this
     forall i in 0..100 {
         a[i] = a[i] + 1.0;
@@ -108,7 +108,7 @@ fn oob_access(a: [1] Tensor[10]) {
 }
 
 // Invalid: Dependence violation in scheduled loop
-fn dependence_violation(inout a: [1] Tensor[100]) {
+fn dependence_violation(a: [1] Tensor[100]) {
     // This loop has loop-carried dependence that prevents parallelization
     // but schedule claims it's parallel
     forall i in 1..100 {
