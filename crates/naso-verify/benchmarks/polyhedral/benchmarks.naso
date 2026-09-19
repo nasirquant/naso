@@ -1,12 +1,14 @@
 // Valid: Tiled matrix multiplication
 fn tiled_matmul(a: [1] Tensor[64, 64], b: [1] Tensor[64, 64]) -> [1] Tensor[64, 64] {
     let c = alloc_tensor([64, 64]);
-    forall i in 0..64, j in 0..64 {
-        let mut sum = 0.0;
-        forall k in 0..64 {
-            sum = sum + a[i, k] * b[k, j];
+    forall i in 0..64 {
+        forall j in 0..64 {
+            let mut sum = 0.0;
+            forall k in 0..64 {
+                sum = sum + a[i, k] * b[k, j];
+            }
+            c[i, j] = sum;
         }
-        c[i, j] = sum;
     }
     return c;
 }
@@ -37,12 +39,14 @@ fn invariant_hoisting(a: [1] Tensor[50], b: [1] Tensor[50]) -> [1] Tensor[50] {
 fn scheduled_matmul(a: [1] Tensor[32, 32], b: [1] Tensor[32, 32]) -> [1] Tensor[32, 32] {
     let c = alloc_tensor([32, 32]);
     // Explicit schedule: interchange i,j and tile
-    forall i in 0..32, j in 0..32 {
-        let mut sum = 0.0;
-        forall k in 0..32 {
-            sum = sum + a[i, k] * b[k, j];
+    forall i in 0..32 {
+        forall j in 0..32 {
+            let mut sum = 0.0;
+            forall k in 0..32 {
+                sum = sum + a[i, k] * b[k, j];
+            }
+            c[i, j] = sum;
         }
-        c[i, j] = sum;
     }
     return c;
 }
@@ -71,9 +75,11 @@ fn stencil_1d(u: [1] Tensor[100]) -> [1] Tensor[100] {
 fn skewed_loop(a: [1] Tensor[50, 50]) -> [1] Tensor[50, 50] {
     let b = alloc_tensor([50, 50]);
     // Skew transformation: i' = i, j' = i + j
-    forall i in 0..50, j in 0..50 {
-        if i + j < 50 {
-            b[i, j] = a[i, j] + 1.0;
+    forall i in 0..50 {
+        forall j in 0..50 {
+            if i + j < 50 {
+                b[i, j] = a[i, j] + 1.0;
+            }
         }
     }
     return b;
