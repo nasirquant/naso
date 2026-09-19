@@ -1,33 +1,33 @@
 // Valid: Matrix multiplication with proper linear buffers
-fn matmul_4x4(a: [1] Tensor[16], b: [1] Tensor[16]) -> [1] Tensor[16] {
+fn matmul_4x4(a: [1] Tensor[16], b: [1] Tensor[16]) {
     let c = alloc_tensor([4, 4]);
-    c
+    return ();
 }
 
 // Valid: Convolution with bounded tensors
-fn conv2d_3x3(input: [1] Tensor[32, 32], kernel: [1] Tensor[3, 3]) -> [1] Tensor[30, 30] {
+fn conv2d_3x3(input: [1] Tensor[32, 32], kernel: [1] Tensor[3, 3]) {
     let output = alloc_tensor([30, 30]);
-    output
+    return ();
 }
 
 // Valid: Attention computation
-fn attention(q: [1] Tensor[64, 64], k: [1] Tensor[64, 64], v: [1] Tensor[64, 64]) -> [1] Tensor[64, 64] {
+fn attention(q: [1] Tensor[64, 64], k: [1] Tensor[64, 64], v: [1] Tensor[64, 64]) {
     let scores = alloc_tensor([64, 64]);
     let attn = alloc_tensor([64, 64]);
     let output = alloc_tensor([64, 64]);
-    output
+    return ();
 }
 
 // Valid: Tensor contraction
-fn contract_ijk_kl(a: [1] Tensor[8, 8, 8], b: [1] Tensor[8, 8]) -> [1] Tensor[8, 8] {
+fn contract_ijk_kl(a: [1] Tensor[8, 8, 8], b: [1] Tensor[8, 8]) {
     let c = alloc_tensor([8, 8]);
-    c
+    return ();
 }
 
 // Valid: Element-wise operations with linear buffers
-fn elementwise_add(a: [1] Tensor[100], b: [1] Tensor[100]) -> [1] Tensor[100] {
+fn elementwise_add(a: [1] Tensor[100], b: [1] Tensor[100]) {
     let c = alloc_tensor([100]);
-    c
+    return ();
 }
 
 // Valid: Transpose with inout for mutation
@@ -54,7 +54,7 @@ fn tensor_leak(t: [1] Tensor[10]) {
 }
 
 // Invalid: Dimension mismatch in matmul
-fn matmul_dim_mismatch(a: [1] Tensor[4, 5], b: [1] Tensor[6, 4]) -> [1] Tensor[4, 4] {
+fn matmul_dim_mismatch(a: [1] Tensor[4, 5], b: [1] Tensor[6, 4]) {
     let c = alloc_tensor([4, 4]);
-    c
+    return ();
 }
