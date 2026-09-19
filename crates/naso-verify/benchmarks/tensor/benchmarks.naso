@@ -9,7 +9,7 @@ fn matmul_4x4(a: [1] Tensor[16], b: [1] Tensor[16]) -> [1] Tensor[16] {
         }
         c[i, j] = sum;
     }
-    c
+    return c;
 }
 
 // Valid: Convolution with bounded tensors
@@ -22,7 +22,7 @@ fn conv2d_3x3(input: [1] Tensor[32, 32], kernel: [1] Tensor[3, 3]) -> [1] Tensor
         }
         output[i, j] = sum;
     }
-    output
+    return output;
 }
 
 // Valid: Attention computation
@@ -48,7 +48,7 @@ fn attention(q: [1] Tensor[64, 64], k: [1] Tensor[64, 64], v: [1] Tensor[64, 64]
         }
         output[i, j] = sum;
     }
-    output
+    return output;
 }
 
 // Valid: Tensor contraction
@@ -61,7 +61,7 @@ fn contract_ijk_kl(a: [1] Tensor[8, 8, 8], b: [1] Tensor[8, 8]) -> [1] Tensor[8,
         }
         c[i, j] = sum;
     }
-    c
+    return c;
 }
 
 // Valid: Element-wise operations with linear buffers
@@ -70,7 +70,7 @@ fn elementwise_add(a: [1] Tensor[100], b: [1] Tensor[100]) -> [1] Tensor[100] {
     forall i in 0..100 {
         c[i] = a[i] + b[i];
     }
-    c
+    return c;
 }
 
 // Valid: Transpose with inout for mutation
@@ -80,23 +80,27 @@ fn transpose_inout(inout m: [1] Tensor[8, 8]) {
         m[i, j] = m[j, i];
         m[j, i] = tmp;
     }
+    return ();
 }
 
 // Invalid: Unbounded tensor without allocation (should error)
 fn unbounded_tensor_error() {
     let t: [*] Tensor[10]; // Unbounded tensor used without alloc
     // t[i] = 1.0; // Would be runtime error
+    return ();
 }
 
 // Invalid: Linear tensor used twice
 fn linear_tensor_double_use(t: [1] Tensor[10]) {
     linear_free(t);
     linear_free(t); // Double free!
+    return ();
 }
 
 // Invalid: Tensor leak
 fn tensor_leak(t: [1] Tensor[10]) {
     // t never consumed
+    return ();
 }
 
 // Invalid: Dimension mismatch in matmul
@@ -110,5 +114,5 @@ fn matmul_dim_mismatch(a: [1] Tensor[4, 5], b: [1] Tensor[6, 4]) -> [1] Tensor[4
         }
         c[i, j] = sum;
     }
-    c
+    return c;
 }

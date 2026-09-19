@@ -4,7 +4,7 @@ fn bell_pair() -> (Qubit, Qubit) {
     let q1 = qalloc(1);
     hadamard(q0);
     cnot(q0, q1);
-    (q0, q1)
+    return (q0, q1);
 }
 
 // Valid: QFT on 4 qubits
@@ -17,7 +17,7 @@ fn qft_4qubits() -> (Qubit, Qubit, Qubit, Qubit) {
     cnot(q0, q1);
     cnot(q1, q2);
     cnot(q2, q3);
-    (q0, q1, q2, q3)
+    return (q0, q1, q2, q3);
 }
 
 // Valid: Teleportation circuit
@@ -33,6 +33,7 @@ fn teleportation() {
     let m2 = measure(alice);
     if m1 { X(bob); }
     if m2 { Z(bob); }
+    return ();
 }
 
 // Valid: Grover oracle for 2-qubit search
@@ -45,7 +46,7 @@ fn grover_oracle_2qubits() -> (Qubit, Qubit) {
     cnot(q0, q1);
     hadamard(q0);
     hadamard(q1);
-    (q0, q1)
+    return (q0, q1);
 }
 
 // Valid: Simple error correction (3-qubit bit flip)
@@ -58,7 +59,7 @@ fn bit_flip_code() -> (Qubit, Qubit, Qubit) {
     cnot(data, anc2);
     // Syndrome measurement would go here
     // For benchmark, just return encoded state
-    (data, anc1, anc2)
+    return (data, anc1, anc2);
 }
 
 // Invalid: Missing uncomputation
@@ -97,4 +98,5 @@ fn double_alloc_leak() {
     hadamard(q1);
     // q2 never used or freed
     // q1 never returned
+    return ();
 }

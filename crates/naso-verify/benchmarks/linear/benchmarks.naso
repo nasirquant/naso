@@ -1,24 +1,26 @@
 // Valid: Linear resource consumed exactly once
 fn consume_once(x: [1] i32) -> i32 {
     linear_free(x)
+    return 0;
 }
 
 // Valid: Linear resource moved and consumed
 fn move_and_consume(x: [1] i32) -> i32 {
     let y = x; // Move
     linear_free(y)
+    return 0;
 }
 
 // Valid: Multiple linear resources consumed
 fn multi_linear(x: [1] i32, y: [1] f64) -> (i32, f64) {
     let x_val = linear_free(x);
     let y_val = linear_free(y);
-    (x_val, y_val)
+    return (x_val, y_val);
 }
 
 // Valid: Linear resource returned from function
 fn return_linear() -> [1] i32 {
-    linear_alloc(42)
+    return linear_alloc(42);
 }
 
 // Valid: Conditional consumption on all paths
@@ -28,6 +30,7 @@ fn conditional_consume(cond: bool, x: [1] i32) -> i32 {
     } else {
         linear_free(x)
     }
+    return 0;
 }
 
 // Valid: Linear resource in loop (consumed each iteration)
@@ -37,18 +40,19 @@ fn linear_in_loop(n: [1] i32) -> i32 {
         let item = linear_alloc(i);
         sum = sum + linear_free(item);
     }
-    sum
+    return sum;
 }
 
 // Valid: Borrow pattern with inout (MVS)
 fn borrow_mutate(inout x: [1] i32) {
     *x = *x + 1;
+    return ();
 }
 
 // Valid: Linear pair consumed
 fn consume_pair(p: [1] (i32, f64)) -> (i32, f64) {
     let (a, b) = p;
-    (linear_free(a), linear_free(b))
+    return (linear_free(a), linear_free(b));
 }
 
 // Valid: Nested linear with proper scoping
@@ -59,17 +63,20 @@ fn nested_linear() {
         linear_free(y);
     }
     linear_free(x);
+    return ();
 }
 
 // Invalid: Unused linear resource (leak)
 fn leak_linear(x: [1] i32) {
     // x never consumed!
+    return ();
 }
 
 // Invalid: Double free
 fn double_free(x: [1] i32) {
     linear_free(x);
     linear_free(x); // Double use!
+    return ();
 }
 
 // Invalid: Conditional leak (not consumed on all paths)
@@ -78,13 +85,14 @@ fn conditional_leak(cond: bool, x: [1] i32) {
         linear_free(x);
     }
     // x not consumed when cond is false
+    return ();
 }
 
 // Invalid: Linear used after free
 fn use_after_free(x: [1] i32) -> i32 {
     let val = linear_free(x);
     let _ = linear_free(x); // Second use!
-    val
+    return val;
 }
 
 // Invalid: Move then use original
@@ -92,6 +100,7 @@ fn move_then_use(x: [1] i32) {
     let y = x;
     linear_free(y);
     let _ = x; // x used after move!
+    return ();
 }
 
 // Invalid: Linear in loop not consumed
@@ -100,10 +109,11 @@ fn linear_loop_leak(n: i32) {
         let item = linear_alloc(i);
         // item never freed in loop!
     }
+    return ();
 }
 
 // Invalid: Return without consuming linear param
 fn return_without_consume(x: [1] i32) -> [1] i32 {
     // x not consumed, just returned (might be OK if caller consumes)
-    x
+    return x;
 }
