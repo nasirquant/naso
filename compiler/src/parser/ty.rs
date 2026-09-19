@@ -176,6 +176,14 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Type::new(TypeKind::Float, Quantity::Many, Span::default())
             }
+            Some(TK::FloatKw) => {
+                self.bump();
+                Type::new(TypeKind::Float, Quantity::Many, Span::default())
+            }
+            Some(TK::Tensor) => {
+                self.bump();
+                Type::new(TypeKind::Tensor(Vec::new()), Quantity::Many, Span::default())
+            }
             Some(TK::TypeIdent(_)) | Some(TK::QRegister) => self.parse_named_type(),
             Some(TK::Ident(_)) if self.at_ident("int") => {
                 self.bump();
@@ -195,22 +203,23 @@ impl<'a> Parser<'a> {
             }
             None => self.unexpected("a type"),
             Some(k) => self.unexpected(&format!("a type, found `{k}`")),
-        }
-    }
+                    }
+                }
 
-    /// Parse a bare named type (TypeIdent or the reserved `QRegister` keyword,
-    /// which still denotes a named type in type position). Generic arguments
-    /// are handled in `parse_type`.
-    fn parse_named_type(&mut self) -> Type {
-        let tok = self.bump().expect("type name token");
-        let span = token_span(&tok);
-        let name = match &tok.kind {
-            TK::TypeIdent(s) => Ident::new(s.clone(), span),
-            TK::QRegister => Ident::new("QRegister".to_string(), span),
-            other => panic!("expected named type, found `{other}`"),
-        };
-        Type::new(TypeKind::Named(name, Vec::new()), Quantity::Many, span)
-    }
+                /// Parse a bare named type (TypeIdent or the reserved `QRegister`/`Tensor` keyword,
+                /// which still denotes a named type in type position). Generic arguments
+                /// are handled in `parse_type`.
+                fn parse_named_type(&mut self) -> Type {
+                    let tok = self.bump().expect("type name token");
+                    let span = token_span(&tok);
+                    let name = match &tok.kind {
+                        TK::TypeIdent(s) => Ident::new(s.clone(), span),
+                        TK::QRegister => Ident::new("QRegister".to_string(), span),
+                        TK::Tensor => Ident::new("Tensor".to_string(), span),
+                        other => panic!("expected named type, found `{other}`"),
+                    };
+                    Type::new(TypeKind::Named(name, Vec::new()), Quantity::Many, span)
+                }
 
     /// Parse an atomic type (used for projection/reversible wrappers).
     fn parse_atom_type(&mut self) -> Type {

@@ -166,6 +166,8 @@ pub enum TokenKind {
     #[regex("[tT][rR][uU][eE]", |lex| Some(lex.slice().eq_ignore_ascii_case("true")), priority = 3)]
     #[regex("[fF][aA][lL][sS][eE]", |lex| Some(lex.slice().eq_ignore_ascii_case("true")), priority = 3)]
     Bool(bool),
+    #[regex("[tT][eE][nN][sS][oO][rR]", priority = 3)]
+    Tensor,
 
     // ===== Literals =====
     #[regex(r"[0-9][0-9_]*", |lex| parse_int(lex.slice()))]
@@ -307,6 +309,7 @@ impl TokenKind {
             TokenKind::QAlloc => "'qalloc'",
             TokenKind::Nat => "'nat'",
             TokenKind::FloatKw => "'float'",
+            TokenKind::Tensor => "'tensor'",
             TokenKind::QtyStar => "'[*]'",
             TokenKind::Int(_) => "integer literal",
             TokenKind::Float(_) => "float literal",
