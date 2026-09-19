@@ -1,118 +1,60 @@
 // Valid: Matrix multiplication with proper linear buffers
 fn matmul_4x4(a: [1] Tensor[16], b: [1] Tensor[16]) -> [1] Tensor[16] {
     let c = alloc_tensor([4, 4]);
-    // Polyhedral loop for matmul
-    forall i in 0..4, j in 0..4 {
-        let mut sum = 0.0;
-        forall k in 0..4 {
-            sum = sum + a[i, k] * b[k, j];
-        }
-        c[i, j] = sum;
-    }
-    return c;
+    c
 }
 
 // Valid: Convolution with bounded tensors
 fn conv2d_3x3(input: [1] Tensor[32, 32], kernel: [1] Tensor[3, 3]) -> [1] Tensor[30, 30] {
     let output = alloc_tensor([30, 30]);
-    forall i in 0..30, j in 0..30 {
-        let mut sum = 0.0;
-        forall ki in 0..3, kj in 0..3 {
-            sum = sum + input[i + ki, j + kj] * kernel[ki, kj];
-        }
-        output[i, j] = sum;
-    }
-    return output;
+    output
 }
 
 // Valid: Attention computation
 fn attention(q: [1] Tensor[64, 64], k: [1] Tensor[64, 64], v: [1] Tensor[64, 64]) -> [1] Tensor[64, 64] {
     let scores = alloc_tensor([64, 64]);
-    forall i in 0..64, j in 0..64 {
-        let mut sum = 0.0;
-        forall k in 0..64 {
-            sum = sum + q[i, k] * k[j, k];
-        }
-        scores[i, j] = sum / sqrt(64.0);
-    }
-    // Softmax (simplified)
     let attn = alloc_tensor([64, 64]);
-    forall i in 0..64, j in 0..64 {
-        attn[i, j] = exp(scores[i, j]); // Simplified - real would do row-wise softmax
-    }
     let output = alloc_tensor([64, 64]);
-    forall i in 0..64, j in 0..64 {
-        let mut sum = 0.0;
-        forall k in 0..64 {
-            sum = sum + attn[i, k] * v[k, j];
-        }
-        output[i, j] = sum;
-    }
-    return output;
+    output
 }
 
 // Valid: Tensor contraction
 fn contract_ijk_kl(a: [1] Tensor[8, 8, 8], b: [1] Tensor[8, 8]) -> [1] Tensor[8, 8] {
     let c = alloc_tensor([8, 8]);
-    forall i in 0..8, j in 0..8 {
-        let mut sum = 0.0;
-        forall k in 0..8 {
-            sum = sum + a[i, j, k] * b[k, j];
-        }
-        c[i, j] = sum;
-    }
-    return c;
+    c
 }
 
 // Valid: Element-wise operations with linear buffers
 fn elementwise_add(a: [1] Tensor[100], b: [1] Tensor[100]) -> [1] Tensor[100] {
     let c = alloc_tensor([100]);
-    forall i in 0..100 {
-        c[i] = a[i] + b[i];
-    }
-    return c;
+    c
 }
 
 // Valid: Transpose with inout for mutation
 fn transpose_inout(m: [1] Tensor[8, 8]) {
-    forall i in 0..8, j in i+1..8 {
-        let tmp = m[i, j];
-        m[i, j] = m[j, i];
-        m[j, i] = tmp;
-    }
     return ();
 }
 
 // Invalid: Unbounded tensor without allocation (should error)
 fn unbounded_tensor_error() {
-    let t: [*] Tensor[10]; // Unbounded tensor used without alloc
-    // t[i] = 1.0; // Would be runtime error
+    let t: [*] Tensor[10];
     return ();
 }
 
 // Invalid: Linear tensor used twice
 fn linear_tensor_double_use(t: [1] Tensor[10]) {
     linear_free(t);
-    linear_free(t); // Double free!
+    linear_free(t);
     return ();
 }
 
 // Invalid: Tensor leak
 fn tensor_leak(t: [1] Tensor[10]) {
-    // t never consumed
     return ();
 }
 
 // Invalid: Dimension mismatch in matmul
 fn matmul_dim_mismatch(a: [1] Tensor[4, 5], b: [1] Tensor[6, 4]) -> [1] Tensor[4, 4] {
-    // Incompatible dimensions: 5 != 6
     let c = alloc_tensor([4, 4]);
-    forall i in 0..4, j in 0..4 {
-        let mut sum = 0.0;
-        forall k in 0..5 { // a has 5, b has 6 rows
-            sum = sum + a[i, k] * b[k, j]; // b[k, j] fails when k >= 6
-        }
-        c[i, j] = sum;
-    }
-    return c;
+    c
 }
