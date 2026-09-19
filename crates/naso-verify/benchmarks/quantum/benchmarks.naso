@@ -66,6 +66,7 @@ fn missing_uncomputation() {
     let q = qalloc(1);
     hadamard(q);
     // q never returned or uncomputed!
+    return ();
 }
 
 // Invalid: Measured but not reset
@@ -74,6 +75,7 @@ fn measured_not_reset() {
     hadamard(q);
     let _ = measure(q);
     // q in classical state but not reset to |0>
+    return ();
 }
 
 // Invalid: Nested temp leak
@@ -85,6 +87,7 @@ fn nested_temp_leak() {
         // q2 not uncomputed before inner scope exit
     }
     // q1 entangled with uncomputed q2
+    return ();
 }
 
 // Invalid: Double allocation without free
