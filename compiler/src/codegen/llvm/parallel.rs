@@ -7,7 +7,8 @@ use crate::codegen::error::CodegenResult;
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::affine_map::AffineMap;
 use inkwell::IntPredicate;
-use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue};
+use inkwell::basic_block::BasicBlock;
+use inkwell::values::{BasicValueEnum, FunctionValue};
 
 /// Parallel emitter for parallel bands
 pub struct ParallelEmitter<'ctx> {
@@ -24,7 +25,7 @@ impl<'ctx> ParallelEmitter<'ctx> {
         &self,
         value_builder: &mut LlvmValueBuilder<'ctx>,
         bounds: &[LoopBounds<'ctx>],
-        members: &[AffineMap],
+        _members: &[AffineMap],
         _child: &crate::ir::schedule_tree::ScheduleNode,
         mut lower_child: F,
     ) -> CodegenResult<()>

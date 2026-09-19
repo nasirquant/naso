@@ -411,8 +411,8 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         self.expect(TK::For);
         let var = self.parse_ident();
-        if !self.at_ident("in") {
-            self.unexpected::<()>("`in`");
+        if !self.at(TK::In) {
+            self.unexpected::<()>(r"`in`");
         }
         self.bump();
         let iter = self.parse_expr();

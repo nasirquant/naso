@@ -188,7 +188,7 @@ impl<'ctx> AccessEmitter<'ctx> {
     fn get_element_type(
         &self,
         value_builder: &mut LlvmValueBuilder<'ctx>,
-        access: &AccessRelation,
+        _access: &AccessRelation,
     ) -> CodegenResult<BasicTypeEnum<'ctx>> {
         // Simplified: return i64 for now
         // Real implementation would derive from array type

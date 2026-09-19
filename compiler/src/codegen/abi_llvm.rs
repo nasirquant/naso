@@ -3,7 +3,7 @@
 //! LLVM-specific lowering of quantity-aware types to inkwell types.
 
 #[cfg(feature = "llvm")]
-use crate::codegen::abi_core::{
+use crate::codegen::abi::abi_core::{
     FloatWidth, IntWidth, LlvmAggregateType, LlvmPointerType, QuantityAwareType,
 };
 #[cfg(feature = "llvm")]

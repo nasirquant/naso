@@ -6,12 +6,11 @@
 use crate::codegen::error::{CodegenError, CodegenResult};
 use crate::codegen::llvm::type_lowering::LlvmTypeLowering;
 use inkwell::AddressSpace;
+use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::module::Module;
 use inkwell::types::{BasicTypeEnum, FunctionType, StructType};
-use inkwell::values::{
-    BasicBlock, BasicValueEnum, FunctionValue, GlobalValue, InstructionValue, PointerValue,
-};
+use inkwell::values::{BasicValueEnum, FunctionValue, GlobalValue, InstructionValue, PointerValue};
 use std::collections::HashMap;
 
 /// Typed value builder for LLVM IR construction
@@ -190,7 +189,7 @@ impl<'ctx> LlvmValueBuilder<'ctx> {
         name: &str,
         value: &str,
     ) -> CodegenResult<GlobalValue<'ctx>> {
-        let str_val = self
+        let _ = self
             .builder
             .build_global_string_ptr(value, name)
             .map_err(|e| CodegenError::InstructionError(e.to_string()))?;
@@ -375,7 +374,7 @@ impl<'ctx> LlvmValueBuilder<'ctx> {
         &mut self,
         ty: inkwell::types::IntType<'ctx>,
         value: u64,
-        name: &str,
+        _name: &str,
     ) -> inkwell::values::IntValue<'ctx> {
         ty.const_int(value, false)
     }
@@ -385,7 +384,7 @@ impl<'ctx> LlvmValueBuilder<'ctx> {
         &mut self,
         ty: inkwell::types::FloatType<'ctx>,
         value: f64,
-        name: &str,
+        _name: &str,
     ) -> inkwell::values::FloatValue<'ctx> {
         ty.const_float(value)
     }
@@ -567,7 +566,7 @@ mod tests {
         let builder = llvm_context.create_builder();
         let type_lowering =
             crate::codegen::llvm::type_lowering::LlvmTypeLowering::new(llvm_context);
-        let value_builder = LlvmValueBuilder::new(builder, type_lowering);
+        let _value_builder = LlvmValueBuilder::new(builder, type_lowering);
         // Just test it compiles
     }
 

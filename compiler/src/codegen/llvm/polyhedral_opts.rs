@@ -35,7 +35,7 @@ impl PolyhedralOptimizer {
     }
 
     /// Apply loop tiling transformation
-    fn apply_tiling<F>(&self, tile_size: usize, lower_child: &mut F) -> CodegenResult<()>
+    fn apply_tiling<F>(&self, _tile_size: usize, _lower_child: &mut F) -> CodegenResult<()>
     where
         F: FnMut(&mut dyn FnMut(&ScheduleNode) -> CodegenResult<()>) -> CodegenResult<()>,
     {
@@ -68,8 +68,8 @@ impl PolyhedralOptimizer {
     pub fn apply_interchange<F>(
         &self,
         node: &ScheduleNode,
-        dim1: usize,
-        dim2: usize,
+        _dim1: usize,
+        _dim2: usize,
         mut lower_interchanged: F,
     ) -> CodegenResult<()>
     where
@@ -84,7 +84,7 @@ impl PolyhedralOptimizer {
     pub fn apply_unrolling<F>(
         &self,
         node: &ScheduleNode,
-        factor: usize,
+        _factor: usize,
         mut lower_unrolled: F,
     ) -> CodegenResult<()>
     where
@@ -98,7 +98,7 @@ impl PolyhedralOptimizer {
     pub fn apply_vectorization<F>(
         &self,
         node: &ScheduleNode,
-        width: usize,
+        _width: usize,
         mut lower_vectorized: F,
     ) -> CodegenResult<()>
     where

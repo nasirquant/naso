@@ -107,7 +107,7 @@ jobs:
 
       - name: Test check with linearity detection
         run: |
-          echo 'fn consume(x: [1] i32) { linear_free(x); }' > /tmp/test_linearity.naso
+          echo 'fn consume_linear(x: [1] i32) { linear_free(x); }' > /tmp/test_linearity.naso
           cargo run --release -p naso-compiler -- check /tmp/test_linearity.naso
         working-directory: .
 

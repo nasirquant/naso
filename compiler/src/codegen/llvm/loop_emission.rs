@@ -6,8 +6,8 @@
 use crate::codegen::error::CodegenResult;
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::affine_map::AffineMap;
-use inkwell::IntPredicate;
-use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue};
+use inkwell::basic_block::BasicBlock;
+use inkwell::values::{BasicValueEnum, FunctionValue};
 
 /// Loop emitter for sequential and parallel bands
 pub struct LoopEmitter<'ctx> {
@@ -24,8 +24,8 @@ impl<'ctx> LoopEmitter<'ctx> {
         &self,
         value_builder: &mut LlvmValueBuilder<'ctx>,
         bounds: &[LoopBounds<'ctx>],
-        members: &[AffineMap],
-        child: &crate::ir::schedule_tree::ScheduleNode,
+        _members: &[AffineMap],
+        _child: &crate::ir::schedule_tree::ScheduleNode,
         mut lower_child: F,
     ) -> CodegenResult<()>
     where
@@ -47,8 +47,8 @@ impl<'ctx> LoopEmitter<'ctx> {
         &self,
         value_builder: &mut LlvmValueBuilder<'ctx>,
         bounds: &[LoopBounds<'ctx>],
-        members: &[AffineMap],
-        child: &crate::ir::schedule_tree::ScheduleNode,
+        _members: &[AffineMap],
+        _child: &crate::ir::schedule_tree::ScheduleNode,
         mut lower_child: F,
     ) -> CodegenResult<()>
     where

@@ -7,11 +7,12 @@ use crate::codegen::qir::primitives::{QIR_INTRINSICS, QirIntrinsic};
 use crate::codegen::qir::profile::{QirProfile, QirProfileKind};
 use crate::ir::pir_types::{PirExpr, PirModule, PirStatement};
 use inkwell::AddressSpace;
+use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder as LlvmBuilder;
 use inkwell::context::Context as LlvmContext;
 use inkwell::module::Module as LlvmModule;
 use inkwell::types::{FunctionType, IntType, PointerType, StructType, VoidType};
-use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue, GlobalValue, PointerValue};
+use inkwell::values::{BasicValueEnum, FunctionValue, GlobalValue, PointerValue};
 use std::collections::HashMap;
 
 /// QIR Module Builder for generating quantum IR
@@ -508,7 +509,7 @@ mod tests {
     #[test]
     fn test_qir_intrinsics_declared() {
         let context = CodegenContext::new(CodegenTarget::Host, OptLevel::None).unwrap();
-        let mut builder = QIRModuleBuilder::new(&context).unwrap();
+        let builder = QIRModuleBuilder::new(&context).unwrap();
 
         // Check that key intrinsics are declared
         assert!(builder.get_intrinsic("qir.qubit_alloc").is_some());

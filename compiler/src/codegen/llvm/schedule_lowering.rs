@@ -23,7 +23,8 @@ use crate::ir::{
     pir_types::{AccessRelations, PirModule, PirStatement, QuantityMap},
     schedule_tree::{ScheduleNode, ScheduleTree, StmtId},
 };
-use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue, PointerValue};
+use inkwell::basic_block::BasicBlock;
+use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
 use std::collections::HashMap;
 
 /// Main entry point for lowering a ScheduleTree to LLVM IR
@@ -192,7 +193,7 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     }
 
     /// Check if a band is [0]-quantity (erased)
-    fn is_band_erased(&self, members: &[AffineMap]) -> bool {
+    fn is_band_erased(&self, _members: &[AffineMap]) -> bool {
         // Check if any statement in this band's scope has [0] quantity
         // For now, check if any statement in the module is erased
         self.quantities
@@ -291,12 +292,12 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
             .value_builder
             .type_lowering()
             .int_type(crate::codegen::abi::IntWidth::I1);
-        let zero = bool_type.const_zero();
+        let _zero = bool_type.const_zero();
 
         // For now, combine all constraints with AND
         let mut predicate = bool_type.const_int(1, false);
 
-        for constraint in &domain.constraints {
+        for _constraint in &domain.constraints {
             let constraint_val = self.lower_constraint(constraint)?;
             predicate = self
                 .value_builder
@@ -309,7 +310,7 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     /// Lower a single constraint to a boolean value
     fn lower_constraint(
         &mut self,
-        constraint: &crate::ir::affine_domain::AffineConstraint,
+        _constraint: &crate::ir::affine_domain::AffineConstraint,
     ) -> CodegenResult<inkwell::values::IntValue<'ctx>> {
         // Simplified implementation
         let bool_type = self
@@ -328,7 +329,7 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     }
 
     /// Lower a context node (parameter constraints)
-    fn lower_context(&mut self, domain: &AffineDomain, child: &ScheduleNode) -> CodegenResult<()> {
+    fn lower_context(&mut self, _domain: &AffineDomain, child: &ScheduleNode) -> CodegenResult<()> {
         // Context nodes impose constraints on parameters
         // For codegen, we can emit assertions or just lower the child
         self.lower_node(child)
@@ -371,7 +372,7 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
     }
 
     /// Emit the body of a statement
-    fn emit_statement_body(&mut self, stmt: &PirStatement) -> CodegenResult<()> {
+    fn emit_statement_body(&mut self, _stmt: &PirStatement) -> CodegenResult<()> {
         // For now, this is handled by the access emitter
         // In a full implementation, we'd lower the PirExpr to LLVM instructions
         Ok(())

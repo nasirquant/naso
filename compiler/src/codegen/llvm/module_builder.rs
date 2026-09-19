@@ -9,10 +9,11 @@ use crate::codegen::llvm::type_lowering::LlvmTypeLowering;
 use crate::codegen::llvm::value_builder::LlvmValueBuilder;
 use crate::ir::pir_types::{BinaryOp, PirExpr, PirModule, PirStatement, UnaryOp};
 use inkwell::AddressSpace;
+use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder as LlvmBuilder;
 use inkwell::module::Module as LlvmModule;
 use inkwell::types::{BasicTypeEnum, FunctionType};
-use inkwell::values::{BasicBlock, BasicValueEnum, FunctionValue, PointerValue};
+use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
 use std::collections::HashMap;
 
 /// LLVM Module Builder for constructing LLVM IR from PIR

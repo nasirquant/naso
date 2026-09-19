@@ -182,7 +182,7 @@ impl RuntimeDispatcher {
     #[cfg(feature = "llvm")]
     fn extract_operations(
         &self,
-        module: &crate::codegen::qir::QIRModule,
+        _module: &crate::codegen::qir::QIRModule,
     ) -> Result<Vec<crate::runtime::statevector::QuantumOperation>, RuntimeError> {
         // In a real implementation, this would parse the QIR module
         // and extract the quantum operations
