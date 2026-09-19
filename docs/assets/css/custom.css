@@ -1,0 +1,10 @@
+.custom-button {
+  background-color: var(--secondary-color);
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  color: #ffffff;
+}
+
+.custom-button:hover {
+  opacity: 0.9;
+}
