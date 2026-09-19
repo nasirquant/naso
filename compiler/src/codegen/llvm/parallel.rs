@@ -156,7 +156,7 @@ impl<'ctx> ParallelEmitter<'ctx> {
     pub fn emit_parallel_region<F>(
         &self,
         value_builder: &mut LlvmValueBuilder<'ctx>,
-        num_threads: Option<BasicValueEnum<'ctx>>,
+        _num_threads: Option<BasicValueEnum<'ctx>>,
         mut region_builder: F,
     ) -> CodegenResult<()>
     where

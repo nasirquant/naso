@@ -388,7 +388,7 @@ impl<'ctx, 'a> ScheduleLowering<'ctx, 'a> {
 
 /// Loop bounds representation
 #[derive(Debug, Clone)]
-struct LoopBounds {
+struct LoopBounds<'ctx> {
     iterator_dim: usize,
     lower: BasicValueEnum<'ctx>,
     upper: BasicValueEnum<'ctx>,
@@ -403,7 +403,7 @@ mod tests {
     use crate::ir::{
         affine_domain::AffineDomain,
         affine_map::{AffineMap, Matrix},
-        pir_types::{AccessRelations, PirModule, PirStatement, ScheduleNode, ScheduleTree, StmtId},
+        pir_types::{AccessRelations, PirModule, PirStatement, ScheduleTree, StmtId},
         schedule_tree::ScheduleNode,
     };
     use std::collections::HashMap;

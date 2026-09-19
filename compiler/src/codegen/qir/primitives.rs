@@ -4,7 +4,7 @@
 
 use crate::codegen::qir::module_builder::QIRModuleBuilder;
 use inkwell::AddressSpace;
-use inkwell::types::{BasicTypeEnum, FunctionType, IntType, PointerType, VoidType};
+use inkwell::types::{BasicType, BasicTypeEnum, FunctionType, IntType, PointerType, VoidType};
 
 /// QIR Primitive Types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,6 +54,7 @@ pub enum QirIntrinsicRetType {
     Double,
     Int(i32),
     Ptr,
+    QubitArray,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -75,8 +76,15 @@ impl QirIntrinsic {
             QirIntrinsicRetType::Qubit => builder.qubit_type().into(),
             QirIntrinsicRetType::Result => builder.result_type().into(),
             QirIntrinsicRetType::Double => builder.llvm_context().f64_type().into(),
-            QirIntrinsicRetType::Int(w) => builder.llvm_context().custom_width_int_type(w).into(),
+            QirIntrinsicRetType::Int(w) => {
+                let nz = std::num::NonZeroU32::new(w as u32).expect("width must be non-zero");
+                builder.llvm_context().custom_width_int_type(nz).into()
+            }
             QirIntrinsicRetType::Ptr => builder
+                .llvm_context()
+                .ptr_type(AddressSpace::from(0))
+                .into(),
+            QirIntrinsicRetType::QubitArray => builder
                 .llvm_context()
                 .ptr_type(AddressSpace::from(0))
                 .into(),
@@ -90,7 +98,8 @@ impl QirIntrinsic {
                 QirIntrinsicParamType::Result => builder.result_type().into(),
                 QirIntrinsicParamType::Double => builder.llvm_context().f64_type().into(),
                 QirIntrinsicParamType::Int(w) => {
-                    builder.llvm_context().custom_width_int_type(*w).into()
+                    let nz = std::num::NonZeroU32::new(*w as u32).expect("width must be non-zero");
+                    builder.llvm_context().custom_width_int_type(nz).into()
                 }
                 QirIntrinsicParamType::Ptr => builder
                     .llvm_context()
@@ -107,7 +116,9 @@ impl QirIntrinsic {
             })
             .collect();
 
-        ret.fn_type(&params, self.is_var_args)
+        let param_types: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> =
+            params.iter().map(|p| (*p).into()).collect();
+        ret.fn_type(&param_types, self.is_var_args)
     }
 }
 

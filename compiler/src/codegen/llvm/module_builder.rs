@@ -22,7 +22,7 @@ pub struct LLVMModuleBuilder<'ctx> {
     module: LlvmModule<'ctx>,
     builder: LlvmBuilder<'ctx>,
     type_lowering: LlvmTypeLowering<'ctx>,
-    value_builder: LlvmValueBuilder<'ctx>,
+    value_builder: Option<LlvmValueBuilder<'ctx>>,
     /// Current function being built
     current_function: Option<FunctionValue<'ctx>>,
     /// Current basic block
@@ -40,19 +40,25 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
         let module = llvm_context.create_module("naso_module");
         let builder = llvm_context.create_builder();
         let type_lowering = LlvmTypeLowering::new(llvm_context);
-        let value_builder = LlvmValueBuilder::new(builder, type_lowering.clone());
 
-        Ok(Self {
+        let mut result = Self {
             context,
             module,
             builder,
             type_lowering,
-            value_builder,
+            value_builder: None,
             current_function: None,
             current_block: None,
             variables: HashMap::new(),
             struct_types: HashMap::new(),
-        })
+        };
+
+        // Create value_builder after struct is created to avoid move issues
+        let builder = result.builder;
+        let type_lowering = result.type_lowering.clone();
+        result.value_builder = Some(LlvmValueBuilder::new(builder, type_lowering));
+
+        Ok(result)
     }
 
     /// Get the underlying LLVM module
@@ -72,7 +78,9 @@ impl<'ctx> LLVMModuleBuilder<'ctx> {
 
     /// Get the value builder
     pub fn value_builder(&mut self) -> &mut LlvmValueBuilder<'ctx> {
-        &mut self.value_builder
+        self.value_builder
+            .as_mut()
+            .expect("value_builder not initialized")
     }
 
     /// Set the current function
