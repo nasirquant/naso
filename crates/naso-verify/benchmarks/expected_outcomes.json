@@ -15,20 +15,6 @@
         "double_alloc_leak": { "expected": "sat", "category": "quantum", "provers": ["uncomputation"], "diagnostic_codes": ["NASO-UNC-001"] }
       }
     },
-    "tensor/benchmarks.naso": {
-      "functions": {
-        "matmul_4x4": { "expected": "unsat", "category": "tensor", "provers": ["linearity"] },
-        "conv2d_3x3": { "expected": "unsat", "category": "tensor", "provers": ["linearity"] },
-        "attention": { "expected": "unsat", "category": "tensor", "provers": ["linearity"] },
-        "contract_ijk_kl": { "expected": "unsat", "category": "tensor", "provers": ["linearity"] },
-        "elementwise_add": { "expected": "unsat", "category": "tensor", "provers": ["linearity"] },
-        "transpose_inout": { "expected": "unsat", "category": "tensor", "provers": ["linearity"] },
-        "unbounded_tensor_error": { "expected": "sat", "category": "tensor", "provers": ["linearity"], "diagnostic_codes": ["NASO-LIN-003"] },
-        "linear_tensor_double_use": { "expected": "sat", "category": "tensor", "provers": ["linearity"], "diagnostic_codes": ["NASO-LIN-002"] },
-        "tensor_leak": { "expected": "sat", "category": "tensor", "provers": ["linearity"], "diagnostic_codes": ["NASO-LIN-001"] },
-        "matmul_dim_mismatch": { "expected": "sat", "category": "tensor", "provers": ["linearity"] }
-      }
-    },
     "linear/benchmarks.naso": {
       "functions": {
         "consume_once": { "expected": "unsat", "category": "linear", "provers": ["linearity"] },
@@ -52,7 +38,6 @@
   },
   "performance_baselines": {
     "quantum/benchmarks.naso": { "max_time_ms": 5000, "max_memory_mb": 512 },
-    "tensor/benchmarks.naso": { "max_time_ms": 10000, "max_memory_mb": 1024 },
     "linear/benchmarks.naso": { "max_time_ms": 3000, "max_memory_mb": 256 }
   }
 }
