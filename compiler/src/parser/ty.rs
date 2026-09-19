@@ -22,6 +22,14 @@ impl<'a> Parser<'a> {
                 }
                 TypeKind::Named(name, args)
             }
+            TypeKind::Tensor(_) => {
+                if self.at(TK::LBracket) {
+                    let dims = self.parse_tensor_dims();
+                    TypeKind::Tensor(dims)
+                } else {
+                    base.kind
+                }
+            }
             other => other,
         };
         let span = self.span_from(start);
@@ -47,6 +55,34 @@ impl<'a> Parser<'a> {
         }
         self.expect(TK::RBracket);
         args
+    }
+
+    /// Parse tensor shape dimensions: comma-separated natural numbers or types.
+    fn parse_tensor_dims(&mut self) -> Vec<Type> {
+        self.expect(TK::LBracket);
+        let mut dims = Vec::new();
+        loop {
+            if self.at(TK::RBracket) {
+                break;
+            }
+            // Parse either a natural number literal or a type
+            if let Some(TK::Int(n)) = self.peek() {
+                let n = *n;
+                self.bump();
+                dims.push(Type::new(TypeKind::Nat, Quantity::Many, Span::default()));
+            } else {
+                dims.push(self.parse_type());
+            }
+            if self.at(TK::RBracket) {
+                break;
+            }
+            self.expect(TK::Comma);
+            if self.at(TK::RBracket) {
+                break;
+            }
+        }
+        self.expect(TK::RBracket);
+        dims
     }
 
     /// Parse a single type argument: a natural-number literal or a type.

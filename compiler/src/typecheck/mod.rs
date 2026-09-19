@@ -188,67 +188,71 @@ fn load_prelude(env: &mut type_env::TypeEnv) {
         Block, Function, Ident, Param, Quantity, Span, Type, TypeDef, TypeDefKind, TypeKind,
     };
 
-    // Helper to insert a function into both function and variable environments
-    let insert_prelude_fn = |env: &mut type_env::TypeEnv,
-                              name: &str,
-                              params: Vec<Param>,
-                              ret_ty: Option<Type>,
-                              quantity: Quantity,
-                              is_reversible: bool| {
-        let fname = Ident::new(name, Span::default());
-        let func = Function {
-            name: fname.clone(),
-            generics: Vec::new(),
-            params,
-            ret_ty: ret_ty.clone(),
-            body: Block::new(Vec::new(), None, Span::default()),
-            span: Span::default(),
-            attributes: Vec::new(),
-            is_reversible,
-            quantity,
-        };
-        env.insert_function(func.clone());
-        // Also bind as a variable so it can be used as a callee
-        let fn_type = Type::new(
-            TypeKind::Function(
-                func.params.iter().map(|p| p.ty.clone()).collect(),
-                Box::new(ret_ty.clone().unwrap_or(Type::unit(Span::default()))),
-            ),
-            Quantity::Many,
-            Span::default(),
-        );
-        env.bind_var(fname, fn_type, Quantity::Many, Mutability::Immutable);
-    };
+    /// Configuration for a prelude function
+    struct PreludeFn {
+        name: &'static str,
+        params: Vec<Param>,
+        ret_ty: Option<Type>,
+        quantity: Quantity,
+        is_reversible: bool,
+    }
+
+    impl PreludeFn {
+        fn insert(self, env: &mut type_env::TypeEnv) {
+            let fname = Ident::new(self.name, Span::default());
+            let func = Function {
+                name: fname.clone(),
+                generics: Vec::new(),
+                params: self.params,
+                ret_ty: self.ret_ty.clone(),
+                body: Block::new(Vec::new(), None, Span::default()),
+                span: Span::default(),
+                attributes: Vec::new(),
+                is_reversible: self.is_reversible,
+                quantity: self.quantity,
+            };
+            env.insert_function(func.clone());
+            // Also bind as a variable so it can be used as a callee
+            let fn_type = Type::new(
+                TypeKind::Function(
+                    func.params.iter().map(|p| p.ty.clone()).collect(),
+                    Box::new(self.ret_ty.clone().unwrap_or(Type::unit(Span::default()))),
+                ),
+                Quantity::Many,
+                Span::default(),
+            );
+            env.bind_var(fname, fn_type, Quantity::Many, Mutability::Immutable);
+        }
+    }
 
     // Quantum primitives
-    insert_prelude_fn(
-        env,
-        "qalloc",
-        vec![],
-        Some(Type::qubit(Span::default())),
-        Quantity::Many,
-        false,
-    );
+    PreludeFn {
+        name: "qalloc",
+        params: vec![],
+        ret_ty: Some(Type::qubit(Span::default())),
+        quantity: Quantity::Many,
+        is_reversible: false,
+    }
+    .insert(env);
 
-    insert_prelude_fn(
-        env,
-        "hadamard",
-        vec![Param {
+    PreludeFn {
+        name: "hadamard",
+        params: vec![Param {
             name: Ident::new("q", Span::default()),
             ty: Type::qubit(Span::default()),
             quantity: Quantity::One,
             mutability: Mutability::InOut,
             span: Span::default(),
         }],
-        Some(Type::unit(Span::default())),
-        Quantity::Many,
-        false,
-    );
+        ret_ty: Some(Type::unit(Span::default())),
+        quantity: Quantity::Many,
+        is_reversible: false,
+    }
+    .insert(env);
 
-    insert_prelude_fn(
-        env,
-        "cnot",
-        vec![
+    PreludeFn {
+        name: "cnot",
+        params: vec![
             Param {
                 name: Ident::new("ctrl", Span::default()),
                 ty: Type::qubit(Span::default()),
@@ -264,70 +268,71 @@ fn load_prelude(env: &mut type_env::TypeEnv) {
                 span: Span::default(),
             },
         ],
-        Some(Type::unit(Span::default())),
-        Quantity::Many,
-        false,
-    );
+        ret_ty: Some(Type::unit(Span::default())),
+        quantity: Quantity::Many,
+        is_reversible: false,
+    }
+    .insert(env);
 
-    insert_prelude_fn(
-        env,
-        "measure",
-        vec![Param {
+    PreludeFn {
+        name: "measure",
+        params: vec![Param {
             name: Ident::new("q", Span::default()),
             ty: Type::qubit(Span::default()),
             quantity: Quantity::One,
             mutability: Mutability::Consume,
             span: Span::default(),
         }],
-        Some(Type::new(TypeKind::Bool, Quantity::One, Span::default())),
-        Quantity::Many,
-        false,
-    );
+        ret_ty: Some(Type::new(TypeKind::Bool, Quantity::One, Span::default())),
+        quantity: Quantity::Many,
+        is_reversible: false,
+    }
+    .insert(env);
 
-    insert_prelude_fn(
-        env,
-        "linear_free",
-        vec![Param {
+    PreludeFn {
+        name: "linear_free",
+        params: vec![Param {
             name: Ident::new("x", Span::default()),
             ty: Type::new(TypeKind::Int, Quantity::One, Span::default()),
             quantity: Quantity::One,
             mutability: Mutability::Consume,
             span: Span::default(),
         }],
-        Some(Type::new(TypeKind::Int, Quantity::One, Span::default())),
-        Quantity::Many,
-        false,
-    );
+        ret_ty: Some(Type::new(TypeKind::Int, Quantity::One, Span::default())),
+        quantity: Quantity::Many,
+        is_reversible: false,
+    }
+    .insert(env);
 
-    insert_prelude_fn(
-        env,
-        "linear_alloc",
-        vec![Param {
+    PreludeFn {
+        name: "linear_alloc",
+        params: vec![Param {
             name: Ident::new("value", Span::default()),
             ty: Type::new(TypeKind::Int, Quantity::Many, Span::default()),
             quantity: Quantity::Many,
             mutability: Mutability::Immutable,
             span: Span::default(),
         }],
-        Some(Type::new(TypeKind::Int, Quantity::One, Span::default())),
-        Quantity::Many,
-        false,
-    );
+        ret_ty: Some(Type::new(TypeKind::Int, Quantity::One, Span::default())),
+        quantity: Quantity::Many,
+        is_reversible: false,
+    }
+    .insert(env);
 
-    insert_prelude_fn(
-        env,
-        "qfree",
-        vec![Param {
+    PreludeFn {
+        name: "qfree",
+        params: vec![Param {
             name: Ident::new("q", Span::default()),
             ty: Type::qubit(Span::default()),
             quantity: Quantity::One,
             mutability: Mutability::Consume,
             span: Span::default(),
         }],
-        Some(Type::unit(Span::default())),
-        Quantity::Many,
-        false,
-    );
+        ret_ty: Some(Type::unit(Span::default())),
+        quantity: Quantity::Many,
+        is_reversible: false,
+    }
+    .insert(env);
 
     // Core types
     env.insert_type_def(TypeDef {
@@ -366,24 +371,24 @@ fn load_prelude(env: &mut type_env::TypeEnv) {
     });
 
     // alloc_tensor function
-    insert_prelude_fn(
-        env,
-        "alloc_tensor",
-        vec![Param {
+    PreludeFn {
+        name: "alloc_tensor",
+        params: vec![Param {
             name: Ident::new("shape", Span::default()),
             ty: Type::new(TypeKind::Int, Quantity::Many, Span::default()),
             quantity: Quantity::Many,
             mutability: Mutability::Immutable,
             span: Span::default(),
         }],
-        Some(Type::new(
+        ret_ty: Some(Type::new(
             TypeKind::Named(Ident::new("Tensor", Span::default()), Vec::new()),
             Quantity::One,
             Span::default(),
         )),
-        Quantity::Many,
-        false,
-    );
+        quantity: Quantity::Many,
+        is_reversible: false,
+    }
+    .insert(env);
 
     // Math functions
     let math_funcs = [
@@ -391,20 +396,20 @@ fn load_prelude(env: &mut type_env::TypeEnv) {
         ("sqrt", TypeKind::Float, TypeKind::Float),
     ];
     for (name, arg_ty, ret_ty) in math_funcs {
-        insert_prelude_fn(
-            env,
+        PreludeFn {
             name,
-            vec![Param {
+            params: vec![Param {
                 name: Ident::new("x", Span::default()),
                 ty: Type::new(arg_ty, Quantity::Many, Span::default()),
                 quantity: Quantity::Many,
                 mutability: Mutability::Immutable,
                 span: Span::default(),
             }],
-            Some(Type::new(ret_ty, Quantity::Many, Span::default())),
-            Quantity::Many,
-            false,
-        );
+            ret_ty: Some(Type::new(ret_ty, Quantity::Many, Span::default())),
+            quantity: Quantity::Many,
+            is_reversible: false,
+        }
+        .insert(env);
     }
 }
 
