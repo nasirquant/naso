@@ -18,7 +18,11 @@ use super::token_span;
 pub(crate) fn is_control_flow_stmt(kind: &ExprKind) -> bool {
     matches!(
         kind,
-        ExprKind::If(..) | ExprKind::Match(..) | ExprKind::For(..) | ExprKind::While(..) | ExprKind::Forall(..)
+        ExprKind::If(..)
+            | ExprKind::Match(..)
+            | ExprKind::For(..)
+            | ExprKind::While(..)
+            | ExprKind::Forall(..)
     )
 }
 
@@ -159,11 +163,7 @@ impl<'a> Parser<'a> {
                 let idx_expr = if indices.len() == 1 {
                     indices.into_iter().next().unwrap()
                 } else {
-                    Expr::new(
-                        ExprKind::Tuple(indices),
-                        span,
-                        next_id(),
-                    )
+                    Expr::new(ExprKind::Tuple(indices), span, next_id())
                 };
                 expr = Expr::new(
                     ExprKind::Index(Box::new(expr), Box::new(idx_expr)),

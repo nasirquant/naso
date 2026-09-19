@@ -704,24 +704,28 @@ mod tests {
         };
         // Check first let binding (immutable)
         match &func.body.stmts[0].kind {
-            StmtKind::Let(LetStmt { name, mutability, .. }) => {
+            StmtKind::Let(LetStmt {
+                name, mutability, ..
+            }) => {
                 assert_eq!(name.name, "x");
-                assert_eq!(mutability, Mutability::Immutable);
+                assert_eq!(*mutability, Mutability::Immutable);
             }
             other => panic!("expected let stmt, got {other:?}"),
         }
         // Check second let binding (mut)
         match &func.body.stmts[1].kind {
-            StmtKind::Let(LetStmt { name, mutability, .. }) => {
+            StmtKind::Let(LetStmt {
+                name, mutability, ..
+            }) => {
                 assert_eq!(name.name, "sum");
-                assert_eq!(mutability, Mutability::Mut);
+                assert_eq!(*mutability, Mutability::Mut);
             }
             other => panic!("expected let mut stmt, got {other:?}"),
         }
         // Check assignment statement
         match &func.body.stmts[2].kind {
             StmtKind::Expr(e) => match &e.kind {
-                ExprKind::Assign(lhs, rhs) => {
+                ExprKind::Assign(lhs, _rhs) => {
                     assert!(matches!(lhs.kind, ExprKind::Var(_)));
                 }
                 other => panic!("expected assign, got {other:?}"),

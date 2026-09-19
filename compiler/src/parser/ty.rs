@@ -66,8 +66,7 @@ impl<'a> Parser<'a> {
                 break;
             }
             // Parse either a natural number literal or a type
-            if let Some(TK::Int(n)) = self.peek() {
-                let n = *n;
+            if let Some(TK::Int(_n)) = self.peek() {
                 self.bump();
                 dims.push(Type::new(TypeKind::Nat, Quantity::Many, Span::default()));
             } else {
@@ -212,13 +211,13 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Type::new(TypeKind::Float, Quantity::Many, Span::default())
             }
-            Some(TK::FloatKw) => {
-                self.bump();
-                Type::new(TypeKind::Float, Quantity::Many, Span::default())
-            }
             Some(TK::Tensor) => {
                 self.bump();
-                Type::new(TypeKind::Tensor(Vec::new()), Quantity::Many, Span::default())
+                Type::new(
+                    TypeKind::Tensor(Vec::new()),
+                    Quantity::Many,
+                    Span::default(),
+                )
             }
             Some(TK::TypeIdent(_)) | Some(TK::QRegister) => self.parse_named_type(),
             Some(TK::Ident(_)) if self.at_ident("int") => {
@@ -239,23 +238,23 @@ impl<'a> Parser<'a> {
             }
             None => self.unexpected("a type"),
             Some(k) => self.unexpected(&format!("a type, found `{k}`")),
-                    }
-                }
+        }
+    }
 
-                /// Parse a bare named type (TypeIdent or the reserved `QRegister`/`Tensor` keyword,
-                /// which still denotes a named type in type position). Generic arguments
-                /// are handled in `parse_type`.
-                fn parse_named_type(&mut self) -> Type {
-                    let tok = self.bump().expect("type name token");
-                    let span = token_span(&tok);
-                    let name = match &tok.kind {
-                        TK::TypeIdent(s) => Ident::new(s.clone(), span),
-                        TK::QRegister => Ident::new("QRegister".to_string(), span),
-                        TK::Tensor => Ident::new("Tensor".to_string(), span),
-                        other => panic!("expected named type, found `{other}`"),
-                    };
-                    Type::new(TypeKind::Named(name, Vec::new()), Quantity::Many, span)
-                }
+    /// Parse a bare named type (TypeIdent or the reserved `QRegister`/`Tensor` keyword,
+    /// which still denotes a named type in type position). Generic arguments
+    /// are handled in `parse_type`.
+    fn parse_named_type(&mut self) -> Type {
+        let tok = self.bump().expect("type name token");
+        let span = token_span(&tok);
+        let name = match &tok.kind {
+            TK::TypeIdent(s) => Ident::new(s.clone(), span),
+            TK::QRegister => Ident::new("QRegister".to_string(), span),
+            TK::Tensor => Ident::new("Tensor".to_string(), span),
+            other => panic!("expected named type, found `{other}`"),
+        };
+        Type::new(TypeKind::Named(name, Vec::new()), Quantity::Many, span)
+    }
 
     /// Parse an atomic type (used for projection/reversible wrappers).
     fn parse_atom_type(&mut self) -> Type {
@@ -411,7 +410,7 @@ mod tests {
         // Test all signed integer types
         for ty in ["i8", "i16", "i32", "i64", "isize"] {
             let src = format!("fn f(x: [1] {ty}) -> {ty} {{ x }}");
-            let prog = parse_program(&src).expect(&format!("parse failed for {ty}"));
+            let prog = parse_program(&src).unwrap_or_else(|_| panic!("parse failed for {ty}"));
             let func = match &prog.items[0] {
                 Item::Function(f) => f,
                 other => panic!("expected function, got {other:?}"),
@@ -424,7 +423,7 @@ mod tests {
         // Test all unsigned integer types
         for ty in ["u8", "u16", "u32", "u64", "usize"] {
             let src = format!("fn f(x: [1] {ty}) -> {ty} {{ x }}");
-            let prog = parse_program(&src).expect(&format!("parse failed for {ty}"));
+            let prog = parse_program(&src).unwrap_or_else(|_| panic!("parse failed for {ty}"));
             let func = match &prog.items[0] {
                 Item::Function(f) => f,
                 other => panic!("expected function, got {other:?}"),
@@ -437,7 +436,7 @@ mod tests {
         // Test floating point types
         for ty in ["f32", "f64"] {
             let src = format!("fn f(x: [1] {ty}) -> {ty} {{ x }}");
-            let prog = parse_program(&src).expect(&format!("parse failed for {ty}"));
+            let prog = parse_program(&src).unwrap_or_else(|_| panic!("parse failed for {ty}"));
             let func = match &prog.items[0] {
                 Item::Function(f) => f,
                 other => panic!("expected function, got {other:?}"),
