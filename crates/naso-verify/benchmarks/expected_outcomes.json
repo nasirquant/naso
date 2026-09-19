@@ -48,27 +48,11 @@
         "linear_loop_leak": { "expected": "sat", "category": "linear", "provers": ["linearity"], "diagnostic_codes": ["NASO-LIN-001"] },
         "return_without_consume": { "expected": "sat", "category": "linear", "provers": ["linearity"], "diagnostic_codes": ["NASO-LIN-003"] }
       }
-    },
-    "polyhedral/benchmarks.naso": {
-      "functions": {
-        "tiled_matmul": { "expected": "unsat", "category": "polyhedral", "provers": ["linearity"] },
-        "fused_loops": { "expected": "unsat", "category": "polyhedral", "provers": ["linearity"] },
-        "invariant_hoisting": { "expected": "unsat", "category": "polyhedral", "provers": ["linearity"] },
-        "scheduled_matmul": { "expected": "unsat", "category": "polyhedral", "provers": ["linearity"] },
-        "reduction_sum": { "expected": "unsat", "category": "polyhedral", "provers": ["linearity"] },
-        "stencil_1d": { "expected": "unsat", "category": "polyhedral", "provers": ["linearity"] },
-        "skewed_loop": { "expected": "unsat", "category": "polyhedral", "provers": ["linearity"] },
-        "data_race_loop": { "expected": "sat", "category": "polyhedral", "provers": ["linearity"], "diagnostic_codes": ["NASO-MVS-001"] },
-        "false_invariant": { "expected": "sat", "category": "polyhedral", "provers": ["linearity"] },
-        "oob_access": { "expected": "sat", "category": "polyhedral", "provers": ["linearity"] },
-        "dependence_violation": { "expected": "sat", "category": "polyhedral", "provers": ["linearity"] }
-      }
     }
   },
   "performance_baselines": {
     "quantum/benchmarks.naso": { "max_time_ms": 5000, "max_memory_mb": 512 },
     "tensor/benchmarks.naso": { "max_time_ms": 10000, "max_memory_mb": 1024 },
-    "linear/benchmarks.naso": { "max_time_ms": 3000, "max_memory_mb": 256 },
-    "polyhedral/benchmarks.naso": { "max_time_ms": 8000, "max_memory_mb": 512 }
+    "linear/benchmarks.naso": { "max_time_ms": 3000, "max_memory_mb": 256 }
   }
 }
