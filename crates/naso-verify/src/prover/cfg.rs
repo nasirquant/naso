@@ -20,6 +20,7 @@ pub struct CfgNode {
 
 /// Kind of CFG node.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum CfgNodeKind {
     Entry,
     Exit,
