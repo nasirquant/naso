@@ -143,6 +143,14 @@ fn pir_expr_to_string(expr: &PirExpr, _indent: usize) -> String {
                 pir_expr_to_string(inverse, 0)
             )
         }
+        PirExpr::QuantumOp { op, args, qubits } => {
+            format!(
+                "quantum {}({}, qubits={})",
+                op,
+                args.iter().map(|a| pir_expr_to_string(a, 0)).collect::<Vec<_>>().join(", "),
+                qubits.iter().map(|q| pir_expr_to_string(q, 0)).collect::<Vec<_>>().join(", ")
+            )
+        }
     }
 }
 

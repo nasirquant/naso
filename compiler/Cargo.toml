@@ -8,6 +8,7 @@ default = []
 llvm = ["dep:inkwell"]
 cranelift = ["dep:cranelift", "dep:cranelift-jit", "dep:cranelift-module", "dep:cranelift-native"]
 serde = ["serde/derive"]
+wasm-debug = ["dep:web-sys"]
 
 [dependencies]
 logos = { workspace = true }
@@ -29,6 +30,7 @@ clap = { version = "4.5", default-features = false, features = ["derive", "std",
 num-complex = "0.4"
 rand = { version = "0.8", features = ["std", "small_rng"] }
 walkdir = "2.5"
+web-sys = { version = "0.3", features = ["console"], optional = true }
 
 [[bin]]
 name = "naso"

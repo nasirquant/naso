@@ -316,6 +316,26 @@ pub enum GateKind {
     Custom(Ident),
 }
 
+impl fmt::Display for GateKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GateKind::H => write!(f, "H"),
+            GateKind::X => write!(f, "X"),
+            GateKind::Y => write!(f, "Y"),
+            GateKind::Z => write!(f, "Z"),
+            GateKind::S => write!(f, "S"),
+            GateKind::T => write!(f, "T"),
+            GateKind::CX => write!(f, "CX"),
+            GateKind::CY => write!(f, "CY"),
+            GateKind::CZ => write!(f, "CZ"),
+            GateKind::RX(_) => write!(f, "RX"),
+            GateKind::RY(_) => write!(f, "RY"),
+            GateKind::RZ(_) => write!(f, "RZ"),
+            GateKind::Custom(ident) => write!(f, "{}", ident),
+        }
+    }
+}
+
 /// Pretty printing for expressions (basic)
 impl fmt::Display for ExprKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

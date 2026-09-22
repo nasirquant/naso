@@ -92,56 +92,134 @@ pub fn check_stmt(checker: &mut TypeChecker, stmt: &Stmt) -> Result<(), TypeErro
     }
 }
 fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeError> {
-    // Convert LetStmt to LetBinding for type checking
-    let binding = LetBinding {
-        name: let_stmt.name.clone(),
-        ty: let_stmt.ty.clone(),
-        quantity: let_stmt.quantity,
-        mutability: let_stmt.mutability,
-        value: let_stmt.value.clone(),
-        span: let_stmt.span,
-    };
+    // Extract variable names from pattern
+        let pattern_names = extract_pattern_names(&let_stmt.pattern);
+    
+        // Infer the type of the initializer
+        let init_ty = infer_expr(checker, &let_stmt.value)?;
+    
+        // Handle tuple patterns by destructuring the tuple type
+        let mut bindings = Vec::new();
+        let mut pattern_qtys = Vec::new(); // Pattern quantity for each binding
+        match (&let_stmt.pattern.kind, &init_ty.kind) {
+            (PatternKind::Tuple(patterns), TypeKind::Tuple(element_types)) => {
+                            // Match each pattern element with corresponding tuple element type
+                            if patterns.len() != element_types.len() {
+                                return Err(TypeError::PatternTupleArityMismatch {
+                                    pattern_len: patterns.len(),
+                                    tuple_len: element_types.len(),
+                                    span: let_stmt.pattern.span,
+                                });
+                            }
+                            for (p, ty) in patterns.iter().zip(element_types.iter()) {
+                                let name = match &p.kind {
+                                    PatternKind::Ident(ident) => ident.clone(),
+                                    _ => panic!("Expected ident in tuple pattern"),
+                                };
+                                // Infer pattern quantity from expected type if let binding has no explicit quantity
+                                let pattern_qty = if let_stmt.quantity == Quantity::Many {
+                                    ty.quantity.clone()
+                                } else {
+                                    p.quantity.clone()
+                                };
+                                bindings.push((name.clone(), ty.clone()));
+                                pattern_qtys.push(pattern_qty);
+                            }
+                        }
+            (PatternKind::Ident(ident), _) => {
+                // Simple identifier binding
+                bindings.push((ident.clone(), init_ty.clone()));
+                pattern_qtys.push(let_stmt.pattern.quantity.clone());
+            }
+            _ => {
+                // For other patterns (wildcard, struct, etc.), bind the whole value
+                // Use a synthetic name for now
+                let synthetic_name = Ident::new("__pattern_binding".to_string(), let_stmt.pattern.span);
+                bindings.push((synthetic_name.clone(), init_ty.clone()));
+                pattern_qtys.push(let_stmt.pattern.quantity.clone());
+            }
+        };
+    
+        // Check if Qubit type requires quantity One (use pattern quantity for each binding)
+        for (i, (_, ty)) in bindings.iter().enumerate() {
+            if matches!(ty.kind, TypeKind::Qubit) && pattern_qtys[i] != Quantity::One {
+                return Err(TypeError::QubitQuantityMismatch {
+                    found: pattern_qtys[i].clone(),
+                    span: let_stmt.pattern.span,
+                });
+            }
+        }
+    
+        // If explicit type annotation, check against it
+        if let Some(ann_ty) = &let_stmt.ty {
+            checker.check_expr(&let_stmt.value, ann_ty)?;
+        }
+    
+        // Bind each variable in the pattern (use pattern quantity for each binding)
+        for (i, (name, ty)) in bindings.iter().enumerate() {
+            checker.env.bind_var(
+                name.clone(),
+                ty.clone(),
+                pattern_qtys[i].clone(),
+                let_stmt.mutability,
+            );
+        }
+    
+        // Validate quantity/mutability combinations (use pattern quantity for each binding)
+            for (i, (name, _)) in bindings.iter().enumerate() {
+                validate_binding_quantity_mutability(
+                    name,
+                    pattern_qtys[i].clone(),
+                    let_stmt.mutability,
+                    let_stmt.span,
+                )?;
+            }
+    
+                Ok(())
+            }
 
-    // Infer the type of the initializer
-    let init_ty = infer_expr(checker, &binding.value)?;
-
-    // Check if Qubit type requires quantity One
-    if matches!(init_ty.kind, TypeKind::Qubit) && binding.quantity != Quantity::One {
-        return Err(TypeError::QubitQuantityMismatch {
-            found: binding.quantity,
-            span: binding.span,
-        });
+fn extract_pattern_names(pattern: &Pattern) -> Vec<Ident> {
+    match &pattern.kind {
+        PatternKind::Ident(ident) => vec![ident.clone()],
+        PatternKind::Tuple(patterns) => {
+            let mut names = Vec::new();
+            for p in patterns {
+                names.extend(extract_pattern_names(p));
+            }
+            names
+        }
+        PatternKind::Struct(_, fields) => {
+            let mut names = Vec::new();
+            for f in fields {
+                names.extend(extract_pattern_names(&f.pattern));
+            }
+            names
+        }
+        PatternKind::Variant(_, _, patterns) => {
+            let mut names = Vec::new();
+            for p in patterns {
+                names.extend(extract_pattern_names(p));
+            }
+            names
+        }
+        PatternKind::Array(patterns) => {
+            let mut names = Vec::new();
+            for p in patterns {
+                names.extend(extract_pattern_names(p));
+            }
+            names
+        }
+        PatternKind::Or(a, b) => {
+            let mut names = extract_pattern_names(a);
+            names.extend(extract_pattern_names(b));
+            names
+        }
+        PatternKind::Ref(p) | PatternKind::InOut(p) | PatternKind::Consume(p) => {
+            extract_pattern_names(p)
+        }
+        PatternKind::Guard(p, _) => extract_pattern_names(p),
+        PatternKind::Wildcard | PatternKind::Literal(_) | PatternKind::Error | PatternKind::Range(_, _) => vec![],
     }
-
-    // If explicit type annotation, check against it
-    if let Some(ann_ty) = &binding.ty {
-        checker.check_expr(&binding.value, ann_ty)?;
-        // Use the annotated type for binding (after checking)
-        checker.env.bind_var(
-            binding.name.clone(),
-            ann_ty.clone(),
-            binding.quantity,
-            binding.mutability,
-        );
-    } else {
-        // Bind with inferred type
-        checker.env.bind_var(
-            binding.name.clone(),
-            init_ty,
-            binding.quantity,
-            binding.mutability,
-        );
-    }
-
-    // Validate quantity/mutability combinations
-    validate_binding_quantity_mutability(
-        &binding.name,
-        binding.quantity,
-        binding.mutability,
-        binding.span,
-    )?;
-
-    Ok(())
 }
 
 /// Check inout let binding
@@ -212,7 +290,11 @@ fn check_return(checker: &mut TypeChecker, opt_expr: Option<&Expr>) -> Result<()
 /// Check item (type, function, etc.)
 fn check_item(checker: &mut TypeChecker, item: &Item) -> Result<(), TypeError> {
     match item {
-        Item::Function(f) => checker.check_function(f),
+        Item::Function(f) => {
+            // Register function signature only - body checking happens in second pass
+            checker.env.insert_function(f.clone());
+            Ok(())
+        }
         Item::TypeDef(t) => {
             checker.env.insert_type_def(t.clone());
             Ok(())

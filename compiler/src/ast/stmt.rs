@@ -4,7 +4,7 @@
 
 use crate::ast::expr::Expr;
 use crate::ast::ty::Type as AstType;
-use crate::ast::{Ident, Mutability, NodeId, Quantity, Span};
+use crate::ast::{Ident, Mutability, NodeId, Pattern, Quantity, Span};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -51,7 +51,7 @@ pub enum StmtKind {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LetStmt {
-    pub name: Ident,
+    pub pattern: Pattern,
     pub ty: Option<AstType>,
     pub quantity: Quantity,
     pub mutability: Mutability,
@@ -78,7 +78,7 @@ pub struct LetConsumeStmt {
 impl fmt::Display for StmtKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StmtKind::Let(l) => write!(f, "let {}{:?} = {:?};", l.mutability, l.name, l.value),
+            StmtKind::Let(l) => write!(f, "let {}{:?} = {:?};", l.mutability, l.pattern, l.value),
             StmtKind::LetInOut(l) => write!(f, "let inout {:?} = {:?};", l.name, l.value),
             StmtKind::LetConsume(l) => write!(f, "let consume {:?} = {:?};", l.name, l.value),
             StmtKind::Expr(e) => write!(f, "{:?};", e),

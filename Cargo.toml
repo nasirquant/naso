@@ -5,6 +5,7 @@ members = [
     "stdlib",
     "crates/naso-lsp",
     "crates/naso-verify",
+    "crates/nasoc-wasm",
 ]
 
 [workspace.package]

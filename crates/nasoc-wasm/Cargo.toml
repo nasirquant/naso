@@ -1,0 +1,34 @@
+[package]
+name = "nasoc-wasm"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+console_error_panic_hook = ["dep:console_error_panic_hook"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+naso-compiler = { path = "../../compiler", features = ["serde"] }
+console_error_panic_hook = { version = "0.1", optional = true }
+wasm-bindgen-futures = "0.4"
+getrandom = { version = "0.2", features = ["js"] }
+web-sys = { version = "0.3", features = ["console"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[package.metadata.wasm-pack]
+wasm-opt = false

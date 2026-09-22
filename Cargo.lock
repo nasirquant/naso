@@ -160,6 +160,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "cast"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
+
+[[package]]
 name = "cc"
 version = "1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -229,6 +235,16 @@ checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -612,8 +628,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -819,6 +837,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
+name = "js-sys"
+version = "0.3.105"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce57d20d1ea864ce2ac172ab472d409214f4fd359f0b2a2775abdf522e2af99e"
+dependencies = [
+ "cfg-if",
+ "futures-util",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -829,6 +858,12 @@ name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
+
+[[package]]
+name = "libm"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "libredox"
@@ -950,6 +985,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "minicov"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4869b6a491569605d66d3952bcdf03df789e5b536e5f0cf7758a7f08a55ae24d"
+dependencies = [
+ "cc",
+ "walkdir",
+]
+
+[[package]]
 name = "mio"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -981,6 +1026,7 @@ dependencies = [
  "target-lexicon",
  "thiserror",
  "walkdir",
+ "web-sys",
 ]
 
 [[package]]
@@ -1031,6 +1077,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nasoc-wasm"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "getrandom 0.2.17",
+ "naso-compiler",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
+ "web-sys",
+]
+
+[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1055,6 +1117,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+ "libm",
 ]
 
 [[package]]
@@ -1068,6 +1131,12 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
+
+[[package]]
+name = "oorandom"
+version = "11.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "option-ext"
@@ -1320,6 +1389,12 @@ dependencies = [
  "linux-raw-sys",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "rustversion"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "same-file"
@@ -1763,6 +1838,100 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
+name = "wasm-bindgen"
+version = "0.2.128"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aecb87a33d3b0c5e3b7aa46336eaf486cffafbd281b195e4c8b80d50df2351bf"
+dependencies = [
+ "cfg-if",
+ "once_cell",
+ "rustversion",
+ "wasm-bindgen-macro",
+ "wasm-bindgen-shared",
+]
+
+[[package]]
+name = "wasm-bindgen-futures"
+version = "0.4.78"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ef4c5d3d2cdf5c54f4231181768f5510842e350db025faf1f7163b1030ed928"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "wasm-bindgen-macro"
+version = "0.2.128"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a690d511e3c1a8b3a55e33511e3c2c00c78415cd23650f32b808627f5696b9ed"
+dependencies = [
+ "quote",
+ "wasm-bindgen-macro-support",
+]
+
+[[package]]
+name = "wasm-bindgen-macro-support"
+version = "0.2.128"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "411e4887f0071ef2d2164a9d5fdf2d20efbef78fccd3a78b0c10a1dc5295e48a"
+dependencies = [
+ "bumpalo",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.5",
+ "wasm-bindgen-shared",
+]
+
+[[package]]
+name = "wasm-bindgen-shared"
+version = "0.2.128"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81941cd78d0c92026c33e5e01312845a4cb1e9af3407f9134b100dd03144103e"
+dependencies = [
+ "unicode-ident",
+]
+
+[[package]]
+name = "wasm-bindgen-test"
+version = "0.3.78"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45863ef0bef521c12124eb39d9a38513c47db75f22e503c06beacd40afeb35db"
+dependencies = [
+ "async-trait",
+ "cast",
+ "js-sys",
+ "libm",
+ "minicov",
+ "nu-ansi-term",
+ "num-traits",
+ "oorandom",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test-macro",
+ "wasm-bindgen-test-shared",
+]
+
+[[package]]
+name = "wasm-bindgen-test-macro"
+version = "0.3.78"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c89dcab8b516b6b603baca9d550b7282d68fcc7f367e3956cff7ebf406a3f12"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.5",
+]
+
+[[package]]
+name = "wasm-bindgen-test-shared"
+version = "0.2.128"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f37b4f992cebe528ef34964ae69681ac0fe7080071e7298e46008f9d380302af"
+
+[[package]]
 name = "wasmtime-jit-icache-coherence"
 version = "28.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1772,6 +1941,16 @@ dependencies = [
  "cfg-if",
  "libc",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "web-sys"
+version = "0.3.105"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fbddc4a036f00ec4f18c83445bd3115cb306a91da554919a099d9222fe4a7f8"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
 ]
 
 [[package]]

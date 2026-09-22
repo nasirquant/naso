@@ -306,7 +306,7 @@ impl TypeEnv {
         self.types.get(name)
     }
 
-    /// Insert a function signature
+    /// Insert a function signature and bind as callable variable
     pub fn insert_function(&mut self, func: Function) {
         let sig = FunctionSig {
             name: func.name.clone(),
@@ -318,6 +318,16 @@ impl TypeEnv {
             span: func.span,
         };
         self.functions.insert(func.name.clone(), sig);
+
+        // Also bind as callable variable for function calls
+        let param_tys: Vec<Type> = func.params.iter().map(|p| p.ty.clone()).collect();
+        let ret_ty = func.ret_ty.clone().unwrap_or(Type::unit(func.span));
+        let func_ty = Type::new(
+            TypeKind::Function(param_tys, Box::new(ret_ty)),
+            func.quantity,
+            func.span,
+        );
+        self.bind_var(func.name.clone(), func_ty, func.quantity, Mutability::Immutable);
     }
 
     /// Lookup a function signature
@@ -390,10 +400,12 @@ impl TypeEnv {
         // Check for unused linear variables bound in this scope
         for (name, info) in self.vars.iter().skip(guard.vars_initial_len) {
             // Skip consume bindings - they represent a consumption point
+            // Skip inout bindings - they are borrowed for the scope duration
             if info.quantity == Quantity::One
                 && info.used_at.is_empty()
                 && !info.moved
                 && info.mutability != Mutability::Consume
+                && info.mutability != Mutability::InOut
             {
                 return Err(TypeError::UnusedLinearVariable {
                     name: name.clone(),

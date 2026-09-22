@@ -459,7 +459,26 @@ pub fn check_program(program: &mut Program) -> CheckResult {
     }
 
     CheckResult {
-        program: program.clone(),
-        errors: checker.take_errors(),
+            program: program.clone(),
+            errors: checker.take_errors(),
+        }
     }
-}
+
+    /// Log a debug message (uses web_sys console in WASM, stderr otherwise)
+    #[cfg(feature = "wasm-debug")]
+    pub fn debug_log(msg: &str) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            web_sys::console::log_1(&format!("[TYPECHECK DEBUG] {}", msg).into());
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            eprintln!("[TYPECHECK DEBUG] {}", msg);
+        }
+    }
+
+    /// No-op debug log when wasm-debug feature is not enabled
+    #[cfg(not(feature = "wasm-debug"))]
+    pub fn debug_log(_msg: &str) {
+        // No-op
+    }

@@ -591,9 +591,9 @@ impl<'a> Parser<'a> {
         Expr::new(ExprKind::Reversible(Box::new(rb)), span, next_id())
     }
 
-    // ===== Patterns (used by match arms) =====
+    // ===== Patterns (used by match arms and let bindings) =====
 
-    fn parse_pattern(&mut self) -> Pattern {
+    pub fn parse_pattern(&mut self) -> Pattern {
         match self.peek() {
             Some(TK::Int(_)) | Some(TK::Float(_)) | Some(TK::Bool(_)) | Some(TK::Str(_))
             | Some(TK::Char(_)) => self.parse_literal_pattern(),

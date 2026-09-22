@@ -1,0 +1,11 @@
+docs: update callout shortcode to Hextra theme implementation
+
+- Replace minimal callout.html with full Hextra shortcode supporting:
+  - type parameter (default, info, warning, error, important) with Tailwind styling
+  - emoji and icon parameters with automatic icon fallback
+  - markdownify processing for rich content inside callouts
+  - dark mode support via hx:dark: prefixes
+
+- Add custom.css with .custom-button utility class
+
+Both changes align with Hextra theme conventions and enable proper callout rendering.

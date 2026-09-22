@@ -159,11 +159,15 @@ impl LoweringContext {
     }
 
     fn lower_let_stmt(&mut self, let_stmt: &crate::ast::LetStmt) -> Result<(), LoweringError> {
-        // Track quantity
+        // Track quantity for all bindings in the pattern
         let qty = let_stmt.quantity;
         let mutability = let_stmt.mutability;
-
-        self.quantities.insert(let_stmt.name.name.clone(), qty);
+        
+        // Extract variable names from pattern
+        let names = self.extract_pattern_names(&let_stmt.pattern);
+        for name in &names {
+            self.quantities.insert(name.clone(), qty);
+        }
 
         // Lower initialization expression
         let expr = self.lower_expr(&let_stmt.value)?;
@@ -174,7 +178,7 @@ impl LoweringContext {
 
         let stmt = PirStatement {
             id: stmt_id,
-            domain,
+            domain: domain.clone(),
             body: expr,
             quantity: qty,
             mutability,
@@ -182,6 +186,8 @@ impl LoweringContext {
         };
 
         self.statements.push(stmt);
+        // Add to schedule
+        self.schedule_nodes.push(ScheduleNode::domain(stmt_id, domain));
         Ok(())
     }
 
@@ -204,7 +210,7 @@ impl LoweringContext {
 
         let stmt = PirStatement {
             id: stmt_id,
-            domain,
+            domain: domain.clone(),
             body: expr,
             quantity: qty,
             mutability,
@@ -212,6 +218,8 @@ impl LoweringContext {
         };
 
         self.statements.push(stmt);
+        // Add to schedule
+        self.schedule_nodes.push(ScheduleNode::domain(stmt_id, domain));
         Ok(())
     }
 
@@ -252,7 +260,7 @@ impl LoweringContext {
 
         let stmt = PirStatement {
             id: stmt_id,
-            domain,
+            domain: domain.clone(),
             body: expr,
             quantity: crate::ast::Quantity::Many,
             mutability: crate::ast::Mutability::Immutable,
@@ -260,6 +268,8 @@ impl LoweringContext {
         };
 
         self.statements.push(stmt);
+        // Add to schedule
+        self.schedule_nodes.push(ScheduleNode::domain(stmt_id, domain));
         Ok(())
     }
 
@@ -364,6 +374,7 @@ impl LoweringContext {
                     inverse: Box::new(PirExpr::IntLit(0)),
                 })
             }
+            ExprKind::QuantumOp(qop) => self.lower_quantum_op(qop),
             _ => Err(LoweringError::Unsupported(format!("{:?}", expr.kind))),
         }
     }
@@ -394,6 +405,68 @@ impl LoweringContext {
             self.lower_stmt(stmt)?;
         }
         Ok(crate::ir::PirExpr::IntLit(0)) // Placeholder
+    }
+
+    fn lower_quantum_op(
+        &mut self,
+        qop: &crate::ast::expr::QuantumOp,
+    ) -> Result<crate::ir::PirExpr, LoweringError> {
+        use crate::ast::expr::QuantumOp;
+        use crate::ir::PirExpr;
+
+        match qop {
+            QuantumOp::Alloc(name) => {
+                // qalloc() returns a new qubit with quantity One
+                Ok(PirExpr::QuantumOp {
+                    op: "qalloc".to_string(),
+                    args: vec![],
+                    qubits: vec![],
+                })
+            }
+            QuantumOp::ApplyGate(gate, args) => {
+                // Quantum gates like H, CNOT, etc.
+                let qubits = args
+                    .iter()
+                    .map(|a| self.lower_expr(a))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(PirExpr::QuantumOp {
+                    op: gate.to_string(),
+                    args: vec![],
+                    qubits,
+                })
+            }
+            QuantumOp::Measure(target) => {
+                let t = self.lower_expr(target)?;
+                Ok(PirExpr::QuantumOp {
+                    op: "measure".to_string(),
+                    args: vec![],
+                    qubits: vec![t],
+                })
+            }
+            QuantumOp::Phase(angle, target) => {
+                let t = self.lower_expr(target)?;
+                let a = self.lower_expr(angle)?;
+                Ok(PirExpr::QuantumOp {
+                    op: "phase".to_string(),
+                    args: vec![a],
+                    qubits: vec![t],
+                })
+            }
+            QuantumOp::Entangle(args) => {
+                let qubits = args
+                    .iter()
+                    .map(|a| self.lower_expr(a))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(PirExpr::QuantumOp {
+                    op: "entangle".to_string(),
+                    args: vec![],
+                    qubits,
+                })
+            }
+            QuantumOp::Hamiltonian(_, _) => {
+                Err(LoweringError::Unsupported("Hamiltonian not yet supported".to_string()))
+            }
+        }
     }
 
     fn lower_binop(&self, op: crate::ast::expr::BinOp) -> crate::ir::BinaryOp {
@@ -462,5 +535,53 @@ impl LoweringContext {
         };
 
         Ok(ScheduleTree::new(root, self.param_names.clone()))
+    }
+
+    /// Extract all variable names bound by a pattern
+    fn extract_pattern_names(&self, pattern: &crate::ast::Pattern) -> Vec<String> {
+        match &pattern.kind {
+            crate::ast::PatternKind::Ident(ident) => vec![ident.name.clone()],
+            crate::ast::PatternKind::Tuple(patterns) => {
+                let mut names = Vec::new();
+                for p in patterns {
+                    names.extend(self.extract_pattern_names(p));
+                }
+                names
+            }
+            crate::ast::PatternKind::Wildcard => vec![],
+            crate::ast::PatternKind::Struct(_, fields) => {
+                let mut names = Vec::new();
+                for f in fields {
+                    names.extend(self.extract_pattern_names(&f.pattern));
+                }
+                names
+            }
+            crate::ast::PatternKind::Variant(_, _, patterns) => {
+                let mut names = Vec::new();
+                for p in patterns {
+                    names.extend(self.extract_pattern_names(p));
+                }
+                names
+            }
+            crate::ast::PatternKind::Array(patterns) => {
+                let mut names = Vec::new();
+                for p in patterns {
+                    names.extend(self.extract_pattern_names(p));
+                }
+                names
+            }
+            crate::ast::PatternKind::Or(a, b) => {
+                let mut names = self.extract_pattern_names(a);
+                names.extend(self.extract_pattern_names(b));
+                names
+            }
+            crate::ast::PatternKind::Ref(p)
+            | crate::ast::PatternKind::InOut(p)
+            | crate::ast::PatternKind::Consume(p) => self.extract_pattern_names(p),
+            crate::ast::PatternKind::Guard(p, _) => self.extract_pattern_names(p),
+            crate::ast::PatternKind::Literal(_) => vec![],
+            crate::ast::PatternKind::Error => vec![],
+            crate::ast::PatternKind::Range(_, _) => vec![],
+        }
     }
 }

@@ -87,6 +87,22 @@ fn unify_kinds(
             Ok(TypeKind::Named(name1.clone(), unified_args))
         }
 
+        // Tuple types
+        (TypeKind::Tuple(elems1), TypeKind::Tuple(elems2)) => {
+            if elems1.len() != elems2.len() {
+                return Err(TypeError::TypeMismatch {
+                    expected: Type::new(k1.clone(), Quantity::Many, Span::default()),
+                    found: Type::new(k2.clone(), Quantity::Many, Span::default()),
+                    span: Span::default(),
+                });
+            }
+            let mut unified_elems = Vec::new();
+            for (e1, e2) in elems1.iter().zip(elems2) {
+                unified_elems.push(unify_types(checker, e1, e2)?);
+            }
+            Ok(TypeKind::Tuple(unified_elems))
+        }
+
         // Function types
         (TypeKind::Function(params1, ret1), TypeKind::Function(params2, ret2)) => {
             if params1.len() != params2.len() {

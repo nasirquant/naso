@@ -6,6 +6,7 @@
 
 # Rust outputs
 target/
+target-install/
 **/*.rs.bk
 *.rlib
 *.rmeta
@@ -42,3 +43,5 @@ Thumbs.db
 # Debug & Error logs
 errors*.txt
 *.log
+test_braces.rs
+test_program.naso
