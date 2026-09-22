@@ -5,7 +5,8 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use naso_compiler::ast::{Mutability, Span};
+use naso_compiler::ast::Span;
+use naso_compiler::lexer::Lexer;
 use naso_compiler::lowering::{LoweringError, lower_program};
 use naso_compiler::parser::parse_program;
 use naso_compiler::typecheck::{CheckResult, TypeError, check_program};
