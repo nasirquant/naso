@@ -2,8 +2,9 @@
 # Build command and output directory for Vite
 
 [build]
-  command = "rustup default stable && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && ~/.cargo/bin/wasm-pack build /opt/build/repo/crates/nasoc-wasm --target web --out-dir /opt/build/repo/play/pkg --no-opt && cd /opt/build/repo/play && npm run build"
-  publish = "play/dist"
+  base    = "play"
+  command = "rustup default stable && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && ~/.cargo/bin/wasm-pack build ../crates/nasoc-wasm --target web --out-dir pkg --no-opt && npm run build"
+  publish = "dist"
 
 # Redirects for SPA routing
 [[redirects]]
