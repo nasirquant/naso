@@ -175,6 +175,7 @@ fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeEr
     Ok(())
 }
 
+#[allow(dead_code)]
 fn extract_pattern_names(pattern: &Pattern) -> Vec<Ident> {
     match &pattern.kind {
         PatternKind::Ident(ident) => vec![ident.clone()],
