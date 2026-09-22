@@ -2,7 +2,8 @@
 # Build command and output directory for Vite
 
 [build]
-  command = "npm run build"
+  base    = "play"
+  command = "curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && ~/.cargo/bin/wasm-pack build ../crates/nasoc-wasm --target web --out-dir pkg --no-opt && npm run build"
   publish = "dist"
 
 # Redirects for SPA routing
