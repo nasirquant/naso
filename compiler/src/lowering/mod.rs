@@ -162,7 +162,7 @@ impl LoweringContext {
         // Track quantity for all bindings in the pattern
         let qty = let_stmt.quantity;
         let mutability = let_stmt.mutability;
-        
+
         // Extract variable names from pattern
         let names = self.extract_pattern_names(&let_stmt.pattern);
         for name in &names {
@@ -187,7 +187,8 @@ impl LoweringContext {
 
         self.statements.push(stmt);
         // Add to schedule
-        self.schedule_nodes.push(ScheduleNode::domain(stmt_id, domain));
+        self.schedule_nodes
+            .push(ScheduleNode::domain(stmt_id, domain));
         Ok(())
     }
 
@@ -219,7 +220,8 @@ impl LoweringContext {
 
         self.statements.push(stmt);
         // Add to schedule
-        self.schedule_nodes.push(ScheduleNode::domain(stmt_id, domain));
+        self.schedule_nodes
+            .push(ScheduleNode::domain(stmt_id, domain));
         Ok(())
     }
 
@@ -269,7 +271,8 @@ impl LoweringContext {
 
         self.statements.push(stmt);
         // Add to schedule
-        self.schedule_nodes.push(ScheduleNode::domain(stmt_id, domain));
+        self.schedule_nodes
+            .push(ScheduleNode::domain(stmt_id, domain));
         Ok(())
     }
 
@@ -463,9 +466,9 @@ impl LoweringContext {
                     qubits,
                 })
             }
-            QuantumOp::Hamiltonian(_, _) => {
-                Err(LoweringError::Unsupported("Hamiltonian not yet supported".to_string()))
-            }
+            QuantumOp::Hamiltonian(_, _) => Err(LoweringError::Unsupported(
+                "Hamiltonian not yet supported".to_string(),
+            )),
         }
     }
 

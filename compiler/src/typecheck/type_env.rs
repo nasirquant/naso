@@ -327,7 +327,12 @@ impl TypeEnv {
             func.quantity,
             func.span,
         );
-        self.bind_var(func.name.clone(), func_ty, func.quantity, Mutability::Immutable);
+        self.bind_var(
+            func.name.clone(),
+            func_ty,
+            func.quantity,
+            Mutability::Immutable,
+        );
     }
 
     /// Lookup a function signature

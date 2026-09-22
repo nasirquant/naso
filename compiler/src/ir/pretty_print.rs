@@ -147,8 +147,15 @@ fn pir_expr_to_string(expr: &PirExpr, _indent: usize) -> String {
             format!(
                 "quantum {}({}, qubits={})",
                 op,
-                args.iter().map(|a| pir_expr_to_string(a, 0)).collect::<Vec<_>>().join(", "),
-                qubits.iter().map(|q| pir_expr_to_string(q, 0)).collect::<Vec<_>>().join(", ")
+                args.iter()
+                    .map(|a| pir_expr_to_string(a, 0))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                qubits
+                    .iter()
+                    .map(|q| pir_expr_to_string(q, 0))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )
         }
     }

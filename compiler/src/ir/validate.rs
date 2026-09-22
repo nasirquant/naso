@@ -163,7 +163,11 @@ fn expr_contains_var(expr: &PirExpr, var: &str) -> bool {
         PirExpr::Reversible { body, inverse } => {
             expr_contains_var(body, var) || expr_contains_var(inverse, var)
         }
-        PirExpr::QuantumOp { op: _, args, qubits } => {
+        PirExpr::QuantumOp {
+            op: _,
+            args,
+            qubits,
+        } => {
             args.iter().any(|a| expr_contains_var(a, var))
                 || qubits.iter().any(|q| expr_contains_var(q, var))
         }
@@ -203,7 +207,11 @@ fn count_in_expr(expr: &PirExpr, var: &str) -> usize {
         PirExpr::Reversible { body, inverse } => {
             count_in_expr(body, var) + count_in_expr(inverse, var)
         }
-        PirExpr::QuantumOp { op: _, args, qubits } => {
+        PirExpr::QuantumOp {
+            op: _,
+            args,
+            qubits,
+        } => {
             args.iter().map(|a| count_in_expr(a, var)).sum::<usize>()
                 + qubits.iter().map(|q| count_in_expr(q, var)).sum::<usize>()
         }

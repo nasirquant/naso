@@ -191,7 +191,7 @@ impl<'a> Parser<'a> {
                     // Recovery: if we unexpectedly hit a '(', return a dummy identifier
                     // to allow parsing to continue and report more errors
                     "dummy_ident".to_string()
-                },
+                }
                 other => {
                     panic!("parse error: expected identifier, found `{other}` at token {start}")
                 }
@@ -229,56 +229,60 @@ impl<'a> Parser<'a> {
     // ===== Functions =====
 
     /// Parse a `fn` item.
-        pub fn parse_fn(&mut self) -> Function {
-            let start = self.pos;
-            self.expect(TK::Fn);
-        
-            // Check for reversible modifier
-            let is_reversible = self.eat(TK::Reversible);
-        
-            let quantity = self.parse_quantity().unwrap_or(Quantity::Many);
-            debug_log(&format!("parse_fn: after quantity, peek={:?}", self.peek()));
-            let name = self.parse_ident();
-            debug_log(&format!("parse_fn: name={}, peek={:?}", name.name, self.peek()));
-            let generics = if self.at(TK::LBracket) {
-                self.parse_generic_params()
-            } else {
-                Vec::new()
-            };
-            debug_log(&format!("parse_fn: after generics, peek={:?}", self.peek()));
-            self.expect(TK::LParen);
-            debug_log(&format!("parse_fn: after LParen, peek={:?}", self.peek()));
-            let params = if self.at(TK::RParen) {
-                Vec::new()
-            } else {
-                self.parse_params()
-            };
-            debug_log(&format!("parse_fn: after params, peek={:?}", self.peek()));
-            self.expect(TK::RParen);
-            debug_log(&format!("parse_fn: after RParen, peek={:?}", self.peek()));
-            let ret_ty = if self.at(TK::Arrow) {
-                self.bump();
-                Some(self.parse_type())
-            } else {
-                None
-            };
-            debug_log(&format!("parse_fn: after ret_ty, peek={:?}", self.peek()));
-            let body = self.parse_block();
-            debug_log(&format!("parse_fn: after body, peek={:?}", self.peek()));
-            let span = self.span_from(start);
+    pub fn parse_fn(&mut self) -> Function {
+        let start = self.pos;
+        self.expect(TK::Fn);
 
-            Function {
-                name,
-                generics,
-                params,
-                ret_ty,
-                body,
-                span,
-                attributes: Vec::new(),
-                is_reversible,
-                quantity,
-            }
+        // Check for reversible modifier
+        let is_reversible = self.eat(TK::Reversible);
+
+        let quantity = self.parse_quantity().unwrap_or(Quantity::Many);
+        debug_log(&format!("parse_fn: after quantity, peek={:?}", self.peek()));
+        let name = self.parse_ident();
+        debug_log(&format!(
+            "parse_fn: name={}, peek={:?}",
+            name.name,
+            self.peek()
+        ));
+        let generics = if self.at(TK::LBracket) {
+            self.parse_generic_params()
+        } else {
+            Vec::new()
+        };
+        debug_log(&format!("parse_fn: after generics, peek={:?}", self.peek()));
+        self.expect(TK::LParen);
+        debug_log(&format!("parse_fn: after LParen, peek={:?}", self.peek()));
+        let params = if self.at(TK::RParen) {
+            Vec::new()
+        } else {
+            self.parse_params()
+        };
+        debug_log(&format!("parse_fn: after params, peek={:?}", self.peek()));
+        self.expect(TK::RParen);
+        debug_log(&format!("parse_fn: after RParen, peek={:?}", self.peek()));
+        let ret_ty = if self.at(TK::Arrow) {
+            self.bump();
+            Some(self.parse_type())
+        } else {
+            None
+        };
+        debug_log(&format!("parse_fn: after ret_ty, peek={:?}", self.peek()));
+        let body = self.parse_block();
+        debug_log(&format!("parse_fn: after body, peek={:?}", self.peek()));
+        let span = self.span_from(start);
+
+        Function {
+            name,
+            generics,
+            params,
+            ret_ty,
+            body,
+            span,
+            attributes: Vec::new(),
+            is_reversible,
+            quantity,
         }
+    }
 
     /// Parse a list of comma-separated parameters, stopping at the closing
     /// `)` which the caller consumes.
@@ -725,39 +729,39 @@ mod tests {
             other => panic!("expected function, got {other:?}"),
         };
         // Check first let binding (immutable)
-                match &func.body.stmts[0].kind {
-                    StmtKind::Let(LetStmt {
-                        pattern,
-                        mutability,
-                        ..
-                    }) => {
-                        // pattern should be Ident("x")
-                        if let PatternKind::Ident(ident) = &pattern.kind {
-                            assert_eq!(ident.name, "x");
-                        } else {
-                            panic!("expected ident pattern");
-                        }
-                        assert_eq!(*mutability, Mutability::Immutable);
-                    }
-                    other => panic!("expected let stmt, got {other:?}"),
+        match &func.body.stmts[0].kind {
+            StmtKind::Let(LetStmt {
+                pattern,
+                mutability,
+                ..
+            }) => {
+                // pattern should be Ident("x")
+                if let PatternKind::Ident(ident) = &pattern.kind {
+                    assert_eq!(ident.name, "x");
+                } else {
+                    panic!("expected ident pattern");
                 }
-                // Check second let binding (mut)
-                match &func.body.stmts[1].kind {
-                    StmtKind::Let(LetStmt {
-                        pattern,
-                        mutability,
-                        ..
-                    }) => {
-                        // pattern should be Ident("sum")
-                        if let PatternKind::Ident(ident) = &pattern.kind {
-                            assert_eq!(ident.name, "sum");
-                        } else {
-                            panic!("expected ident pattern");
-                        }
-                        assert_eq!(*mutability, Mutability::Mut);
-                    }
-                    other => panic!("expected let mut stmt, got {other:?}"),
+                assert_eq!(*mutability, Mutability::Immutable);
+            }
+            other => panic!("expected let stmt, got {other:?}"),
+        }
+        // Check second let binding (mut)
+        match &func.body.stmts[1].kind {
+            StmtKind::Let(LetStmt {
+                pattern,
+                mutability,
+                ..
+            }) => {
+                // pattern should be Ident("sum")
+                if let PatternKind::Ident(ident) = &pattern.kind {
+                    assert_eq!(ident.name, "sum");
+                } else {
+                    panic!("expected ident pattern");
                 }
+                assert_eq!(*mutability, Mutability::Mut);
+            }
+            other => panic!("expected let mut stmt, got {other:?}"),
+        }
         // Check assignment statement
         match &func.body.stmts[2].kind {
             StmtKind::Expr(e) => match &e.kind {

@@ -25,51 +25,51 @@ impl<'a> Parser<'a> {
     /// statement without a closing `;` is the block's tail expression, unless
     /// it is a control-flow block construct that reads naturally without one).
     fn parse_stmt_list(&mut self) -> (Vec<Stmt>, Option<Expr>) {
-            let mut stmts = Vec::new();
-            let mut tail = None;
+        let mut stmts = Vec::new();
+        let mut tail = None;
 
-            loop {
-                debug_log(&format!("parse_stmt_list: peek={:?}", self.peek()));
-                match self.peek() {
-                    Some(TK::RBrace) | None => break,
-                    Some(TK::Semicolon) => {
+        loop {
+            debug_log(&format!("parse_stmt_list: peek={:?}", self.peek()));
+            match self.peek() {
+                Some(TK::RBrace) | None => break,
+                Some(TK::Semicolon) => {
+                    self.bump();
+                    let span = Span::default();
+                    stmts.push(Stmt::new(StmtKind::Empty, span, next_id()));
+                }
+                Some(TK::Let) => {
+                    debug_log(&format!("parse_stmt_list: dispatching to parse_let_stmt"));
+                    stmts.push(self.parse_let_stmt());
+                }
+                Some(TK::Reversible) => {
+                    let start = self.pos;
+                    let rb = self.parse_reversible_block();
+                    self.eat(TK::Semicolon);
+                    let span = self.span_from(start);
+                    stmts.push(Stmt::new(StmtKind::Reversible(rb), span, next_id()))
+                }
+                _ => {
+                    debug_log(&format!("parse_stmt_list: dispatching to parse_expr"));
+                    let expr = self.parse_expr();
+                    if self.at(TK::Semicolon) {
                         self.bump();
-                        let span = Span::default();
-                        stmts.push(Stmt::new(StmtKind::Empty, span, next_id()));
-                    }
-                    Some(TK::Let) => {
-                        debug_log(&format!("parse_stmt_list: dispatching to parse_let_stmt"));
-                        stmts.push(self.parse_let_stmt());
-                    }
-                    Some(TK::Reversible) => {
-                        let start = self.pos;
-                        let rb = self.parse_reversible_block();
-                        self.eat(TK::Semicolon);
-                        let span = self.span_from(start);
-                        stmts.push(Stmt::new(StmtKind::Reversible(rb), span, next_id()))
-                    }
-                    _ => {
-                        debug_log(&format!("parse_stmt_list: dispatching to parse_expr"));
-                        let expr = self.parse_expr();
-                        if self.at(TK::Semicolon) {
-                            self.bump();
-                            let span = expr.span;
-                            stmts.push(Stmt::new(StmtKind::Expr(expr), span, next_id()))
-                        } else if is_control_flow_stmt(&expr.kind) {
-                            // `if`/`match`/`for`/`while` are closed by `}` and
-                            // need no trailing semicolon.
-                            let span = expr.span;
-                            stmts.push(Stmt::new(StmtKind::Expr(expr), span, next_id()))
-                        } else {
-                            tail = Some(expr);
-                            break;
-                        }
+                        let span = expr.span;
+                        stmts.push(Stmt::new(StmtKind::Expr(expr), span, next_id()))
+                    } else if is_control_flow_stmt(&expr.kind) {
+                        // `if`/`match`/`for`/`while` are closed by `}` and
+                        // need no trailing semicolon.
+                        let span = expr.span;
+                        stmts.push(Stmt::new(StmtKind::Expr(expr), span, next_id()))
+                    } else {
+                        tail = Some(expr);
+                        break;
                     }
                 }
             }
-
-            (stmts, tail)
         }
+
+        (stmts, tail)
+    }
 
     // ===== Let statements =====
 
@@ -147,20 +147,33 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         debug_log(&format!("parse_let_stmt: start, peek={:?}", self.peek()));
         self.expect(TK::Let);
-        debug_log(&format!("parse_let_stmt: after Let, peek={:?}", self.peek()));
+        debug_log(&format!(
+            "parse_let_stmt: after Let, peek={:?}",
+            self.peek()
+        ));
 
         // Check for `let inout` or `let consume` keywords
         if self.eat(TK::InOut) {
             // let inout name = value;
             debug_log(&format!("parse_let_stmt: InOut, peek={:?}", self.peek()));
             let name = self.parse_ident();
-            debug_log(&format!("parse_let_stmt: name={}, peek={:?}", name.name, self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: name={}, peek={:?}",
+                name.name,
+                self.peek()
+            ));
             let ty = self.parse_optional_type_annotation();
             debug_log(&format!("parse_let_stmt: after ty, peek={:?}", self.peek()));
             self.expect(TK::Assign);
-            debug_log(&format!("parse_let_stmt: after Assign, peek={:?}", self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: after Assign, peek={:?}",
+                self.peek()
+            ));
             let value = self.parse_expr();
-            debug_log(&format!("parse_let_stmt: after expr, peek={:?}", self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: after expr, peek={:?}",
+                self.peek()
+            ));
             self.eat(TK::Semicolon);
             let span = self.span_from(start);
             Stmt::new(
@@ -177,7 +190,11 @@ impl<'a> Parser<'a> {
             // let consume name = value;
             debug_log(&format!("parse_let_stmt: Consume, peek={:?}", self.peek()));
             let name = self.parse_ident();
-            debug_log(&format!("parse_let_stmt: name={}, peek={:?}", name.name, self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: name={}, peek={:?}",
+                name.name,
+                self.peek()
+            ));
             let ty = self.parse_optional_type_annotation();
             self.expect(TK::Assign);
             let value = self.parse_expr();
@@ -195,9 +212,16 @@ impl<'a> Parser<'a> {
             )
         } else {
             // let [qty] mut? pattern = value;
-            debug_log(&format!("parse_let_stmt: regular let, peek={:?}", self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: regular let, peek={:?}",
+                self.peek()
+            ));
             let quantity = self.parse_quantity().unwrap_or(Quantity::Many);
-            debug_log(&format!("parse_let_stmt: quantity={:?}, peek={:?}", quantity, self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: quantity={:?}, peek={:?}",
+                quantity,
+                self.peek()
+            ));
             let mutability = if self.eat(TK::Mut) {
                 Mutability::Mut
             } else if self.eat(TK::InOut) {
@@ -207,9 +231,17 @@ impl<'a> Parser<'a> {
             } else {
                 Mutability::Immutable
             };
-            debug_log(&format!("parse_let_stmt: mutability={:?}, peek={:?}", mutability, self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: mutability={:?}, peek={:?}",
+                mutability,
+                self.peek()
+            ));
             let mut pattern = self.parse_pattern();
-            debug_log(&format!("parse_let_stmt: pattern={:?}, peek={:?}", pattern, self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: pattern={:?}, peek={:?}",
+                pattern,
+                self.peek()
+            ));
             // Apply the binding's quantity to the pattern (and sub-patterns for tuples)
             Self::apply_quantity_to_pattern(&mut pattern, quantity);
             let mut ty = self.parse_optional_type_annotation();
@@ -219,9 +251,15 @@ impl<'a> Parser<'a> {
             }
             debug_log(&format!("parse_let_stmt: after ty, peek={:?}", self.peek()));
             self.expect(TK::Assign);
-            debug_log(&format!("parse_let_stmt: after Assign, peek={:?}", self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: after Assign, peek={:?}",
+                self.peek()
+            ));
             let value = self.parse_expr();
-            debug_log(&format!("parse_let_stmt: after expr, peek={:?}", self.peek()));
+            debug_log(&format!(
+                "parse_let_stmt: after expr, peek={:?}",
+                self.peek()
+            ));
             self.eat(TK::Semicolon);
             let span = self.span_from(start);
             Stmt::new(

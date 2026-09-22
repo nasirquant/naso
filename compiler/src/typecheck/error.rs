@@ -119,7 +119,11 @@ pub enum TypeError {
     QubitQuantityMismatch { found: Quantity, span: Span },
 
     #[error("tuple pattern arity mismatch: expected {tuple_len} elements, found {pattern_len}")]
-    PatternTupleArityMismatch { pattern_len: usize, tuple_len: usize, span: Span },
+    PatternTupleArityMismatch {
+        pattern_len: usize,
+        tuple_len: usize,
+        span: Span,
+    },
 
     #[error("measurement requires qubit with quantity 1 (consume)")]
     MeasureRequiresConsumeQubit { span: Span },

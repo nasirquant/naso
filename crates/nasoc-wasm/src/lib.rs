@@ -5,11 +5,11 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
+use naso_compiler::ast::{Mutability, Program, Quantity, Span};
 use naso_compiler::lexer::{Lexer, Token};
+use naso_compiler::lowering::{LoweringError, lower_program};
 use naso_compiler::parser::parse_program;
-use naso_compiler::typecheck::{check_program, CheckResult, TypeError};
-use naso_compiler::lowering::{lower_program, LoweringError};
-use naso_compiler::ast::{Program, Span, Quantity, Mutability};
+use naso_compiler::typecheck::{CheckResult, TypeError, check_program};
 
 #[cfg(feature = "console_error_panic_hook")]
 use console_error_panic_hook::set_once as set_panic_hook;

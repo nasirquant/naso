@@ -93,90 +93,90 @@ pub fn check_stmt(checker: &mut TypeChecker, stmt: &Stmt) -> Result<(), TypeErro
 }
 fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeError> {
     // Extract variable names from pattern
-        let pattern_names = extract_pattern_names(&let_stmt.pattern);
-    
-        // Infer the type of the initializer
-        let init_ty = infer_expr(checker, &let_stmt.value)?;
-    
-        // Handle tuple patterns by destructuring the tuple type
-        let mut bindings = Vec::new();
-        let mut pattern_qtys = Vec::new(); // Pattern quantity for each binding
-        match (&let_stmt.pattern.kind, &init_ty.kind) {
-            (PatternKind::Tuple(patterns), TypeKind::Tuple(element_types)) => {
-                            // Match each pattern element with corresponding tuple element type
-                            if patterns.len() != element_types.len() {
-                                return Err(TypeError::PatternTupleArityMismatch {
-                                    pattern_len: patterns.len(),
-                                    tuple_len: element_types.len(),
-                                    span: let_stmt.pattern.span,
-                                });
-                            }
-                            for (p, ty) in patterns.iter().zip(element_types.iter()) {
-                                let name = match &p.kind {
-                                    PatternKind::Ident(ident) => ident.clone(),
-                                    _ => panic!("Expected ident in tuple pattern"),
-                                };
-                                // Infer pattern quantity from expected type if let binding has no explicit quantity
-                                let pattern_qty = if let_stmt.quantity == Quantity::Many {
-                                    ty.quantity.clone()
-                                } else {
-                                    p.quantity.clone()
-                                };
-                                bindings.push((name.clone(), ty.clone()));
-                                pattern_qtys.push(pattern_qty);
-                            }
-                        }
-            (PatternKind::Ident(ident), _) => {
-                // Simple identifier binding
-                bindings.push((ident.clone(), init_ty.clone()));
-                pattern_qtys.push(let_stmt.pattern.quantity.clone());
-            }
-            _ => {
-                // For other patterns (wildcard, struct, etc.), bind the whole value
-                // Use a synthetic name for now
-                let synthetic_name = Ident::new("__pattern_binding".to_string(), let_stmt.pattern.span);
-                bindings.push((synthetic_name.clone(), init_ty.clone()));
-                pattern_qtys.push(let_stmt.pattern.quantity.clone());
-            }
-        };
-    
-        // Check if Qubit type requires quantity One (use pattern quantity for each binding)
-        for (i, (_, ty)) in bindings.iter().enumerate() {
-            if matches!(ty.kind, TypeKind::Qubit) && pattern_qtys[i] != Quantity::One {
-                return Err(TypeError::QubitQuantityMismatch {
-                    found: pattern_qtys[i].clone(),
+    let pattern_names = extract_pattern_names(&let_stmt.pattern);
+
+    // Infer the type of the initializer
+    let init_ty = infer_expr(checker, &let_stmt.value)?;
+
+    // Handle tuple patterns by destructuring the tuple type
+    let mut bindings = Vec::new();
+    let mut pattern_qtys = Vec::new(); // Pattern quantity for each binding
+    match (&let_stmt.pattern.kind, &init_ty.kind) {
+        (PatternKind::Tuple(patterns), TypeKind::Tuple(element_types)) => {
+            // Match each pattern element with corresponding tuple element type
+            if patterns.len() != element_types.len() {
+                return Err(TypeError::PatternTupleArityMismatch {
+                    pattern_len: patterns.len(),
+                    tuple_len: element_types.len(),
                     span: let_stmt.pattern.span,
                 });
             }
-        }
-    
-        // If explicit type annotation, check against it
-        if let Some(ann_ty) = &let_stmt.ty {
-            checker.check_expr(&let_stmt.value, ann_ty)?;
-        }
-    
-        // Bind each variable in the pattern (use pattern quantity for each binding)
-        for (i, (name, ty)) in bindings.iter().enumerate() {
-            checker.env.bind_var(
-                name.clone(),
-                ty.clone(),
-                pattern_qtys[i].clone(),
-                let_stmt.mutability,
-            );
-        }
-    
-        // Validate quantity/mutability combinations (use pattern quantity for each binding)
-            for (i, (name, _)) in bindings.iter().enumerate() {
-                validate_binding_quantity_mutability(
-                    name,
-                    pattern_qtys[i].clone(),
-                    let_stmt.mutability,
-                    let_stmt.span,
-                )?;
+            for (p, ty) in patterns.iter().zip(element_types.iter()) {
+                let name = match &p.kind {
+                    PatternKind::Ident(ident) => ident.clone(),
+                    _ => panic!("Expected ident in tuple pattern"),
+                };
+                // Infer pattern quantity from expected type if let binding has no explicit quantity
+                let pattern_qty = if let_stmt.quantity == Quantity::Many {
+                    ty.quantity.clone()
+                } else {
+                    p.quantity.clone()
+                };
+                bindings.push((name.clone(), ty.clone()));
+                pattern_qtys.push(pattern_qty);
             }
-    
-                Ok(())
-            }
+        }
+        (PatternKind::Ident(ident), _) => {
+            // Simple identifier binding
+            bindings.push((ident.clone(), init_ty.clone()));
+            pattern_qtys.push(let_stmt.pattern.quantity.clone());
+        }
+        _ => {
+            // For other patterns (wildcard, struct, etc.), bind the whole value
+            // Use a synthetic name for now
+            let synthetic_name = Ident::new("__pattern_binding".to_string(), let_stmt.pattern.span);
+            bindings.push((synthetic_name.clone(), init_ty.clone()));
+            pattern_qtys.push(let_stmt.pattern.quantity.clone());
+        }
+    };
+
+    // Check if Qubit type requires quantity One (use pattern quantity for each binding)
+    for (i, (_, ty)) in bindings.iter().enumerate() {
+        if matches!(ty.kind, TypeKind::Qubit) && pattern_qtys[i] != Quantity::One {
+            return Err(TypeError::QubitQuantityMismatch {
+                found: pattern_qtys[i].clone(),
+                span: let_stmt.pattern.span,
+            });
+        }
+    }
+
+    // If explicit type annotation, check against it
+    if let Some(ann_ty) = &let_stmt.ty {
+        checker.check_expr(&let_stmt.value, ann_ty)?;
+    }
+
+    // Bind each variable in the pattern (use pattern quantity for each binding)
+    for (i, (name, ty)) in bindings.iter().enumerate() {
+        checker.env.bind_var(
+            name.clone(),
+            ty.clone(),
+            pattern_qtys[i].clone(),
+            let_stmt.mutability,
+        );
+    }
+
+    // Validate quantity/mutability combinations (use pattern quantity for each binding)
+    for (i, (name, _)) in bindings.iter().enumerate() {
+        validate_binding_quantity_mutability(
+            name,
+            pattern_qtys[i].clone(),
+            let_stmt.mutability,
+            let_stmt.span,
+        )?;
+    }
+
+    Ok(())
+}
 
 fn extract_pattern_names(pattern: &Pattern) -> Vec<Ident> {
     match &pattern.kind {
@@ -218,7 +218,10 @@ fn extract_pattern_names(pattern: &Pattern) -> Vec<Ident> {
             extract_pattern_names(p)
         }
         PatternKind::Guard(p, _) => extract_pattern_names(p),
-        PatternKind::Wildcard | PatternKind::Literal(_) | PatternKind::Error | PatternKind::Range(_, _) => vec![],
+        PatternKind::Wildcard
+        | PatternKind::Literal(_)
+        | PatternKind::Error
+        | PatternKind::Range(_, _) => vec![],
     }
 }
 

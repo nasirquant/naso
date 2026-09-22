@@ -246,7 +246,11 @@ impl PirModule {
             PirExpr::Reversible { body, inverse } => {
                 self.expr_contains_var(body, var) || self.expr_contains_var(inverse, var)
             }
-            PirExpr::QuantumOp { op: _, args, qubits } => {
+            PirExpr::QuantumOp {
+                op: _,
+                args,
+                qubits,
+            } => {
                 args.iter().any(|a| self.expr_contains_var(a, var))
                     || qubits.iter().any(|q| self.expr_contains_var(q, var))
             }
@@ -292,9 +296,18 @@ impl PirModule {
             PirExpr::Reversible { body, inverse } => {
                 self.count_in_expr(body, var) + self.count_in_expr(inverse, var)
             }
-            PirExpr::QuantumOp { op: _, args, qubits } => {
-                args.iter().map(|a| self.count_in_expr(a, var)).sum::<usize>()
-                    + qubits.iter().map(|q| self.count_in_expr(q, var)).sum::<usize>()
+            PirExpr::QuantumOp {
+                op: _,
+                args,
+                qubits,
+            } => {
+                args.iter()
+                    .map(|a| self.count_in_expr(a, var))
+                    .sum::<usize>()
+                    + qubits
+                        .iter()
+                        .map(|q| self.count_in_expr(q, var))
+                        .sum::<usize>()
             }
             _ => 0,
         }
@@ -448,8 +461,15 @@ fn pir_expr_to_string(expr: &PirExpr, _indent: usize) -> String {
             format!(
                 "quantum {}({}, qubits={})",
                 op,
-                args.iter().map(|a| pir_expr_to_string(a, 0)).collect::<Vec<_>>().join(", "),
-                qubits.iter().map(|q| pir_expr_to_string(q, 0)).collect::<Vec<_>>().join(", ")
+                args.iter()
+                    .map(|a| pir_expr_to_string(a, 0))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                qubits
+                    .iter()
+                    .map(|q| pir_expr_to_string(q, 0))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )
         }
     }
