@@ -418,7 +418,7 @@ impl LoweringContext {
         use crate::ir::PirExpr;
 
         match qop {
-            QuantumOp::Alloc(name) => {
+            QuantumOp::Alloc(_name) => {
                 // qalloc() returns a new qubit with quantity One
                 Ok(PirExpr::QuantumOp {
                     op: "qalloc".to_string(),

@@ -11,7 +11,7 @@
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::collapsible_match)]
 
-use crate::ast::expr::{LetBinding, LetConsumeBinding, LetInOutBinding};
+use crate::ast::expr::{LetConsumeBinding, LetInOutBinding};
 use crate::ast::*;
 use crate::typecheck::constraints::{is_erasable, qty_subtype};
 use crate::typecheck::error::TypeError;
@@ -92,9 +92,6 @@ pub fn check_stmt(checker: &mut TypeChecker, stmt: &Stmt) -> Result<(), TypeErro
     }
 }
 fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeError> {
-    // Extract variable names from pattern
-    let pattern_names = extract_pattern_names(&let_stmt.pattern);
-
     // Infer the type of the initializer
     let init_ty = infer_expr(checker, &let_stmt.value)?;
 
@@ -118,9 +115,9 @@ fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeEr
                 };
                 // Infer pattern quantity from expected type if let binding has no explicit quantity
                 let pattern_qty = if let_stmt.quantity == Quantity::Many {
-                    ty.quantity.clone()
+                    ty.quantity
                 } else {
-                    p.quantity.clone()
+                    p.quantity
                 };
                 bindings.push((name.clone(), ty.clone()));
                 pattern_qtys.push(pattern_qty);
@@ -129,14 +126,14 @@ fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeEr
         (PatternKind::Ident(ident), _) => {
             // Simple identifier binding
             bindings.push((ident.clone(), init_ty.clone()));
-            pattern_qtys.push(let_stmt.pattern.quantity.clone());
+            pattern_qtys.push(let_stmt.pattern.quantity);
         }
         _ => {
             // For other patterns (wildcard, struct, etc.), bind the whole value
             // Use a synthetic name for now
             let synthetic_name = Ident::new("__pattern_binding".to_string(), let_stmt.pattern.span);
             bindings.push((synthetic_name.clone(), init_ty.clone()));
-            pattern_qtys.push(let_stmt.pattern.quantity.clone());
+            pattern_qtys.push(let_stmt.pattern.quantity);
         }
     };
 
@@ -144,7 +141,7 @@ fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeEr
     for (i, (_, ty)) in bindings.iter().enumerate() {
         if matches!(ty.kind, TypeKind::Qubit) && pattern_qtys[i] != Quantity::One {
             return Err(TypeError::QubitQuantityMismatch {
-                found: pattern_qtys[i].clone(),
+                found: pattern_qtys[i],
                 span: let_stmt.pattern.span,
             });
         }
@@ -160,7 +157,7 @@ fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeEr
         checker.env.bind_var(
             name.clone(),
             ty.clone(),
-            pattern_qtys[i].clone(),
+            pattern_qtys[i],
             let_stmt.mutability,
         );
     }
@@ -169,7 +166,7 @@ fn check_let(checker: &mut TypeChecker, let_stmt: &LetStmt) -> Result<(), TypeEr
     for (i, (name, _)) in bindings.iter().enumerate() {
         validate_binding_quantity_mutability(
             name,
-            pattern_qtys[i].clone(),
+            pattern_qtys[i],
             let_stmt.mutability,
             let_stmt.span,
         )?;

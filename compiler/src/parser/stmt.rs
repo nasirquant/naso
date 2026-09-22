@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
                     stmts.push(Stmt::new(StmtKind::Empty, span, next_id()));
                 }
                 Some(TK::Let) => {
-                    debug_log(&format!("parse_stmt_list: dispatching to parse_let_stmt"));
+                    debug_log("parse_stmt_list: dispatching to parse_let_stmt");
                     stmts.push(self.parse_let_stmt());
                 }
                 Some(TK::Reversible) => {
@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
                     stmts.push(Stmt::new(StmtKind::Reversible(rb), span, next_id()))
                 }
                 _ => {
-                    debug_log(&format!("parse_stmt_list: dispatching to parse_expr"));
+                    debug_log("parse_stmt_list: dispatching to parse_expr");
                     let expr = self.parse_expr();
                     if self.at(TK::Semicolon) {
                         self.bump();
