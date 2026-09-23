@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
-import topLevelAwait from 'vite-plugin-top-level-await';
 import path from 'path';
 
 // Custom plugin to rewrite wasm-pack output
@@ -38,7 +37,6 @@ function wasmPackRewrite() {
 export default defineConfig({
   plugins: [
     wasm(),
-    topLevelAwait(),
     wasmPackRewrite(),
   ],
   resolve: {
