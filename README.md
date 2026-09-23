@@ -8,7 +8,6 @@
   <a href="https://github.com/naso-lang/naso/actions/workflows/verify.yml"><img src="https://github.com/naso-lang/naso/actions/workflows/verify.yml/badge.svg" alt="CI Status"></a>
   <a href="https://github.com/naso-lang/naso/releases"><img src="https://img.shields.io/github/v/release/naso-lang/naso" alt="Release"></a>
   <a href="https://github.com/naso-lang/naso/blob/main/LICENSE"><img src="https://img.shields.io/github/license/naso-lang/naso" alt="License"></a>
-  <a href="https://discord.gg/naso-lang"><img src="https://img.shields.io/discord/123456789?label=Discord&logo=discord" alt="Discord"></a>
 </p>
 
 ---
@@ -313,11 +312,11 @@ Dual-licensed under **MIT OR Apache-2.0**.
 
 ## Resources
 
-- **Documentation**: https://naso-lang.github.io/naso/
+- **Documentation**: https://nasolang.org/
 - **Type Rules**: [`TYPE_RULES.md`](TYPE_RULES.md)
 - **Verification Guide**: [`VERIFICATION.md`](VERIFICATION.md)
 - **Issue Tracker**: https://github.com/naso-lang/naso/issues
-- **Discord**: https://discord.gg/naso-lang
+- **License**: [`LICENSE.md`](LICENSE.md)
 
 ---
 
