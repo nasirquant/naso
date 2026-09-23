@@ -52,7 +52,7 @@ params:
           type: search
         weight: 6
       - name: GitHub
-        url: "https://github.com/nasirquant/naso"
+        url: "https://github.com/naso-lang/naso"
         params:
           icon: github
         weight: 7
@@ -66,14 +66,14 @@ params:
       indexCode: true
 
   github:
-    repo: "https://github.com/nasirquant/naso"
+    repo: "https://github.com/naso-lang/naso"
     badge: true
 
   footer:
     enable: true
     displayPoweredBy: false
     displayCopyright: true
-    copyright: "© 2026 Naso Project. Released under Apache 2.0 / MIT License. • <a href='https://github.com/nasirquant/naso' target='_blank' rel='noopener'>GitHub</a>"
+    copyright: "© 2026 Naso Project. Released under Apache 2.0 / MIT License. • <a href='https://github.com/naso-lang/naso' target='_blank' rel='noopener'>GitHub</a>"
 
 menu:
   main:
@@ -97,7 +97,7 @@ menu:
         type: search
       weight: 100
     - name: GitHub
-      url: "https://github.com/nasirquant/naso"
+      url: "https://github.com/naso-lang/naso"
       params:
         icon: github
       weight: 101
