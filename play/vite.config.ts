@@ -35,6 +35,7 @@ function wasmPackRewrite() {
 }
 
 export default defineConfig({
+  base: '/',
   plugins: [
     wasm(),
     wasmPackRewrite(),

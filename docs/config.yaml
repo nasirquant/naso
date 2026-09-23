@@ -44,15 +44,18 @@ params:
       - name: "Verification"
         url: "/docs/verification/"
         weight: 4
+      - name: "Playground"
+        url: "https://play.nasolang.org/"
+        weight: 5
       - name: Search
         params:
           type: search
-        weight: 5
+        weight: 6
       - name: GitHub
         url: "https://github.com/nasirquant/naso"
         params:
           icon: github
-        weight: 6
+        weight: 7
 
   search:
     enable: true
@@ -86,6 +89,9 @@ menu:
     - name: Verification
       pageRef: /docs/verification
       weight: 4
+    - name: Playground
+      url: "https://play.nasolang.org/"
+      weight: 5
     - name: Search
       params:
         type: search

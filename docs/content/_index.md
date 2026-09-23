@@ -22,7 +22,7 @@ layout: hextra-home
 
 <div class="hx:mb-6 hx:grid hx:gap-4">
 {{< hextra/hero-button text="Read the Technical Whitepaper" link="/docs/overview/whitepaper/" >}}
-{{< hextra/hero-button text="Explore Language Spec" link="/docs/spec/" variant="secondary" >}}
+{{< hextra/hero-button text="Try Playground" link="https://play.nasolang.org/" variant="secondary" >}}
 </div>
 
 {{< callout type="info" emoji="🎯" >}}
