@@ -6,7 +6,38 @@
   command = "rustup default stable && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && ~/.cargo/bin/wasm-pack build ../crates/nasoc-wasm --target web --out-dir ../../play/pkg --no-opt && npm run build"
   publish = "dist"
 
-# Redirects for SPA routing
+# Static assets - DO NOT redirect (must come before SPA redirect)
+[[redirects]]
+  from = "/images/*"
+  to = "/images/:splat"
+  status = 200
+  force = false
+
+[[redirects]]
+  from = "/favicon*"
+  to = "/favicon:splat"
+  status = 200
+  force = false
+
+[[redirects]]
+  from = "/site.webmanifest"
+  to = "/site.webmanifest"
+  status = 200
+  force = false
+
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+  force = false
+
+[[redirects]]
+  from = "/pkg/*"
+  to = "/pkg/:splat"
+  status = 200
+  force = false
+
+# SPA redirect for client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
