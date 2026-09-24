@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/naso-lang/naso/actions/workflows/verify.yml"><img src="https://github.com/naso-lang/naso/actions/workflows/verify.yml/badge.svg" alt="CI Status"></a>
-  <a href="https://github.com/naso-lang/naso/releases"><img src="https://img.shields.io/github/v/release/naso-lang/naso" alt="Release"></a>
+  <a href="https://github.com/naso-lang/naso/releases/tag/v1.0.0-alpha.1"><img src="https://img.shields.io/github/v/release/naso-lang/naso?include_prereleases" alt="Release"></a>
   <a href="https://github.com/naso-lang/naso/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg" alt="License: MIT OR Apache-2.0"></a>
 </p>
 
